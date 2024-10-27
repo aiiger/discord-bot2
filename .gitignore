@@ -8,27 +8,21 @@ logs/
 # Environment variables
 .env
 
-# Dependency directories
-**/node_modules/
+# OS-specific files
+Thumbs.db
+Desktop.ini
+
+# IDE directories
+.vscode/
+.idea/
+
+# Other unwanted directories and files
+.DS_Store
+*.swp
 
 # Build directories
 dist/
 build/
 
-# IDE and editor directories
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-
-# OS-specific files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Other
-*.swp
-node_modules
-node_modules
+# Temporary files
+temp/
