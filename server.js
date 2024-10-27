@@ -18,6 +18,17 @@ app.listen(PORT, () => {
 });
 app.get('/callback', async (req, res) => {
     const authorizationCode = req.query.code;
+    app.get('/callback', (req, res) => {
+        console.log("Query parameters:", req.query);
+        const authorizationCode = req.query.code;
+      
+        if (!authorizationCode) {
+          return res.status(400).send("No authorization code found in the query parameters.");
+        }
+      
+        // Rest of your code to exchange `authorizationCode` for an access token...
+      });
+      
   
     if (!authorizationCode) {
       return res.status(400).send("No authorization code found in the query parameters.");
