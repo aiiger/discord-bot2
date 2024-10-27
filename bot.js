@@ -1,9 +1,5 @@
 require('dotenv').config();
-const { Client, Intents } = require('discord.js');
 const axios = require('axios');
-
-// Initialize Discord Bot
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
 
 // Faceit API Configuration
 const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
@@ -13,113 +9,82 @@ const FACEIT_BASE_URL = 'https://open.faceit.com/data/v4';
 const ELO_DIFFERENTIAL_THRESHOLD = 770;
 const REHOST_VOTE_THRESHOLD = 6;
 
-// Event: Bot Ready
-client.once('ready', () => {
-    console.log(`Logged in as ${client.user.tag}!`);
-});
-
-// Event: Message Create
-client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-
-    // Example Command: !avote
-    if (message.content.startsWith('!avote')) {
-        const args = message.content.split(' ').slice(1);
-        const matchId = args[0]; // Assume match ID is provided as an argument
-
-        if (!matchId) {
-            return message.reply('Please provide a valid match ID.');
-        }
-
-        try {
-            // Fetch Match Details from Faceit API
-            const matchResponse = await axios.get(`${FACEIT_BASE_URL}/matches/${matchId}`, {
-                headers: {
-                    'Authorization': `Bearer ${FACEIT_API_KEY}`
-                }
-            });
-
-            const eloDifferential = calculateEloDifferential(matchResponse.data); // Implement this function based on your logic
-
-            if (eloDifferential >= ELO_DIFFERENTIAL_THRESHOLD) {
-                // Initiate Avote for Cancellation
-                initiateAvote(matchId, message);
-            } else {
-                message.reply('Elo differential is not sufficient to initiate an avote.');
-            }
-
-        } catch (error) {
-            console.error(error);
-            message.reply('An error occurred while fetching match details.');
-        }
-    }
-
-    // Example Command: !rehost
-    if (message.content.startsWith('!rehost')) {
-        const args = message.content.split(' ').slice(1);
-        const matchId = args[0];
-
-        if (!matchId) {
-            return message.reply('Please provide a valid match ID.');
-        }
-
-        // Implement Rehost Logic
-        rehostMatch(matchId, message);
-    }
-});
-
 // Function to Calculate Elo Differential
-function calculateEloDifferential(matchData) {
+async function calculateEloDifferential(matchId) {
+  try {
+    const response = await axios.get(`${FACEIT_BASE_URL}/matches/${matchId}`, {
+      headers: {
+        'Authorization': `Bearer ${FACEIT_API_KEY}`
+      }
+    });
+
+    const matchData = response.data;
     // Implement your logic to calculate Elo differential based on matchData
-    // Return the calculated differential
+    // Example (pseudo-code):
+    // const eloDiff = Math.abs(matchData.player1.elo - matchData.player2.elo);
+    // return eloDiff;
+
+    return 800; // Placeholder value
+  } catch (error) {
+    console.error('Error fetching match details:', error);
+    return 0;
+  }
 }
 
 // Function to Initiate Avote
-function initiateAvote(matchId, message) {
-    // Implement your avote initiation logic
-    // For example, send a message to the channel asking players to vote
-    message.channel.send(`An avote has been initiated for match ID: ${matchId}. Do you want to cancel the match? React with 👍 to vote yes.`);
-    
-    // Add reaction collector to count votes
-    const filter = (reaction, user) => reaction.emoji.name === '👍' && !user.bot;
-    const collector = message.createReactionCollector({ filter, time: 60000 }); // 1 minute for voting
-
-    collector.on('collect', (reaction, user) => {
-        console.log(`Collected ${reaction.emoji.name} from ${user.tag}`);
-    });
-
-    collector.on('end', collected => {
-        if (collected.size >= REHOST_VOTE_THRESHOLD) {
-            // Rehost the match
-            rehostMatch(matchId, message);
-        } else {
-            message.channel.send('Avote failed. Not enough votes to cancel the match.');
-        }
-    });
+async function initiateAvote(matchId) {
+  // Implement your avote initiation logic with Faceit API
+  // This might involve sending a request to Faceit's API to initiate an avote
+  console.log(`Avote initiated for match ID: ${matchId}`);
 }
 
 // Function to Rehost Match
-async function rehostMatch(matchId, message) {
-    try {
-        // Implement your rehosting logic using Faceit API
-        const rehostResponse = await axios.post(`${FACEIT_BASE_URL}/matches/${matchId}/rehost`, {}, {
-            headers: {
-                'Authorization': `Bearer ${FACEIT_API_KEY}`,
-                'Content-Type': 'application/json'
-            }
-        });
+async function rehostMatch(matchId) {
+  try {
+    const response = await axios.post(`${FACEIT_BASE_URL}/matches/${matchId}/rehost`, {}, {
+      headers: {
+        'Authorization': `Bearer ${FACEIT_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
-        if (rehostResponse.status === 200) {
-            message.channel.send(`Match ID: ${matchId} has been successfully rehosted.`);
-        } else {
-            message.channel.send('Failed to rehost the match.');
-        }
-
-    } catch (error) {
-        console.error(error);
-        message.channel.send('An error occurred while trying to rehost the match.');
+    if (response.status === 200) {
+      console.log(`Match ID: ${matchId} has been successfully rehosted.`);
+    } else {
+      console.log('Failed to rehost the match.');
     }
+  } catch (error) {
+    console.error('Error rehosting match:', error);
+  }
 }
 
-// Login to Discord
-client.login(process.env.DISCORD_TOKEN);
+// Main Function to Handle Match Logic
+async function handleMatch(matchId) {
+  const eloDifferential = await calculateEloDifferential(matchId);
+
+  if (eloDifferential >= ELO_DIFFERENTIAL_THRESHOLD) {
+    await initiateAvote(matchId);
+
+    // Simulate voting (replace with actual voting logic)
+    const votes = await collectVotes(matchId);
+
+    if (votes >= REHOST_VOTE_THRESHOLD) {
+      await rehostMatch(matchId);
+    } else {
+      console.log('Avote failed. Not enough votes to cancel the match.');
+    }
+  } else {
+    console.log('Elo differential is not sufficient to initiate an avote.');
+  }
+}
+
+// Function to Collect Votes (Placeholder)
+async function collectVotes(matchId) {
+  // Implement actual vote collection logic, possibly through Faceit's API or other means
+  // For demonstration, return a placeholder value
+  return 6; // Placeholder value indicating enough votes
+}
+
+// Example Usage
+const matchId = 'example_match_id';
+handleMatch(matchId);
