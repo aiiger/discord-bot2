@@ -96,3 +96,4 @@ setInterval(checkActiveMatches, 2 * 60 * 1000); // Changed from 5 mins to 2 mins
 app.listen(PORT, () => {
     console.log(`Server is listening on port ${PORT}`);
 });
+g
