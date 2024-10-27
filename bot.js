@@ -1,113 +1,114 @@
-const crypto = require("crypto");
-const axios = require("axios");
-const express = require("express");
+require('dotenv').config();
+const express = require('express');
+const axios = require('axios');
 const app = express();
 
-const clientId = "07d7bf2a-4144-4658-ae0a-865c082a2267"; // Replace with your OAuth client ID
-const redirectUri = "https://meslx-13b51d23300b.herokuapp.com/callback"; // Replace with your redirect URI, e.g., "http://localhost:3000/callback"
-const hubId = "322ddc42-30b2-427c-a1eb-360be2c9b622"; // Replace with your FACEIT hub ID
+let accessToken = null;
+let activeMatchesCache = {};
 
-let accessToken;
-
-// Step 1: Generate Code Verifier and Code Challenge
-function generateCodeVerifier() {
-  return crypto.randomBytes(32).toString("hex");
-}
-
-function generateCodeChallenge(verifier) {
-  return crypto.createHash("sha256").update(verifier).digest("base64url");
-}
-
-const codeVerifier = generateCodeVerifier();
-const codeChallenge = generateCodeChallenge(codeVerifier);
-
-// Step 2: Construct Authorization URL
-const authorizationUrl = `https://accounts.faceit.com/auth?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
-
-// Step 3: Serve Authorization URL
-app.get("/", (req, res) => {
-  res.send(`<a href="${authorizationUrl}">Authorize with FACEIT</a>`);
+app.get('/', (req, res) => {
+  const authUrl = `https://accounts.faceit.com/oauth/authorize?response_type=code&client_id=${process.env.FACEIT_CLIENT_ID}&redirect_uri=${process.env.REDIRECT_URI}&scope=openid profile`;
+  res.send(`<a href="${authUrl}">Authorize with Faceit</a>`);
 });
 
-// Step 4: Handle the Callback and Exchange Code for Access Token
-app.get("/callback", async (req, res) => {
-  const code = req.query.code;
+app.get('/callback', async (req, res) => {
+  const authorizationCode = req.query.code;
 
-  if (!code) {
-    res.send("No authorization code found in the query parameters.");
-    return;
+  if (!authorizationCode) {
+    console.error("Authorization code not found in query parameters.");
+    return res.status(400).send("No authorization code found in the query parameters.");
   }
 
   try {
-    const tokenUrl = "https://accounts.faceit.com/token";
-    const params = new URLSearchParams();
-    params.append("grant_type", "authorization_code");
-    params.append("client_id", clientId);
-    params.append("code", code);
-    params.append("redirect_uri", redirectUri);
-    params.append("code_verifier", codeVerifier);
-
-    const response = await axios.post(tokenUrl, params, {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    const tokenResponse = await axios.post('https://api.faceit.com/auth/v1/oauth/token', {
+      grant_type: 'authorization_code',
+      code: authorizationCode,
+      redirect_uri: process.env.REDIRECT_URI,
+      client_id: process.env.FACEIT_CLIENT_ID,
+      client_secret: process.env.FACEIT_CLIENT_SECRET
     });
-    accessToken = response.data.access_token;
-    res.send("Access token retrieved successfully! You can now fetch match data.");
+
+    accessToken = tokenResponse.data.access_token;
+    console.log("Access Token:", accessToken);
+
+    res.send("Authorization successful. You can now use the Faceit API.");
   } catch (error) {
-    console.error("Error fetching access token:", error.response?.data || error.message);
-    res.send("Error fetching access token.");
+    console.error("Error exchanging code for token:", error.response ? error.response.data : error.message);
+    res.status(500).send("Failed to exchange authorization code for access token.");
   }
 });
 
-// Step 5: Fetch Match Info from the Hub
-app.get("/get-matches", async (req, res) => {
-  if (!accessToken) {
-    res.send("Access token is missing. Please authenticate first.");
-    return;
-  }
+async function getActiveMatches() {
+  if (!accessToken) throw new Error("No access token. Please authenticate first.");
 
-  try {
-    const url = `https://open.faceit.com/data/v4/hubs/${hubId}/matches`;
-    const response = await axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-    res.json(response.data);
-  } catch (error) {
-    console.error("Error fetching match info:", error.response?.data || error.message);
-    res.send("Error fetching match info.");
-  }
-});
-
-// Step 5: Fetch Match Info from the Hub
-app.get("/get-matches", async (req, res) => {
-  if (!accessToken) {
-    res.send("Access token is missing. Please authenticate first.");
-    return;
-  }
-  app.get('/login', (req, res) => {
-    const authorizationUrl = `https://accounts.faceit.com/oauth/authorize?response_type=code&client_id=${process.env.FACEIT_CLIENT_ID}&redirect_uri=${process.env.REDIRECT_URI}&scope=matches hubs`;
-    res.redirect(authorizationUrl);
+  const response = await axios.get(`https://open.faceit.com/data/v4/hubs/${process.env.FACEIT_HUB_ID}/matches`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
   });
-  
+  return response.data.items || [];
+}
 
-  try {
-    const url = `https://open.faceit.com/data/v4/hubs/${hubId}/matches`;
-    const response = await axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-    res.json(response.data);
-  } catch (error) {
-    console.error("Error fetching match info:", error.response?.data || error.message);
-    res.send("Error fetching match info.");
+async function checkEloDifferential(match) {
+  const teams = match.teams;
+  if (!teams || !teams.faction1 || !teams.faction2) return false;
+
+  const eloTeam1 = teams.faction1.players.reduce((sum, player) => sum + player.elo, 0) / teams.faction1.players.length;
+  const eloTeam2 = teams.faction2.players.reduce((sum, player) => sum + player.elo, 0) / teams.faction2.players.length;
+  const eloDifference = Math.abs(eloTeam1 - eloTeam2);
+
+  console.log(`Elo difference for match ${match.match_id}: ${eloDifference}`);
+
+  return eloDifference >= process.env.ELO_THRESHOLD;
+}
+
+let rehostVotes = {};
+
+app.post('/vote-rehost/:matchId', (req, res) => {
+  const matchId = req.params.matchId;
+  const userId = req.query.user_id;
+
+  if (!matchId || !userId) return res.status(400).send("Match ID and User ID required.");
+
+  if (!rehostVotes[matchId]) rehostVotes[matchId] = new Set();
+  rehostVotes[matchId].add(userId);
+
+  const voteCount = rehostVotes[matchId].size;
+  console.log(`Votes for rehost on match ${matchId}: ${voteCount}`);
+
+  if (voteCount >= process.env.REHOST_VOTE_COUNT) {
+    console.log(`Match ${matchId} will be rehosted as per vote.`);
+    delete rehostVotes[matchId];
+    return res.send(`Match ${matchId} will be rehosted.`);
   }
+
+  res.send(`Vote received. Current count: ${voteCount}`);
 });
 
-// Step 6: Start the server
+async function monitorMatches() {
+  try {
+    const matches = await getActiveMatches();
+
+    for (const match of matches) {
+      const matchId = match.match_id;
+
+      if (activeMatchesCache[matchId]) continue;
+      activeMatchesCache[matchId] = true;
+
+      const highEloDifference = await checkEloDifferential(match);
+      if (highEloDifference) {
+        console.log(`Match ${matchId} has a high Elo differential. Voting to cancel...`);
+        // Add your code here for canceling the match if necessary
+      }
+    }
+  } catch (error) {
+    console.error("Error in match monitoring:", error.response ? error.response.data : error.message);
+  }
+}
+
+setInterval(monitorMatches, 5 * 60 * 1000); // Check every 5 minutes
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-  console.log(`Go to http://localhost:${PORT} to initiate authentication.`);
+  console.log(`Server is running on port ${PORT}`);
 });
