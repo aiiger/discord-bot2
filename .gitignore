@@ -1,0 +1,34 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# Environment variables
+.env
+
+# Dependency directories
+**/node_modules/
+
+# Build directories
+dist/
+build/
+
+# IDE and editor directories
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS-specific files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Other
+*.swp
+node_modules
+node_modules
