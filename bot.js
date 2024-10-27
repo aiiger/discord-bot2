@@ -103,6 +103,6 @@ app.get("/get-matches", async (req, res) => {
 // Step 6: Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-  console.log(`Go to http://localhost:${PORT} to initiate authentication.`);
+  console.log(`Server is running on http://localhost:${3001}`);
+  console.log(`Go to http://localhost:${3001} to initiate authentication.`);
 });
