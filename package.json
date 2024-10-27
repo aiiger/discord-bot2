@@ -11,8 +11,10 @@
     "axiom": "^0.1.6",
     "axios": "^1.7.7",
     "dotenv": "^16.4.5",
+    "example-package": "^0.0.1",
     "express": "^4.21.1",
-    "node-cron": "^3.0.0"
+    "node-cron": "^3.0.0",
+    "optimist": "^0.5.2"
   },
   "engines": {
     "node": ">=16.0.0"
