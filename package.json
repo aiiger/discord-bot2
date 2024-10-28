@@ -1,19 +1,18 @@
 {
   "name": "your-app-name",
   "version": "1.0.0",
-  "type": "module",
-  "engines": {
-    "node": "18.x"
-  },
+  "description": "Your app description",
+  "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
-    "dependencies": {
-    "express": "^your-version",
-    "express-session": "^your-version",
-    "axios": "^your-version",
-    "crypto": "^your-version",
   },
   "dependencies": {
-    "your-dependency": "version"
+    "express": "^4.17.1",
+    "express-session": "^1.17.1",
+    "axios": "^0.21.1",
+    "crypto": "^1.0.1"
+  },
+  "engines": {
+    "node": "14.x"
   }
 }
