@@ -1,103 +1,82 @@
-// Import necessary libraries
 const express = require('express');
 const axios = require('axios');
-const querystring = require('querystring');
-
+const crypto = require('crypto');
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Global variables to store tokens
-let accessToken = null;
-let refreshToken = null;
-
-// OAuth2 configuration
+// Environment Variables
 const clientId = process.env.FACEIT_CLIENT_ID;
 const clientSecret = process.env.FACEIT_CLIENT_SECRET;
 const redirectUri = process.env.REDIRECT_URI || `https://meslx-13b51d23300b.herokuapp.com/callback`;
-const faceitAuthUrl = `https://accounts.faceit.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email`;
 
-// Route to trigger authentication
+// Step 1: Generate PKCE Code Verifier and Code Challenge
+function generateCodeVerifier() {
+  return crypto.randomBytes(32).toString('base64url');
+}
+
+function generateCodeChallenge(codeVerifier) {
+  return crypto.createHash('sha256').update(codeVerifier).digest('base64url');
+}
+
+// Generate the verifier and challenge
+const codeVerifier = generateCodeVerifier();
+const codeChallenge = generateCodeChallenge(codeVerifier);
+
+// Step 2: Redirect to Faceit OAuth2 Authorization URL
+const faceitAuthUrl = `https://accounts.faceit.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+
 app.get('/', (req, res) => {
-  if (!accessToken) {
-    return res.redirect(faceitAuthUrl);
-  }
-  res.send("Faceit Bot is running and authenticated.");
+  res.redirect(faceitAuthUrl);
 });
 
-// Callback route to handle Faceit’s OAuth2 response
+// Step 3: Handle OAuth2 Callback and Exchange Code for Access Token
 app.get('/callback', async (req, res) => {
-  const authorizationCode = req.query.code;
-
-  if (!authorizationCode) {
-    return res.send("No authorization code found in the query parameters.");
+  const code = req.query.code;
+  if (!code) {
+    return res.send("No authorization code found. Please try logging in again.");
   }
 
   try {
-    const tokenResponse = await axios.post('https://accounts.faceit.com/oauth/token', querystring.stringify({
+    const tokenResponse = await axios.post('https://accounts.faceit.com/oauth/token', {
       client_id: clientId,
       client_secret: clientSecret,
-      code: authorizationCode,
+      code: code,
+      grant_type: 'authorization_code',
       redirect_uri: redirectUri,
-      grant_type: 'authorization_code'
-    }), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      code_verifier: codeVerifier // Use the generated code_verifier here
     });
+    
+    const accessToken = tokenResponse.data.access_token;
+    console.log("Access Token:", accessToken);
 
-    accessToken = tokenResponse.data.access_token;
-    refreshToken = tokenResponse.data.refresh_token;
-
-    console.log("Successfully authenticated with Faceit.");
-    res.send("Successfully authenticated. You can now close this page.");
+    // Store the access token securely, e.g., in a session or database if needed
+    res.send("Authenticated successfully! Access token received.");
   } catch (error) {
-    console.error("Error exchanging code for token:", error.response ? error.response.data : error.message);
-    res.send("Failed to authenticate.");
+    console.error("Failed to fetch access token:", error.response?.data || error.message);
+    res.send("Failed to authenticate. Please try again.");
   }
 });
 
-// Function to check matches every 2 minutes
-const checkMatches = async () => {
+// Example of making an authenticated API call
+app.get('/api', async (req, res) => {
   if (!accessToken) {
-    console.log("No access token available. Please authenticate first.");
-    return;
+    return res.send("No access token available. Please authenticate first.");
   }
 
   try {
-    const response = await axios.get(`https://open.faceit.com/data/v4/hubs/{your_hub_id}/matches`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
+    const activeMatches = await axios.get('https://open.faceit.com/data/v4/hubs/{hub_id}/matches', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
     });
-
-    // Example: Add your match handling logic here
-    console.log("Fetched matches:", response.data);
-
+    res.json(activeMatches.data);
   } catch (error) {
-    console.error("Error fetching matches:", error.response ? error.response.data : error.message);
+    console.error("Failed to fetch data:", error.response?.data || error.message);
+    res.send("Error fetching data. Make sure the bot is authenticated.");
   }
-};
+});
 
-// Start checking matches every 2 minutes
-setInterval(checkMatches, 2 * 60 * 1000);
-app.use((req, res, next) => {
-    res.setHeader("Content-Security-Policy", "default-src 'self'; connect-src 'self' https://accounts.faceit.com https://*.faceit.com; script-src 'self' https://accounts.faceit.com https://*.faceit.com; style-src 'self' 'unsafe-inline' https://accounts.faceit.com https://*.faceit.com; img-src 'self' https://accounts.faceit.com https://*.faceit.com;");
-    next();
-  });
-  app.use((req, res, next) => {
-    res.setHeader(
-      "Content-Security-Policy",
-      "default-src 'self' https://*.faceit.com; connect-src 'self' https://*.faceit.com"
-    );
-    next();
-  });
-  app.get('/callback', (req, res) => {
-    const token = req.query.token; // Or however you retrieve the token
-    res.cookie('accessToken', token, {
-      httpOnly: true, 
-      sameSite: 'None',
-      secure: true
-    });
-    res.send('Authenticated!');
-  });
-  
-  
-app.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`);
+// Start the server
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server is listening on port ${port}`);
 });
