@@ -163,7 +163,7 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Step 2: Redirect to Faceit OAuth2 Authorization URL
+// Home page with authentication start
 app.get('/', (req, res) => {
   try {
     const codeVerifier = generateCodeVerifier();
@@ -180,7 +180,12 @@ app.get('/', (req, res) => {
 
     console.log("Redirecting to Faceit Auth URL:", faceitAuthUrl);
 
-    res.redirect(faceitAuthUrl);
+    // Render a welcome page with login button instead of immediate redirect
+    res.send(renderHTML('Welcome', `
+      <h1>Welcome to FACEIT Bot</h1>
+      <p>Click the button below to authenticate with FACEIT:</p>
+      <a href="${faceitAuthUrl}" class="button">Login with FACEIT</a>
+    `));
   } catch (error) {
     console.error('Error initiating OAuth flow:', error);
     res.status(500).send(renderHTML('Authentication Error', `
@@ -196,14 +201,16 @@ app.get('/', (req, res) => {
 app.get('/callback', async (req, res) => {
   console.log("Received query parameters:", req.query);
 
+  // If accessed directly without any parameters, redirect to home
+  if (Object.keys(req.query).length === 0) {
+    console.log("Callback accessed directly without parameters");
+    return res.redirect('/');
+  }
+
   // Check for direct access without authentication
   if (!req.session.codeVerifier || !req.session.oauthState) {
-    return res.status(400).send(renderHTML('Authentication Required', `
-      <h1>Authentication Required</h1>
-      <p>Please start the authentication process from the beginning.</p>
-      <p class="error">Session information is missing. This could happen if you accessed this page directly or if your session has expired.</p>
-      <a href="/" class="button">Start Authentication</a>
-    `));
+    console.log("No session data found for OAuth flow");
+    return res.redirect('/');
   }
 
   // Check for error response from OAuth provider
@@ -219,21 +226,13 @@ app.get('/callback', async (req, res) => {
   // Check for missing state parameter
   if (!req.query.state) {
     console.error('Missing state parameter in callback');
-    return res.status(400).send(renderHTML('Security Error', `
-      <h1>Security Error</h1>
-      <p class="error">Missing state parameter. This could be a security risk.</p>
-      <a href="/" class="button">Start Over</a>
-    `));
+    return res.redirect('/');
   }
 
   // Verify state parameter
   if (req.query.state !== req.session.oauthState) {
     console.error('State mismatch:', req.query.state, 'vs', req.session.oauthState);
-    return res.status(400).send(renderHTML('Security Error', `
-      <h1>Security Error</h1>
-      <p class="error">Invalid state parameter. This could be a security risk or your session may have expired.</p>
-      <a href="/" class="button">Start Over</a>
-    `));
+    return res.redirect('/');
   }
 
   const code = req.query.code;
@@ -241,11 +240,7 @@ app.get('/callback', async (req, res) => {
 
   if (!code) {
     console.log("No authorization code found.");
-    return res.status(400).send(renderHTML('Authentication Error', `
-      <h1>Authentication Error</h1>
-      <p class="error">No authorization code found. Please try logging in again.</p>
-      <a href="/" class="button">Return to Login</a>
-    `));
+    return res.redirect('/');
   }
 
   try {
