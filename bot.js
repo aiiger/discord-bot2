@@ -76,7 +76,11 @@ const checkMatches = async () => {
 
 // Start checking matches every 2 minutes
 setInterval(checkMatches, 2 * 60 * 1000);
-
+app.use((req, res, next) => {
+    res.setHeader("Content-Security-Policy", "default-src 'self'; connect-src 'self' https://accounts.faceit.com https://*.faceit.com; script-src 'self' https://accounts.faceit.com https://*.faceit.com; style-src 'self' 'unsafe-inline' https://accounts.faceit.com https://*.faceit.com; img-src 'self' https://accounts.faceit.com https://*.faceit.com;");
+    next();
+  });
+  
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
 });
