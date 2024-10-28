@@ -72,7 +72,7 @@ function renderHTML(title, content) {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>${title}</title>
+        <title>${title} - FACEIT Bot</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
@@ -93,21 +93,48 @@ function renderHTML(title, content) {
           }
           h1, h2 {
             color: #333;
+            margin-bottom: 20px;
+          }
+          p {
+            margin-bottom: 15px;
+            color: #666;
           }
           .button {
             display: inline-block;
-            padding: 10px 20px;
-            background-color: #007bff;
+            padding: 12px 24px;
+            background-color: #FF5500;
             color: white;
             text-decoration: none;
             border-radius: 5px;
-            margin-top: 10px;
+            margin-top: 15px;
+            transition: background-color 0.3s ease;
           }
           .button:hover {
-            background-color: #0056b3;
+            background-color: #E64D00;
           }
           .error {
             color: #dc3545;
+            padding: 10px;
+            background-color: #fff5f5;
+            border-radius: 4px;
+            margin: 10px 0;
+          }
+          .info {
+            color: #0066cc;
+            padding: 10px;
+            background-color: #f0f7ff;
+            border-radius: 4px;
+            margin: 10px 0;
+          }
+          .match {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+          }
+          .match h3 {
+            margin: 0 0 10px 0;
+            color: #333;
           }
         </style>
       </head>
@@ -148,14 +175,14 @@ app.get('/health', async (req, res) => {
         resolve();
       });
     });
-    res.send(renderHTML('Health Check', `
+    res.send(renderHTML('System Status', `
       <h1>System Status</h1>
-      <p>Bot is running and MongoDB connection is healthy</p>
+      <p class="info">Bot is running and MongoDB connection is healthy</p>
       <a href="/" class="button">Return Home</a>
     `));
   } catch (error) {
     console.error('Health check failed:', error);
-    res.status(500).send(renderHTML('Health Check Failed', `
+    res.status(500).send(renderHTML('System Status', `
       <h1>System Status</h1>
       <p class="error">Bot is running but MongoDB connection failed: ${error.message}</p>
       <a href="/" class="button">Return Home</a>
@@ -178,19 +205,21 @@ app.get('/', (req, res) => {
 
     const faceitAuthUrl = `https://accounts.faceit.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email&code_challenge=${codeChallenge}&code_challenge_method=S256&state=${state}`;
 
-    console.log("Redirecting to Faceit Auth URL:", faceitAuthUrl);
+    console.log("Generated FACEIT authentication URL");
 
-    // Render a welcome page with login button instead of immediate redirect
     res.send(renderHTML('Welcome', `
       <h1>Welcome to FACEIT Bot</h1>
-      <p>Click the button below to authenticate with FACEIT:</p>
+      <p>This application allows you to interact with FACEIT services. To get started, you'll need to authenticate with your FACEIT account.</p>
+      <div class="info">
+        <p>By clicking the login button, you'll be redirected to FACEIT's secure authentication page.</p>
+      </div>
       <a href="${faceitAuthUrl}" class="button">Login with FACEIT</a>
     `));
   } catch (error) {
-    console.error('Error initiating OAuth flow:', error);
-    res.status(500).send(renderHTML('Authentication Error', `
+    console.error('Error preparing authentication:', error);
+    res.status(500).send(renderHTML('Error', `
       <h1>Authentication Error</h1>
-      <p class="error">Failed to initiate authentication. Please try again.</p>
+      <p class="error">Failed to prepare authentication. Please try again.</p>
       <p class="error">Error: ${error.message}</p>
       <a href="/" class="button">Try Again</a>
     `));
@@ -199,17 +228,17 @@ app.get('/', (req, res) => {
 
 // Step 3: Handle OAuth2 Callback and Exchange Code for Access Token
 app.get('/callback', async (req, res) => {
-  console.log("Received query parameters:", req.query);
+  console.log("Received callback request");
 
   // If accessed directly without any parameters, redirect to home
   if (Object.keys(req.query).length === 0) {
-    console.log("Callback accessed directly without parameters");
+    console.log("Callback accessed directly - redirecting to home");
     return res.redirect('/');
   }
 
   // Check for direct access without authentication
   if (!req.session.codeVerifier || !req.session.oauthState) {
-    console.log("No session data found for OAuth flow");
+    console.log("No session data found - redirecting to home");
     return res.redirect('/');
   }
 
@@ -231,7 +260,7 @@ app.get('/callback', async (req, res) => {
 
   // Verify state parameter
   if (req.query.state !== req.session.oauthState) {
-    console.error('State mismatch:', req.query.state, 'vs', req.session.oauthState);
+    console.error('State mismatch - redirecting to home');
     return res.redirect('/');
   }
 
@@ -239,11 +268,12 @@ app.get('/callback', async (req, res) => {
   const codeVerifier = req.session.codeVerifier;
 
   if (!code) {
-    console.log("No authorization code found.");
+    console.log("No authorization code found");
     return res.redirect('/');
   }
 
   try {
+    console.log("Exchanging authorization code for access token");
     const tokenResponse = await axios.post('https://accounts.faceit.com/oauth/token', {
       client_id: clientId,
       client_secret: clientSecret,
@@ -254,7 +284,7 @@ app.get('/callback', async (req, res) => {
     });
 
     accessToken = tokenResponse.data.access_token;
-    console.log("Access Token received successfully");
+    console.log("Access token received successfully");
 
     // Store the access token in session
     req.session.accessToken = accessToken;
@@ -265,12 +295,14 @@ app.get('/callback', async (req, res) => {
 
     res.send(renderHTML('Authentication Successful', `
       <h1>Authentication Successful</h1>
-      <p>You have been successfully authenticated!</p>
-      <p>You can now use the API endpoints.</p>
+      <p>You have been successfully authenticated with FACEIT!</p>
+      <div class="info">
+        <p>You can now access the FACEIT API features.</p>
+      </div>
       <a href="/api" class="button">View Active Matches</a>
     `));
   } catch (error) {
-    console.error("Failed to fetch access token:", error.response?.data || error.message);
+    console.error("Token exchange failed:", error.response?.data || error.message);
     res.status(500).send(renderHTML('Authentication Failed', `
       <h1>Authentication Failed</h1>
       <p class="error">Failed to complete authentication. Please try again.</p>
@@ -297,6 +329,7 @@ app.get('/api', async (req, res) => {
   }
 
   try {
+    console.log("Fetching active matches");
     const activeMatches = await axios.get(`https://open.faceit.com/data/v4/hubs/${hubId}/matches`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -315,11 +348,14 @@ app.get('/api', async (req, res) => {
     res.send(renderHTML('Active Matches', `
       <h1>Active Matches</h1>
       ${matchesList}
+      <div class="info">
+        <p>This list shows all currently active matches in the hub.</p>
+      </div>
       <a href="/api" class="button">Refresh</a>
       <a href="/" class="button">Home</a>
     `));
   } catch (error) {
-    console.error("Failed to fetch data:", error.response?.data || error.message);
+    console.error("API request failed:", error.response?.data || error.message);
     if (error.response?.status === 401) {
       // Clear invalid token
       delete req.session.accessToken;
@@ -332,7 +368,7 @@ app.get('/api', async (req, res) => {
     }
     res.status(500).send(renderHTML('Error', `
       <h1>Error</h1>
-      <p class="error">Failed to fetch data. Please try again.</p>
+      <p class="error">Failed to fetch match data. Please try again.</p>
       <a href="/api" class="button">Retry</a>
       <a href="/" class="button">Home</a>
     `));
@@ -341,7 +377,7 @@ app.get('/api', async (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  console.error('Unhandled error:', err);
   res.status(500).send(renderHTML('Error', `
     <h1>Error</h1>
     <p class="error">Something went wrong! Please try again.</p>
