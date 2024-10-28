@@ -7,6 +7,11 @@
   },
   "scripts": {
     "start": "node bot.js"
+    "dependencies": {
+    "express": "^your-version",
+    "express-session": "^your-version",
+    "axios": "^your-version",
+    "crypto": "^your-version",
   },
   "dependencies": {
     "your-dependency": "version"
