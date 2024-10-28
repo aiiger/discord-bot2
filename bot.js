@@ -80,6 +80,23 @@ app.use((req, res, next) => {
     res.setHeader("Content-Security-Policy", "default-src 'self'; connect-src 'self' https://accounts.faceit.com https://*.faceit.com; script-src 'self' https://accounts.faceit.com https://*.faceit.com; style-src 'self' 'unsafe-inline' https://accounts.faceit.com https://*.faceit.com; img-src 'self' https://accounts.faceit.com https://*.faceit.com;");
     next();
   });
+  app.use((req, res, next) => {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self' https://*.faceit.com; connect-src 'self' https://*.faceit.com"
+    );
+    next();
+  });
+  app.get('/callback', (req, res) => {
+    const token = req.query.token; // Or however you retrieve the token
+    res.cookie('accessToken', token, {
+      httpOnly: true, 
+      sameSite: 'None',
+      secure: true
+    });
+    res.send('Authenticated!');
+  });
+  
   
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
