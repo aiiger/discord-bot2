@@ -1,23 +1,14 @@
 {
-  "name": "faceit-bot",
+  "name": "your-app-name",
   "version": "1.0.0",
-  "description": "A Faceit bot to manage matchroom lobbies.",
-  "main": "bot.js",
+  "type": "module",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "start": "node bot.js"
   },
   "dependencies": {
-    "axiom": "^0.1.6",
-    "axios": "^1.7.7",
-    "dotenv": "^16.4.5",
-    "example-package": "^0.0.1",
-    "express": "^4.21.1",
-    "node-cron": "^3.0.0",
-    "optimist": "^0.5.2"
-  },
-  "engines": {
-    "node": ">=16.0.0"
-  },
-  "author": "Your Name",
-  "license": "MIT"
+    "your-dependency": "version"
+  }
 }
