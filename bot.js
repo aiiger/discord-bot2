@@ -1,73 +1,82 @@
+// Import necessary libraries
 const express = require('express');
 const axios = require('axios');
+const querystring = require('querystring');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-let accessToken = null; // This should be globally accessible
+// Global variables to store tokens
+let accessToken = null;
+let refreshToken = null;
 
-// Home route
+// OAuth2 configuration
+const clientId = process.env.FACEIT_CLIENT_ID;
+const clientSecret = process.env.FACEIT_CLIENT_SECRET;
+const redirectUri = process.env.REDIRECT_URI || `https://meslx-13b51d23300b.herokuapp.com/callback`;
+const faceitAuthUrl = `https://accounts.faceit.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email`;
+
+// Route to trigger authentication
 app.get('/', (req, res) => {
-    res.send('Faceit Bot is running.');
+  if (!accessToken) {
+    return res.redirect(faceitAuthUrl);
+  }
+  res.send("Faceit Bot is running and authenticated.");
 });
 
-// Callback route to handle FACEIT OAuth2
+// Callback route to handle Faceit’s OAuth2 response
 app.get('/callback', async (req, res) => {
-    const authorizationCode = req.query.code;
-    if (!authorizationCode) {
-        res.status(400).send('No authorization code found in the query parameters.');
-        return;
-    }
+  const authorizationCode = req.query.code;
 
-    try {
-        // Request access token using the authorization code
-        const tokenResponse = await axios.post('https://api.faceit.com/oauth/token', {
-            grant_type: 'authorization_code',
-            code: authorizationCode,
-            redirect_uri: process.env.REDIRECT_URI,
-            client_id: process.env.FACEIT_CLIENT_ID,
-            client_secret: process.env.FACEIT_CLIENT_SECRET,
-            code_verifier: process.env.CODE_VERIFIER // Only if PKCE is being used
-        });
+  if (!authorizationCode) {
+    return res.send("No authorization code found in the query parameters.");
+  }
 
-        // Save access token
-        accessToken = tokenResponse.data.access_token;
-        console.log("Access Token Received:", accessToken);
+  try {
+    const tokenResponse = await axios.post('https://accounts.faceit.com/oauth/token', querystring.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      code: authorizationCode,
+      redirect_uri: redirectUri,
+      grant_type: 'authorization_code'
+    }), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
 
-        res.redirect('/'); // Redirect back to home after successful auth
-    } catch (error) {
-        console.error("Error fetching access token:", error);
-        res.status(500).send('Failed to fetch access token');
-    }
+    accessToken = tokenResponse.data.access_token;
+    refreshToken = tokenResponse.data.refresh_token;
+
+    console.log("Successfully authenticated with Faceit.");
+    res.send("Successfully authenticated. You can now close this page.");
+  } catch (error) {
+    console.error("Error exchanging code for token:", error.response ? error.response.data : error.message);
+    res.send("Failed to authenticate.");
+  }
 });
 
-// Function to check active matches
-async function checkActiveMatches() {
-    if (!accessToken) {
-        console.log("No access token available. Please authenticate first.");
-        return;
-    }
+// Function to check matches every 2 minutes
+const checkMatches = async () => {
+  if (!accessToken) {
+    console.log("No access token available. Please authenticate first.");
+    return;
+  }
 
-    try {
-        const response = await axios.get('https://open.faceit.com/data/v4/hubs/{hub_id}/matches', {
-            headers: {
-                Authorization: `Bearer ${accessToken}`
-            }
-        });
-        const activeMatches = response.data;
-        if (activeMatches.length === 0) {
-            console.log("No active matches found.");
-        } else {
-            console.log("Active matches:", activeMatches);
-        }
-    } catch (error) {
-        console.error("Error fetching active matches:", error);
-    }
-}
+  try {
+    const response = await axios.get(`https://open.faceit.com/data/v4/hubs/{your_hub_id}/matches`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
 
-// Schedule active match checks every 2 minutes
-setInterval(checkActiveMatches, 2 * 60 * 1000); // 2 minutes
+    // Example: Add your match handling logic here
+    console.log("Fetched matches:", response.data);
 
-// Start the server
+  } catch (error) {
+    console.error("Error fetching matches:", error.response ? error.response.data : error.message);
+  }
+};
+
+// Start checking matches every 2 minutes
+setInterval(checkMatches, 2 * 60 * 1000);
+
 app.listen(PORT, () => {
-    console.log(`Server is listening on port ${PORT}`);
+  console.log(`Server is listening on port ${PORT}`);
 });
