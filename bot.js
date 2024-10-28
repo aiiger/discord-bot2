@@ -334,9 +334,10 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Webhook endpoint for FACEIT chat messages
-app.post('/webhook/chat', async (req, res) => {
+// FACEIT webhook callback endpoint
+app.post('/callback', async (req, res) => {
     try {
+        console.log('Received webhook callback:', req.body);
         const { message, user_id, match_id } = req.body;
         
         if (!message || !user_id || !match_id) {
@@ -344,7 +345,39 @@ app.post('/webhook/chat', async (req, res) => {
             return res.status(400).json({ error: 'Invalid payload' });
         }
 
-        console.log('Received chat message:', {
+        console.log('Processing chat message:', {
+            match_id,
+            user_id,
+            message
+        });
+
+        // Process commands
+        const command = message.trim().toLowerCase();
+        if (command === '!rehost') {
+            await handleRehost(match_id, user_id);
+        } else if (command === '!cancel') {
+            await handleCancel(match_id, user_id);
+        }
+
+        res.status(200).json({ status: 'success' });
+    } catch (error) {
+        console.error('Error processing webhook:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Legacy webhook endpoint (keeping for backward compatibility)
+app.post('/webhook/chat', async (req, res) => {
+    try {
+        console.log('Received webhook on legacy endpoint:', req.body);
+        const { message, user_id, match_id } = req.body;
+        
+        if (!message || !user_id || !match_id) {
+            console.error('Invalid webhook payload:', req.body);
+            return res.status(400).json({ error: 'Invalid payload' });
+        }
+
+        console.log('Processing chat message:', {
             match_id,
             user_id,
             message
