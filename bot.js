@@ -73,17 +73,18 @@ const faceitChatApi = axios.create({
 async function sendMatchMessage(matchId, message) {
     try {
         console.log(`Sending message to match ${matchId}: ${message}`);
-        await faceitChatApi.post('/channels/send', {
+        const response = await faceitChatApi.post('/channels/send', {
             channel_id: `match-${matchId}-${FACEIT_HUB_ID}`,
             message: message
         });
-        console.log('Message sent successfully');
+        console.log('Message sent successfully:', response.data);
     } catch (error) {
         console.error('Error sending message:', {
             status: error.response?.status,
             data: error.response?.data,
             message: error.message
         });
+        throw error; // Re-throw to handle in calling function
     }
 }
 
@@ -173,6 +174,14 @@ async function calculateTeamElos(matchDetails) {
     }
 }
 
+// Check if user is a player in the match
+function isPlayerInMatch(matchDetails, userId) {
+    const teams = matchDetails.teams || {};
+    const faction1Players = teams.faction1?.roster?.map(player => player.player_id) || [];
+    const faction2Players = teams.faction2?.roster?.map(player => player.player_id) || [];
+    return faction1Players.includes(userId) || faction2Players.includes(userId);
+}
+
 // Handle rehost command
 async function handleRehost(matchId, userId) {
     const matchState = matchStates.get(matchId);
@@ -181,21 +190,32 @@ async function handleRehost(matchId, userId) {
         return;
     }
 
-    if (matchState.addRehostVote(userId)) {
-        const votesNeeded = REHOST_VOTE_COUNT - matchState.getRehostVoteCount();
-        await sendMatchMessage(matchId, `Rehost vote added. ${votesNeeded} more vote${votesNeeded === 1 ? '' : 's'} needed.`);
+    try {
+        const matchDetails = await getMatchDetails(matchId);
+        if (!isPlayerInMatch(matchDetails, userId)) {
+            await sendMatchMessage(matchId, "Only match players can vote to rehost.");
+            return;
+        }
 
-        if (matchState.getRehostVoteCount() >= REHOST_VOTE_COUNT) {
-            try {
-                // Call FACEIT API to rehost the match
-                await faceitDataApi.post(`/matches/${matchId}/rehost`);
-                await sendMatchMessage(matchId, "Match is being rehosted...");
-                matchState.clearVotes();
-            } catch (error) {
-                console.error('Error rehosting match:', error);
-                await sendMatchMessage(matchId, "Failed to rehost the match. Please try again.");
+        if (matchState.addRehostVote(userId)) {
+            const votesNeeded = REHOST_VOTE_COUNT - matchState.getRehostVoteCount();
+            await sendMatchMessage(matchId, `Rehost vote added. ${votesNeeded} more vote${votesNeeded === 1 ? '' : 's'} needed.`);
+
+            if (matchState.getRehostVoteCount() >= REHOST_VOTE_COUNT) {
+                try {
+                    // Call FACEIT API to rehost the match
+                    await faceitDataApi.post(`/matches/${matchId}/rehost`);
+                    await sendMatchMessage(matchId, "Match is being rehosted...");
+                    matchState.clearVotes();
+                } catch (error) {
+                    console.error('Error rehosting match:', error);
+                    await sendMatchMessage(matchId, "Failed to rehost the match. Please try again.");
+                }
             }
         }
+    } catch (error) {
+        console.error('Error handling rehost:', error);
+        await sendMatchMessage(matchId, "Error processing rehost vote. Please try again.");
     }
 }
 
@@ -207,21 +227,32 @@ async function handleCancel(matchId, userId) {
         return;
     }
 
-    if (matchState.addCancelVote(userId)) {
-        const votesNeeded = REHOST_VOTE_COUNT - matchState.getCancelVoteCount();
-        await sendMatchMessage(matchId, `Cancel vote added. ${votesNeeded} more vote${votesNeeded === 1 ? '' : 's'} needed.`);
+    try {
+        const matchDetails = await getMatchDetails(matchId);
+        if (!isPlayerInMatch(matchDetails, userId)) {
+            await sendMatchMessage(matchId, "Only match players can vote to cancel.");
+            return;
+        }
 
-        if (matchState.getCancelVoteCount() >= REHOST_VOTE_COUNT) {
-            try {
-                // Call FACEIT API to cancel the match
-                await faceitDataApi.post(`/matches/${matchId}/cancel`);
-                await sendMatchMessage(matchId, "Match is being cancelled...");
-                matchState.clearVotes();
-            } catch (error) {
-                console.error('Error cancelling match:', error);
-                await sendMatchMessage(matchId, "Failed to cancel the match. Please try again.");
+        if (matchState.addCancelVote(userId)) {
+            const votesNeeded = REHOST_VOTE_COUNT - matchState.getCancelVoteCount();
+            await sendMatchMessage(matchId, `Cancel vote added. ${votesNeeded} more vote${votesNeeded === 1 ? '' : 's'} needed.`);
+
+            if (matchState.getCancelVoteCount() >= REHOST_VOTE_COUNT) {
+                try {
+                    // Call FACEIT API to cancel the match
+                    await faceitDataApi.post(`/matches/${matchId}/cancel`);
+                    await sendMatchMessage(matchId, "Match is being cancelled...");
+                    matchState.clearVotes();
+                } catch (error) {
+                    console.error('Error cancelling match:', error);
+                    await sendMatchMessage(matchId, "Failed to cancel the match. Please try again.");
+                }
             }
         }
+    } catch (error) {
+        console.error('Error handling cancel:', error);
+        await sendMatchMessage(matchId, "Error processing cancel vote. Please try again.");
     }
 }
 
@@ -266,8 +297,8 @@ async function pollMatches() {
                             await sendMatchMessage(match.match_id, 
                                 "Welcome to the match! 🎮\n" +
                                 "Available commands:\n" +
-                                "!rehost - Vote to rehost the match\n" +
-                                "!cancel - Vote to cancel the match"
+                                "!rehost - Vote to rehost the match (match players only)\n" +
+                                "!cancel - Vote to cancel the match (match players only)"
                             );
                             matchState.welcomeSent = true;
                         }
