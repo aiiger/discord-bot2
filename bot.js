@@ -197,10 +197,11 @@ app.get('/callback', async (req, res) => {
   console.log("Received query parameters:", req.query);
 
   // Check for direct access without authentication
-  if (!req.session.codeVerifier) {
+  if (!req.session.codeVerifier || !req.session.oauthState) {
     return res.status(400).send(renderHTML('Authentication Required', `
       <h1>Authentication Required</h1>
       <p>Please start the authentication process from the beginning.</p>
+      <p class="error">Session information is missing. This could happen if you accessed this page directly or if your session has expired.</p>
       <a href="/" class="button">Start Authentication</a>
     `));
   }
@@ -215,12 +216,22 @@ app.get('/callback', async (req, res) => {
     `));
   }
 
+  // Check for missing state parameter
+  if (!req.query.state) {
+    console.error('Missing state parameter in callback');
+    return res.status(400).send(renderHTML('Security Error', `
+      <h1>Security Error</h1>
+      <p class="error">Missing state parameter. This could be a security risk.</p>
+      <a href="/" class="button">Start Over</a>
+    `));
+  }
+
   // Verify state parameter
   if (req.query.state !== req.session.oauthState) {
     console.error('State mismatch:', req.query.state, 'vs', req.session.oauthState);
     return res.status(400).send(renderHTML('Security Error', `
       <h1>Security Error</h1>
-      <p class="error">Invalid state parameter. Please try again.</p>
+      <p class="error">Invalid state parameter. This could be a security risk or your session may have expired.</p>
       <a href="/" class="button">Start Over</a>
     `));
   }
