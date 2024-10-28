@@ -10,6 +10,14 @@ dotenv.config();
 
 const app = express();
 
+// Force HTTPS in production
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && !req.secure && req.get('x-forwarded-proto') !== 'https') {
+    return res.redirect('https://' + req.get('host') + req.url);
+  }
+  next();
+});
+
 // MongoDB connection options
 const mongoConfig = {
   mongoUrl: process.env.MONGODB_URI,
@@ -33,9 +41,11 @@ app.use(session({
   saveUninitialized: false,
   store: MongoStore.create(mongoConfig),
   cookie: { 
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
+    secure: process.env.NODE_ENV === 'production', // Only send cookies over HTTPS in production
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax'
+  },
+  proxy: true // Trust the reverse proxy
 }));
 
 // Environment Variables
@@ -163,4 +173,5 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server is listening on port ${port}`);
   console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Configured' : 'Missing');
+  console.log('Environment:', process.env.NODE_ENV || 'development');
 });
