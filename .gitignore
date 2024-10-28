@@ -1,28 +1,5 @@
-# Node modules
 node_modules/
-
-# Logs
-logs/
-*.log
-
-# Environment variables
 .env
-
-# OS-specific files
-Thumbs.db
-Desktop.ini
-
-# IDE directories
-.vscode/
-.idea/
-
-# Other unwanted directories and files
+npm-debug.log
 .DS_Store
-*.swp
-
-# Build directories
-dist/
-build/
-
-# Temporary files
-temp/
+*.log

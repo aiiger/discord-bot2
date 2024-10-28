@@ -2,14 +2,21 @@ import express from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
 import session from 'express-session';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
 
 app.use(session({
-  secret: 'your-session-secret',
+  secret: process.env.SESSION_SECRET || 'your-session-secret',
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: false }
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
 }));
 
 // Environment Variables
@@ -33,6 +40,11 @@ function generateCodeChallenge(codeVerifier) {
 app.use((req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.send('Bot is running');
 });
 
 // Step 2: Redirect to Faceit OAuth2 Authorization URL
@@ -59,13 +71,13 @@ app.get('/callback', async (req, res) => {
 
   if (!code) {
     console.log("No authorization code found.");
-    res.send("No authorization code found. Please try logging in again.");
+    res.status(400).send("No authorization code found. Please try logging in again.");
     return;
   }
 
   if (!codeVerifier) {
     console.log("No code verifier found in session.");
-    res.send("Session expired. Please try logging in again.");
+    res.status(400).send("Session expired. Please try logging in again.");
     return;
   }
 
@@ -80,19 +92,19 @@ app.get('/callback', async (req, res) => {
     });
 
     accessToken = tokenResponse.data.access_token;
-    console.log("Access Token:", accessToken);
+    console.log("Access Token received successfully");
 
     res.send("Authenticated successfully! Access token received.");
   } catch (error) {
     console.error("Failed to fetch access token:", error.response?.data || error.message);
-    res.send(`Failed to authenticate. Error: ${JSON.stringify(error.response?.data || error.message)}`);
+    res.status(500).send(`Failed to authenticate. Error: ${JSON.stringify(error.response?.data || error.message)}`);
   }
 });
 
 // Example of making an authenticated API call
 app.get('/api', async (req, res) => {
   if (!accessToken) {
-    return res.send("No access token available. Please authenticate first.");
+    return res.status(401).send("No access token available. Please authenticate first.");
   }
 
   try {
@@ -104,8 +116,14 @@ app.get('/api', async (req, res) => {
     res.json(activeMatches.data);
   } catch (error) {
     console.error("Failed to fetch data:", error.response?.data || error.message);
-    res.send("Error fetching data. Make sure the bot is authenticated.");
+    res.status(500).send("Error fetching data. Make sure the bot is authenticated.");
   }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
 });
 
 // Start the server
