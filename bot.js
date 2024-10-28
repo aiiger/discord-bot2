@@ -1,14 +1,19 @@
-const express = require('express');
-const axios = require('axios');
-const crypto = require('crypto');
+import express from 'express';
+import axios from 'axios';
+import crypto from 'crypto';
+
 const app = express();
 
 // Environment Variables
 const clientId = process.env.FACEIT_CLIENT_ID;
 const clientSecret = process.env.FACEIT_CLIENT_SECRET;
 const redirectUri = process.env.REDIRECT_URI || `https://meslx-13b51d23300b.herokuapp.com/callback`;
+const hubId = process.env.FACEIT_HUB_ID;
 
-// Step 1: Generate PKCE Code Verifier and Code Challenge
+let codeVerifier; // Declare globally
+let accessToken;  // Declare globally
+
+// Helper functions
 function generateCodeVerifier() {
   return crypto.randomBytes(32).toString('base64url');
 }
@@ -17,22 +22,24 @@ function generateCodeChallenge(codeVerifier) {
   return crypto.createHash('sha256').update(codeVerifier).digest('base64url');
 }
 
-// Generate the verifier and challenge
-const codeVerifier = generateCodeVerifier();
-const codeChallenge = generateCodeChallenge(codeVerifier);
-
 // Step 2: Redirect to Faceit OAuth2 Authorization URL
-const faceitAuthUrl = `https://accounts.faceit.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email&code_challenge=${codeChallenge}&code_challenge_method=S256`;
-
 app.get('/', (req, res) => {
+  codeVerifier = generateCodeVerifier();
+  const codeChallenge = generateCodeChallenge(codeVerifier);
+
+  const faceitAuthUrl = `https://accounts.faceit.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+
   res.redirect(faceitAuthUrl);
 });
 
 // Step 3: Handle OAuth2 Callback and Exchange Code for Access Token
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
+
   if (!code) {
-    return res.send("No authorization code found. Please try logging in again.");
+    console.log("No authorization code found.");
+    res.send("No authorization code found. Please try logging in again.");
+    return;
   }
 
   try {
@@ -42,13 +49,12 @@ app.get('/callback', async (req, res) => {
       code: code,
       grant_type: 'authorization_code',
       redirect_uri: redirectUri,
-      code_verifier: codeVerifier // Use the generated code_verifier here
+      code_verifier: codeVerifier,
     });
-    
-    const accessToken = tokenResponse.data.access_token;
+
+    accessToken = tokenResponse.data.access_token;
     console.log("Access Token:", accessToken);
 
-    // Store the access token securely, e.g., in a session or database if needed
     res.send("Authenticated successfully! Access token received.");
   } catch (error) {
     console.error("Failed to fetch access token:", error.response?.data || error.message);
@@ -63,10 +69,10 @@ app.get('/api', async (req, res) => {
   }
 
   try {
-    const activeMatches = await axios.get('https://open.faceit.com/data/v4/hubs/{hub_id}/matches', {
+    const activeMatches = await axios.get(`https://open.faceit.com/data/v4/hubs/${hubId}/matches`, {
       headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
     res.json(activeMatches.data);
   } catch (error) {
