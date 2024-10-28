@@ -1,17 +1,24 @@
 import express from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
+import session from 'express-session';
 
 const app = express();
+
+app.use(session({
+  secret: 'your-session-secret',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false }
+}));
 
 // Environment Variables
 const clientId = process.env.FACEIT_CLIENT_ID;
 const clientSecret = process.env.FACEIT_CLIENT_SECRET;
-const redirectUri = process.env.REDIRECT_URI || `https://meslx-13b51d23300b.herokuapp.com/callback`;
+const redirectUri = process.env.REDIRECT_URI || 'https://meslx-13b51d23300b.herokuapp.com/callback';
 const hubId = process.env.FACEIT_HUB_ID;
 
-let codeVerifier; // Declare globally
-let accessToken;  // Declare globally
+let accessToken; // Declare globally
 
 // Helper functions
 function generateCodeVerifier() {
@@ -22,23 +29,43 @@ function generateCodeChallenge(codeVerifier) {
   return crypto.createHash('sha256').update(codeVerifier).digest('base64url');
 }
 
+// Middleware to disable caching
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
 // Step 2: Redirect to Faceit OAuth2 Authorization URL
 app.get('/', (req, res) => {
-  codeVerifier = generateCodeVerifier();
+  const codeVerifier = generateCodeVerifier();
   const codeChallenge = generateCodeChallenge(codeVerifier);
 
+  // Store codeVerifier in session
+  req.session.codeVerifier = codeVerifier;
+
   const faceitAuthUrl = `https://accounts.faceit.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+
+  console.log("Redirecting to Faceit Auth URL:", faceitAuthUrl);
 
   res.redirect(faceitAuthUrl);
 });
 
 // Step 3: Handle OAuth2 Callback and Exchange Code for Access Token
 app.get('/callback', async (req, res) => {
+  console.log("Received query parameters:", req.query);
+
   const code = req.query.code;
+  const codeVerifier = req.session.codeVerifier;
 
   if (!code) {
     console.log("No authorization code found.");
     res.send("No authorization code found. Please try logging in again.");
+    return;
+  }
+
+  if (!codeVerifier) {
+    console.log("No code verifier found in session.");
+    res.send("Session expired. Please try logging in again.");
     return;
   }
 
@@ -58,7 +85,7 @@ app.get('/callback', async (req, res) => {
     res.send("Authenticated successfully! Access token received.");
   } catch (error) {
     console.error("Failed to fetch access token:", error.response?.data || error.message);
-    res.send("Failed to authenticate. Please try again.");
+    res.send(`Failed to authenticate. Error: ${JSON.stringify(error.response?.data || error.message)}`);
   }
 });
 
