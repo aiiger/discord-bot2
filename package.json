@@ -1,7 +1,7 @@
 {
-  "name": "your-app-name",
+  "name": "faceit-match-bot",
   "version": "1.0.0",
-  "description": "Your app description",
+  "description": "FACEIT match management bot for rehosting and cancellation",
   "main": "bot.js",
   "type": "module",
   "scripts": {
@@ -9,14 +9,15 @@
     "dev": "nodemon bot.js"
   },
   "dependencies": {
-    "express": "^4.17.1",
-    "express-session": "^1.17.3",
-    "connect-mongo": "^5.1.0",
     "axios": "^1.6.0",
-    "dotenv": "^16.0.0"
+    "dotenv": "^16.0.0",
+    "express": "^4.17.1"
   },
   "engines": {
     "node": "16.x",
     "npm": "8.x"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
   }
 }
