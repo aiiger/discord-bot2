@@ -10,10 +10,11 @@ dotenv.config();
 
 const app = express();
 
-// Force HTTPS in production
+// Force HTTPS in production - must be first middleware
+app.enable('trust proxy');
 app.use((req, res, next) => {
-  if (process.env.NODE_ENV === 'production' && !req.secure && req.get('x-forwarded-proto') !== 'https') {
-    return res.redirect('https://' + req.get('host') + req.url);
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect(301, `https://${req.hostname}${req.originalUrl}`);
   }
   next();
 });
@@ -68,7 +69,13 @@ function generateCodeChallenge(codeVerifier) {
 // Middleware to disable caching
 app.use((req, res, next) => {
   res.set('Cache-Control', 'no-store');
+  res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
+});
+
+// Basic favicon response to prevent 404s
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
 });
 
 // Health check endpoint with MongoDB connection status
