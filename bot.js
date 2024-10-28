@@ -2,6 +2,7 @@ import express from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
 import session from 'express-session';
+import MongoStore from 'connect-mongo';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -9,10 +10,15 @@ dotenv.config();
 
 const app = express();
 
+// Session configuration with MongoStore
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-session-secret',
   resave: false,
   saveUninitialized: true,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/faceit-bot',
+    ttl: 24 * 60 * 60 // Session TTL (1 day)
+  }),
   cookie: { 
     secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000 // 24 hours

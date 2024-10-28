@@ -11,11 +11,12 @@
   "dependencies": {
     "express": "^4.17.1",
     "express-session": "^1.17.3",
+    "connect-mongo": "^5.1.0",
     "axios": "^1.6.0",
     "dotenv": "^16.0.0"
   },
   "engines": {
-    "node": "20.x",
-    "npm": "10.x"
+    "node": "16.x",
+    "npm": "8.x"
   }
 }
