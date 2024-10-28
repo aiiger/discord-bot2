@@ -66,6 +66,60 @@ function generateCodeChallenge(codeVerifier) {
   return crypto.createHash('sha256').update(codeVerifier).digest('base64url');
 }
 
+// HTML template function
+function renderHTML(title, content) {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>${title}</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+          }
+          .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          h1, h2 {
+            color: #333;
+          }
+          .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+          }
+          .button:hover {
+            background-color: #0056b3;
+          }
+          .error {
+            color: #dc3545;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          ${content}
+        </div>
+      </body>
+    </html>
+  `;
+}
+
 // Middleware to disable caching and add security headers
 app.use((req, res, next) => {
   res.set({
@@ -94,10 +148,18 @@ app.get('/health', async (req, res) => {
         resolve();
       });
     });
-    res.send('Bot is running and MongoDB connection is healthy');
+    res.send(renderHTML('Health Check', `
+      <h1>System Status</h1>
+      <p>Bot is running and MongoDB connection is healthy</p>
+      <a href="/" class="button">Return Home</a>
+    `));
   } catch (error) {
     console.error('Health check failed:', error);
-    res.status(500).send(`Bot is running but MongoDB connection failed: ${error.message}`);
+    res.status(500).send(renderHTML('Health Check Failed', `
+      <h1>System Status</h1>
+      <p class="error">Bot is running but MongoDB connection failed: ${error.message}</p>
+      <a href="/" class="button">Return Home</a>
+    `));
   }
 });
 
@@ -109,15 +171,24 @@ app.get('/', (req, res) => {
 
     // Store codeVerifier in session
     req.session.codeVerifier = codeVerifier;
+    
+    // Generate and store state parameter
+    const state = crypto.randomBytes(16).toString('hex');
+    req.session.oauthState = state;
 
-    const faceitAuthUrl = `https://accounts.faceit.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+    const faceitAuthUrl = `https://accounts.faceit.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email&code_challenge=${codeChallenge}&code_challenge_method=S256&state=${state}`;
 
     console.log("Redirecting to Faceit Auth URL:", faceitAuthUrl);
 
     res.redirect(faceitAuthUrl);
   } catch (error) {
     console.error('Error initiating OAuth flow:', error);
-    res.status(500).send('Failed to initiate authentication. Please try again.');
+    res.status(500).send(renderHTML('Authentication Error', `
+      <h1>Authentication Error</h1>
+      <p class="error">Failed to initiate authentication. Please try again.</p>
+      <p class="error">Error: ${error.message}</p>
+      <a href="/" class="button">Try Again</a>
+    `));
   }
 });
 
@@ -125,10 +196,33 @@ app.get('/', (req, res) => {
 app.get('/callback', async (req, res) => {
   console.log("Received query parameters:", req.query);
 
+  // Check for direct access without authentication
+  if (!req.session.codeVerifier) {
+    return res.status(400).send(renderHTML('Authentication Required', `
+      <h1>Authentication Required</h1>
+      <p>Please start the authentication process from the beginning.</p>
+      <a href="/" class="button">Start Authentication</a>
+    `));
+  }
+
   // Check for error response from OAuth provider
   if (req.query.error) {
     console.error('OAuth error:', req.query.error);
-    return res.status(400).send(`Authentication failed: ${req.query.error_description || req.query.error}`);
+    return res.status(400).send(renderHTML('Authentication Failed', `
+      <h1>Authentication Failed</h1>
+      <p class="error">${req.query.error_description || req.query.error}</p>
+      <a href="/" class="button">Try Again</a>
+    `));
+  }
+
+  // Verify state parameter
+  if (req.query.state !== req.session.oauthState) {
+    console.error('State mismatch:', req.query.state, 'vs', req.session.oauthState);
+    return res.status(400).send(renderHTML('Security Error', `
+      <h1>Security Error</h1>
+      <p class="error">Invalid state parameter. Please try again.</p>
+      <a href="/" class="button">Start Over</a>
+    `));
   }
 
   const code = req.query.code;
@@ -136,28 +230,11 @@ app.get('/callback', async (req, res) => {
 
   if (!code) {
     console.log("No authorization code found.");
-    return res.status(400).send(`
-      <html>
-        <body>
-          <h2>Authentication Error</h2>
-          <p>No authorization code found. Please try logging in again.</p>
-          <a href="/">Return to Login</a>
-        </body>
-      </html>
-    `);
-  }
-
-  if (!codeVerifier) {
-    console.log("No code verifier found in session.");
-    return res.status(400).send(`
-      <html>
-        <body>
-          <h2>Session Expired</h2>
-          <p>Your session has expired. Please try logging in again.</p>
-          <a href="/">Return to Login</a>
-        </body>
-      </html>
-    `);
+    return res.status(400).send(renderHTML('Authentication Error', `
+      <h1>Authentication Error</h1>
+      <p class="error">No authorization code found. Please try logging in again.</p>
+      <a href="/" class="button">Return to Login</a>
+    `));
   }
 
   try {
@@ -175,29 +252,25 @@ app.get('/callback', async (req, res) => {
 
     // Store the access token in session
     req.session.accessToken = accessToken;
+    
+    // Clear OAuth state and verifier
+    delete req.session.oauthState;
+    delete req.session.codeVerifier;
 
-    res.send(`
-      <html>
-        <body>
-          <h2>Authentication Successful</h2>
-          <p>You have been successfully authenticated!</p>
-          <p>You can now use the API endpoints.</p>
-          <a href="/api">View Active Matches</a>
-        </body>
-      </html>
-    `);
+    res.send(renderHTML('Authentication Successful', `
+      <h1>Authentication Successful</h1>
+      <p>You have been successfully authenticated!</p>
+      <p>You can now use the API endpoints.</p>
+      <a href="/api" class="button">View Active Matches</a>
+    `));
   } catch (error) {
     console.error("Failed to fetch access token:", error.response?.data || error.message);
-    res.status(500).send(`
-      <html>
-        <body>
-          <h2>Authentication Failed</h2>
-          <p>Failed to complete authentication. Please try again.</p>
-          <p>Error: ${error.response?.data?.error_description || error.message}</p>
-          <a href="/">Return to Login</a>
-        </body>
-      </html>
-    `);
+    res.status(500).send(renderHTML('Authentication Failed', `
+      <h1>Authentication Failed</h1>
+      <p class="error">Failed to complete authentication. Please try again.</p>
+      <p class="error">Error: ${error.response?.data?.error_description || error.message}</p>
+      <a href="/" class="button">Return to Login</a>
+    `));
   }
 });
 
@@ -210,15 +283,11 @@ app.get('/api', async (req, res) => {
   }
 
   if (!accessToken) {
-    return res.status(401).send(`
-      <html>
-        <body>
-          <h2>Authentication Required</h2>
-          <p>Please log in to access this feature.</p>
-          <a href="/">Login</a>
-        </body>
-      </html>
-    `);
+    return res.status(401).send(renderHTML('Authentication Required', `
+      <h1>Authentication Required</h1>
+      <p class="error">Please log in to access this feature.</p>
+      <a href="/" class="button">Login</a>
+    `));
   }
 
   try {
@@ -227,48 +296,52 @@ app.get('/api', async (req, res) => {
         Authorization: `Bearer ${accessToken}`,
       },
     });
-    res.json(activeMatches.data);
+
+    // Format the matches data for display
+    const matches = activeMatches.data;
+    const matchesList = Array.isArray(matches) ? matches.map(match => `
+      <div class="match">
+        <h3>Match ID: ${match.match_id}</h3>
+        <p>Status: ${match.status}</p>
+      </div>
+    `).join('') : '<p>No active matches found.</p>';
+
+    res.send(renderHTML('Active Matches', `
+      <h1>Active Matches</h1>
+      ${matchesList}
+      <a href="/api" class="button">Refresh</a>
+      <a href="/" class="button">Home</a>
+    `));
   } catch (error) {
     console.error("Failed to fetch data:", error.response?.data || error.message);
     if (error.response?.status === 401) {
       // Clear invalid token
       delete req.session.accessToken;
       accessToken = null;
-      return res.status(401).send(`
-        <html>
-          <body>
-            <h2>Session Expired</h2>
-            <p>Your session has expired. Please log in again.</p>
-            <a href="/">Login</a>
-          </body>
-        </html>
-      `);
+      return res.status(401).send(renderHTML('Session Expired', `
+        <h1>Session Expired</h1>
+        <p class="error">Your session has expired. Please log in again.</p>
+        <a href="/" class="button">Login</a>
+      `));
     }
-    res.status(500).send(`
-      <html>
-        <body>
-          <h2>Error</h2>
-          <p>Failed to fetch data. Please try again.</p>
-          <a href="/api">Retry</a>
-        </body>
-      </html>
-    `);
+    res.status(500).send(renderHTML('Error', `
+      <h1>Error</h1>
+      <p class="error">Failed to fetch data. Please try again.</p>
+      <a href="/api" class="button">Retry</a>
+      <a href="/" class="button">Home</a>
+    `));
   }
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(500).send(`
-    <html>
-      <body>
-        <h2>Error</h2>
-        <p>Something went wrong! Please try again.</p>
-        <p>Error: ${err.message}</p>
-        <a href="/">Return Home</a>
-      </body>
-    </html>
-  `);
+  res.status(500).send(renderHTML('Error', `
+    <h1>Error</h1>
+    <p class="error">Something went wrong! Please try again.</p>
+    <p class="error">Error: ${err.message}</p>
+    <a href="/" class="button">Return Home</a>
+  `));
 });
 
 // Start the server
