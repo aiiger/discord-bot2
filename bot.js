@@ -136,6 +136,11 @@ function renderHTML(title, content) {
             margin: 0 0 10px 0;
             color: #333;
           }
+          .button-container {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+          }
         </style>
       </head>
       <body>
@@ -192,6 +197,21 @@ app.get('/health', async (req, res) => {
 
 // Home page with authentication start
 app.get('/', (req, res) => {
+  // Check if user is already authenticated
+  if (req.session.accessToken) {
+    return res.send(renderHTML('Welcome Back', `
+      <h1>Welcome Back to FACEIT Bot</h1>
+      <p>You are currently authenticated.</p>
+      <div class="info">
+        <p>You can view active matches or start a new session.</p>
+      </div>
+      <div class="button-container">
+        <a href="/api" class="button">View Active Matches</a>
+        <a href="/logout" class="button">Start New Session</a>
+      </div>
+    `));
+  }
+
   try {
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = generateCodeChallenge(codeVerifier);
@@ -205,7 +225,7 @@ app.get('/', (req, res) => {
 
     const faceitAuthUrl = `https://accounts.faceit.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email&code_challenge=${codeChallenge}&code_challenge_method=S256&state=${state}`;
 
-    console.log("Generated FACEIT authentication URL");
+    console.log("Preparing welcome page for new user");
 
     res.send(renderHTML('Welcome', `
       <h1>Welcome to FACEIT Bot</h1>
@@ -224,6 +244,33 @@ app.get('/', (req, res) => {
       <a href="/" class="button">Try Again</a>
     `));
   }
+});
+
+// Logout endpoint
+app.get('/logout', (req, res) => {
+  // Clear session data
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Error destroying session:', err);
+      return res.status(500).send(renderHTML('Error', `
+        <h1>Error</h1>
+        <p class="error">Failed to log out. Please try again.</p>
+        <a href="/" class="button">Return Home</a>
+      `));
+    }
+    
+    // Reset global access token
+    accessToken = null;
+    
+    res.send(renderHTML('Logged Out', `
+      <h1>Successfully Logged Out</h1>
+      <p>Your session has been ended.</p>
+      <div class="info">
+        <p>You can start a new session by logging in again.</p>
+      </div>
+      <a href="/" class="button">Login Again</a>
+    `));
+  });
 });
 
 // Step 3: Handle OAuth2 Callback and Exchange Code for Access Token
@@ -299,7 +346,10 @@ app.get('/callback', async (req, res) => {
       <div class="info">
         <p>You can now access the FACEIT API features.</p>
       </div>
-      <a href="/api" class="button">View Active Matches</a>
+      <div class="button-container">
+        <a href="/api" class="button">View Active Matches</a>
+        <a href="/" class="button">Home</a>
+      </div>
     `));
   } catch (error) {
     console.error("Token exchange failed:", error.response?.data || error.message);
@@ -351,8 +401,10 @@ app.get('/api', async (req, res) => {
       <div class="info">
         <p>This list shows all currently active matches in the hub.</p>
       </div>
-      <a href="/api" class="button">Refresh</a>
-      <a href="/" class="button">Home</a>
+      <div class="button-container">
+        <a href="/api" class="button">Refresh</a>
+        <a href="/" class="button">Home</a>
+      </div>
     `));
   } catch (error) {
     console.error("API request failed:", error.response?.data || error.message);
@@ -369,8 +421,10 @@ app.get('/api', async (req, res) => {
     res.status(500).send(renderHTML('Error', `
       <h1>Error</h1>
       <p class="error">Failed to fetch match data. Please try again.</p>
-      <a href="/api" class="button">Retry</a>
-      <a href="/" class="button">Home</a>
+      <div class="button-container">
+        <a href="/api" class="button">Retry</a>
+        <a href="/" class="button">Home</a>
+      </div>
     `));
   }
 });
