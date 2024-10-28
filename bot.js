@@ -10,16 +10,23 @@ dotenv.config();
 
 const app = express();
 
-// Session configuration with MongoStore
+// MongoDB connection options
 const mongoConfig = {
-  mongoUrl: process.env.MONGODB_URI || 'mongodb+srv://your_mongodb_atlas_uri',
+  mongoUrl: process.env.MONGODB_URI,
   ttl: 24 * 60 * 60, // Session TTL (1 day)
   autoRemove: 'native',
   crypto: {
-    secret: process.env.SESSION_SECRET || 'your-session-secret'
+    secret: process.env.SESSION_SECRET
+  },
+  connectionOptions: {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
   }
 };
 
+// Session configuration with MongoStore
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-session-secret',
   resave: false,
@@ -54,9 +61,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.send('Bot is running');
+// Health check endpoint with MongoDB connection status
+app.get('/health', async (req, res) => {
+  try {
+    // Test the session store connection
+    await new Promise((resolve, reject) => {
+      req.session.test = 'test';
+      req.session.save((err) => {
+        if (err) reject(err);
+        resolve();
+      });
+    });
+    res.send('Bot is running and MongoDB connection is healthy');
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(500).send(`Bot is running but MongoDB connection failed: ${error.message}`);
+  }
 });
 
 // Step 2: Redirect to Faceit OAuth2 Authorization URL
@@ -134,12 +154,13 @@ app.get('/api', async (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Something broke!');
+  console.error('Error:', err);
+  res.status(500).send('Something broke! Error: ' + err.message);
 });
 
 // Start the server
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server is listening on port ${port}`);
+  console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Configured' : 'Missing');
 });
