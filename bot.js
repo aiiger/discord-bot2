@@ -1,6 +1,7 @@
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import cors from 'cors';
 
 // Load environment variables
 dotenv.config();
@@ -14,12 +15,12 @@ const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
 // Track match states
 const matchStates = new Map();
 
+// Match state class to track votes and match status
 class MatchState {
     constructor(matchId) {
         this.matchId = matchId;
         this.rehostVotes = new Set();
         this.cancelVotes = new Set();
-        this.isProcessing = false;
         this.welcomeSent = false;
     }
 
@@ -73,18 +74,24 @@ const faceitChatApi = axios.create({
 async function sendMatchMessage(matchId, message) {
     try {
         console.log(`Sending message to match ${matchId}: ${message}`);
-        const response = await faceitChatApi.post('/channels/send', {
-            channel_id: `match-${matchId}-${FACEIT_HUB_ID}`,
+        console.log('Channel ID:', `match-${matchId}`);
+        
+        const payload = {
+            channel_id: `match-${matchId}`,
             message: message
-        });
-        console.log('Message sent successfully:', response.data);
+        };
+        console.log('Request payload:', JSON.stringify(payload, null, 2));
+        
+        const response = await faceitChatApi.post('/channels/send', payload);
+        console.log('Message sent successfully. Response:', JSON.stringify(response.data, null, 2));
     } catch (error) {
         console.error('Error sending message:', {
             status: error.response?.status,
             data: error.response?.data,
-            message: error.message
+            message: error.message,
+            stack: error.stack
         });
-        throw error; // Re-throw to handle in calling function
+        throw error;
     }
 }
 
@@ -99,7 +106,8 @@ async function testApiConnection() {
         console.error('API connection test failed:', {
             status: error.response?.status,
             data: error.response?.data,
-            message: error.message
+            message: error.message,
+            stack: error.stack
         });
         return false;
     }
@@ -115,7 +123,8 @@ async function getMatchDetails(matchId) {
         console.error('Error fetching match details:', {
             status: error.response?.status,
             data: error.response?.data,
-            message: error.message
+            message: error.message,
+            stack: error.stack
         });
         throw error;
     }
@@ -144,7 +153,8 @@ async function getHubMatches() {
         console.error('Error fetching hub matches:', {
             status: error.response?.status,
             data: error.response?.data,
-            message: error.message
+            message: error.message,
+            stack: error.stack
         });
         return [];
     }
@@ -169,23 +179,47 @@ async function calculateTeamElos(matchDetails) {
         console.log('Calculated elos:', result);
         return result;
     } catch (error) {
-        console.error('Error calculating team elos:', error);
+        console.error('Error calculating team elos:', {
+            error: error.message,
+            stack: error.stack
+        });
         throw error;
     }
 }
 
 // Check if user is a player in the match
 function isPlayerInMatch(matchDetails, userId) {
-    const teams = matchDetails.teams || {};
-    const faction1Players = teams.faction1?.roster?.map(player => player.player_id) || [];
-    const faction2Players = teams.faction2?.roster?.map(player => player.player_id) || [];
-    return faction1Players.includes(userId) || faction2Players.includes(userId);
+    try {
+        console.log('Checking if user is in match. User ID:', userId);
+        console.log('Match details:', JSON.stringify(matchDetails, null, 2));
+        
+        const teams = matchDetails.teams || {};
+        const faction1Players = teams.faction1?.roster?.map(player => player.player_id) || [];
+        const faction2Players = teams.faction2?.roster?.map(player => player.player_id) || [];
+        
+        console.log('Faction 1 players:', faction1Players);
+        console.log('Faction 2 players:', faction2Players);
+        
+        const isPlayer = faction1Players.includes(userId) || faction2Players.includes(userId);
+        console.log('Is player in match:', isPlayer);
+        
+        return isPlayer;
+    } catch (error) {
+        console.error('Error checking if player is in match:', {
+            error: error.message,
+            stack: error.stack
+        });
+        return false;
+    }
 }
 
 // Handle rehost command
 async function handleRehost(matchId, userId) {
+    console.log(`Processing rehost command. Match ID: ${matchId}, User ID: ${userId}`);
+    
     const matchState = matchStates.get(matchId);
     if (!matchState) {
+        console.log('Match state not found');
         await sendMatchMessage(matchId, "Cannot process rehost - match state not found.");
         return;
     }
@@ -193,36 +227,51 @@ async function handleRehost(matchId, userId) {
     try {
         const matchDetails = await getMatchDetails(matchId);
         if (!isPlayerInMatch(matchDetails, userId)) {
+            console.log('User is not a player in the match');
             await sendMatchMessage(matchId, "Only match players can vote to rehost.");
             return;
         }
 
         if (matchState.addRehostVote(userId)) {
             const votesNeeded = REHOST_VOTE_COUNT - matchState.getRehostVoteCount();
+            console.log(`Rehost vote added. Votes needed: ${votesNeeded}`);
             await sendMatchMessage(matchId, `Rehost vote added. ${votesNeeded} more vote${votesNeeded === 1 ? '' : 's'} needed.`);
 
             if (matchState.getRehostVoteCount() >= REHOST_VOTE_COUNT) {
                 try {
-                    // Call FACEIT API to rehost the match
+                    console.log('Initiating match rehost');
                     await faceitDataApi.post(`/matches/${matchId}/rehost`);
                     await sendMatchMessage(matchId, "Match is being rehosted...");
                     matchState.clearVotes();
                 } catch (error) {
-                    console.error('Error rehosting match:', error);
+                    console.error('Error rehosting match:', {
+                        status: error.response?.status,
+                        data: error.response?.data,
+                        message: error.message,
+                        stack: error.stack
+                    });
                     await sendMatchMessage(matchId, "Failed to rehost the match. Please try again.");
                 }
             }
         }
     } catch (error) {
-        console.error('Error handling rehost:', error);
+        console.error('Error handling rehost:', {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message,
+            stack: error.stack
+        });
         await sendMatchMessage(matchId, "Error processing rehost vote. Please try again.");
     }
 }
 
 // Handle cancel command
 async function handleCancel(matchId, userId) {
+    console.log(`Processing cancel command. Match ID: ${matchId}, User ID: ${userId}`);
+    
     const matchState = matchStates.get(matchId);
     if (!matchState) {
+        console.log('Match state not found');
         await sendMatchMessage(matchId, "Cannot process cancel - match state not found.");
         return;
     }
@@ -230,28 +279,40 @@ async function handleCancel(matchId, userId) {
     try {
         const matchDetails = await getMatchDetails(matchId);
         if (!isPlayerInMatch(matchDetails, userId)) {
+            console.log('User is not a player in the match');
             await sendMatchMessage(matchId, "Only match players can vote to cancel.");
             return;
         }
 
         if (matchState.addCancelVote(userId)) {
             const votesNeeded = REHOST_VOTE_COUNT - matchState.getCancelVoteCount();
+            console.log(`Cancel vote added. Votes needed: ${votesNeeded}`);
             await sendMatchMessage(matchId, `Cancel vote added. ${votesNeeded} more vote${votesNeeded === 1 ? '' : 's'} needed.`);
 
             if (matchState.getCancelVoteCount() >= REHOST_VOTE_COUNT) {
                 try {
-                    // Call FACEIT API to cancel the match
+                    console.log('Initiating match cancellation');
                     await faceitDataApi.post(`/matches/${matchId}/cancel`);
                     await sendMatchMessage(matchId, "Match is being cancelled...");
                     matchState.clearVotes();
                 } catch (error) {
-                    console.error('Error cancelling match:', error);
+                    console.error('Error cancelling match:', {
+                        status: error.response?.status,
+                        data: error.response?.data,
+                        message: error.message,
+                        stack: error.stack
+                    });
                     await sendMatchMessage(matchId, "Failed to cancel the match. Please try again.");
                 }
             }
         }
     } catch (error) {
-        console.error('Error handling cancel:', error);
+        console.error('Error handling cancel:', {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message,
+            stack: error.stack
+        });
         await sendMatchMessage(matchId, "Error processing cancel vote. Please try again.");
     }
 }
@@ -303,7 +364,12 @@ async function pollMatches() {
                             matchState.welcomeSent = true;
                         }
                     } catch (error) {
-                        console.error(`Error processing match ${match.match_id}:`, error);
+                        console.error(`Error processing match ${match.match_id}:`, {
+                            status: error.response?.status,
+                            data: error.response?.data,
+                            message: error.message,
+                            stack: error.stack
+                        });
                     }
                 }
             } else if (match.status === 'FINISHED' || match.status === 'CANCELLED') {
@@ -314,7 +380,12 @@ async function pollMatches() {
             }
         }
     } catch (error) {
-        console.error('Error in pollMatches:', error);
+        console.error('Error in pollMatches:', {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message,
+            stack: error.stack
+        });
     }
 }
 
@@ -322,8 +393,23 @@ async function pollMatches() {
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Add CORS middleware
+app.use(cors());
+
 // Add JSON body parser middleware
 app.use(express.json());
+
+// Request logging middleware
+app.use((req, res, next) => {
+    console.log('Incoming request:', {
+        method: req.method,
+        path: req.path,
+        headers: req.headers,
+        body: req.body,
+        query: req.query
+    });
+    next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -337,11 +423,15 @@ app.get('/health', (req, res) => {
 // FACEIT webhook callback endpoint
 app.post('/callback', async (req, res) => {
     try {
-        console.log('Received webhook callback:', req.body);
+        console.log('Received webhook callback:', {
+            headers: req.headers,
+            body: req.body
+        });
+
         const { message, user_id, match_id } = req.body;
         
         if (!message || !user_id || !match_id) {
-            console.error('Invalid webhook payload:', req.body);
+            console.error('Missing required fields in webhook payload:', req.body);
             return res.status(400).json({ error: 'Invalid payload' });
         }
 
@@ -350,6 +440,38 @@ app.post('/callback', async (req, res) => {
             user_id,
             message
         });
+
+        // Ensure match state exists
+        if (!matchStates.has(match_id)) {
+            console.log(`Creating new match state for ${match_id}`);
+            const matchState = new MatchState(match_id);
+            matchStates.set(match_id, matchState);
+            
+            try {
+                // Initialize match state
+                const matchDetails = await getMatchDetails(match_id);
+                console.log('Match details:', matchDetails);
+                
+                // Send welcome message if this is a new match
+                if (!matchState.welcomeSent) {
+                    await sendMatchMessage(match_id, 
+                        "Welcome to the match! 🎮\n" +
+                        "Available commands:\n" +
+                        "!rehost - Vote to rehost the match (match players only)\n" +
+                        "!cancel - Vote to cancel the match (match players only)"
+                    );
+                    matchState.welcomeSent = true;
+                }
+            } catch (error) {
+                console.error('Error initializing match state:', {
+                    status: error.response?.status,
+                    data: error.response?.data,
+                    message: error.message,
+                    stack: error.stack
+                });
+                // Continue processing even if initialization fails
+            }
+        }
 
         // Process commands
         const command = message.trim().toLowerCase();
@@ -361,39 +483,13 @@ app.post('/callback', async (req, res) => {
 
         res.status(200).json({ status: 'success' });
     } catch (error) {
-        console.error('Error processing webhook:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Legacy webhook endpoint (keeping for backward compatibility)
-app.post('/webhook/chat', async (req, res) => {
-    try {
-        console.log('Received webhook on legacy endpoint:', req.body);
-        const { message, user_id, match_id } = req.body;
-        
-        if (!message || !user_id || !match_id) {
-            console.error('Invalid webhook payload:', req.body);
-            return res.status(400).json({ error: 'Invalid payload' });
-        }
-
-        console.log('Processing chat message:', {
-            match_id,
-            user_id,
-            message
+        console.error('Error processing webhook:', {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message,
+            stack: error.stack,
+            body: req.body
         });
-
-        // Process commands
-        const command = message.trim().toLowerCase();
-        if (command === '!rehost') {
-            await handleRehost(match_id, user_id);
-        } else if (command === '!cancel') {
-            await handleCancel(match_id, user_id);
-        }
-
-        res.status(200).json({ status: 'success' });
-    } catch (error) {
-        console.error('Error processing webhook:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
