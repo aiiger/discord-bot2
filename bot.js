@@ -74,10 +74,15 @@ const faceitChatApi = axios.create({
 async function sendMatchMessage(matchId, message) {
     try {
         console.log(`Sending message to match ${matchId}: ${message}`);
-        console.log('Channel ID:', `match-${matchId}`);
+        
+        // Get match details to get the correct chat room ID
+        const matchDetails = await getMatchDetails(matchId);
+        const chatRoomId = matchDetails.chat_room_id;
+        
+        console.log('Channel ID:', chatRoomId);
         
         const payload = {
-            channel_id: `match-${matchId}`,
+            channel_id: chatRoomId,
             message: message
         };
         console.log('Request payload:', JSON.stringify(payload, null, 2));
