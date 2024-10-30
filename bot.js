@@ -62,32 +62,17 @@ const faceitDataApi = axios.create({
     }
 });
 
-// API client setup for Chat API
-const faceitChatApi = axios.create({
-    baseURL: 'https://open.faceit.com/chat/v1',
-    headers: {
-        'Authorization': `Bearer ${FACEIT_API_KEY}`
-    }
-});
-
 // Send message to match room
 async function sendMatchMessage(matchId, message) {
     try {
         console.log(`Sending message to match ${matchId}: ${message}`);
         
-        // Get match details to get the correct chat room ID
-        const matchDetails = await getMatchDetails(matchId);
-        const chatRoomId = matchDetails.chat_room_id;
+        // Use the Data API to send the message
+        const response = await faceitDataApi.post(`/matches/${matchId}/messages`, {
+            message: message,
+            type: "system"
+        });
         
-        console.log('Channel ID:', chatRoomId);
-        
-        const payload = {
-            channel_id: chatRoomId,
-            message: message
-        };
-        console.log('Request payload:', JSON.stringify(payload, null, 2));
-        
-        const response = await faceitChatApi.post('/channels/send', payload);
         console.log('Message sent successfully. Response:', JSON.stringify(response.data, null, 2));
     } catch (error) {
         console.error('Error sending message:', {
