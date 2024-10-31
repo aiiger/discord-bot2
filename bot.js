@@ -21,35 +21,34 @@ async function fetchMatches() {
 		const matches = response.data.items;
 		console.log(`Found ${matches.length} matches:`, matches);
 		return matches;
-	} catch (error) {
+    } catch (error) {
 		console.error('Error fetching matches:', error.message);
 		return [];
 	}
 }
 
-async function sendMatchMessage(matchId: string, message: string) {
 async function sendMatchMessage(matchId, message) {
-		const response = await axios.post(
-			`https://api.faceit.com/match/v1/matches/${matchId}/chat`,
-			{
-				message: message,
-				type: "system"
-			},
-			{
-				headers: {
-					'Authorization': `Bearer ${FACEIT_API_KEY}`,
-					'Content-Type': 'application/json'
-				}
-			}
-		);
-		return response.data;
-	} catch (error) {
-		console.error('Error sending match message:', error.message);
-		throw error;
-	}
+    try {
+        const response = await axios.post(
+            `https://api.faceit.com/match/v1/matches/${matchId}/chat`,
+            {
+                message: message,
+                type: "system"
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${FACEIT_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        return response.data;
+    } catch (error) {
+        console.error('Error sending match message:', error.message);
+        throw error;
+    }
 }
 
-async function processMatch(match: any) {
 async function processMatch(match) {
 
 	// Skip if we've already processed this match
@@ -170,16 +169,17 @@ async function testClientAuth() {
             console.log('\nMethod 2: WebSocket with client headers');
             try {
                 const ws = new WebSocket('wss://api.faceit.com/chat/v1/web/rooms', {
-                new WebSocket('wss://api.faceit.com/chat/v1/web/rooms', {
+                const ws = new WebSocket('wss://api.faceit.com/chat/v1/web/rooms', {
                     headers: {
                         'Authorization': `Bearer ${FACEIT_API_KEY}`,
                         'User-Agent': 'FACEIT-Client/1.0',
                         'Origin': 'https://www.faceit.com'
                     }
                 });
-                console.error('✗ WebSocket auth failed');
-                console.error('Error:', error.message);
-            }
+                ws.on('error', (error) => {
+                    console.error('✗ WebSocket auth failed');
+                    console.error('Error:', error.message);
+                });
 
             // Method 3: Try to get a client token first
             console.log('\nMethod 3: Client token');
@@ -206,7 +206,7 @@ async function testClientAuth() {
                 console.error('✗ Client token failed');
                 console.error('Error:', error.response?.data || error.message);
             }
-        } else {
+        } catch (error) {
             console.log('No matches found to test');
         }
     } catch (error) {
@@ -219,4 +219,6 @@ async function testClientAuth() {
 }
 
 // Run the test
+}
+
 testClientAuth().catch(console.error);
