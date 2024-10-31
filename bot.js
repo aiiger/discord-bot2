@@ -1,7 +1,6 @@
-import dotenv from 'dotenv';
-import axios from 'axios';
-
-dotenv.config();
+require('dotenv').config();
+const axios = require('axios');
+const express = require('express');
 
 const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
 const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
@@ -52,7 +51,6 @@ async function sendMatchMessage(matchId, message) {
 }
 
 // Add a test endpoint
-import express from 'express';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -74,4 +72,4 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-export { sendMatchMessage };
+module.exports = { sendMatchMessage };
