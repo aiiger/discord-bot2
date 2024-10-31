@@ -1,6 +1,6 @@
-import express from 'express';
-import axios from 'axios';
-import dotenv from 'dotenv';
+const express = require('express');
+const axios = require('axios');
+const dotenv = require('dotenv');
 
 // Load environment variables
 dotenv.config();
@@ -262,3 +262,12 @@ app.listen(port, async () => {
     await testApiConnection();
     setInterval(pollMatches, 30000); // Poll matches every 30 seconds
 });
+
+{
+  "name": "your-app-name",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    // your dependencies
+  }
+}
