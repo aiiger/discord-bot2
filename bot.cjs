@@ -8,7 +8,8 @@ dotenv.config();
 // Constants
 const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
-const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
+const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
+const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
 const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
 
 // Track match states
@@ -43,24 +44,44 @@ class MatchState {
     }
 }
 
-// API client setup for Data API
-const faceitDataApi = axios.create({
-    baseURL: 'https://open.faceit.com/data/v4',
-    headers: {
-        'Authorization': `Bearer ${FACEIT_API_KEY}`
+// Function to get access token
+async function getAccessToken() {
+    try {
+        const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', {
+            grant_type: 'client_credentials',
+            client_id: FACEIT_CLIENT_ID,
+            client_secret: FACEIT_CLIENT_SECRET
+        });
+        return response.data.access_token;
+    } catch (error) {
+        console.error('Error fetching access token:', error.response?.data || error.message);
+        throw error;
     }
-});
+}
 
-// API client setup for Chat API
-const faceitChatApi = axios.create({
-    baseURL: 'https://open.faceit.com/chat/v1',
-    headers: {
-        'Authorization': `Bearer ${FACEIT_API_KEY}`
-    }
-});
+// Function to create API clients with the access token
+async function createApiClients() {
+    const accessToken = await getAccessToken();
+
+    const faceitDataApi = axios.create({
+        baseURL: 'https://open.faceit.com/data/v4',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`
+        }
+    });
+
+    const faceitChatApi = axios.create({
+        baseURL: 'https://open.faceit.com/chat/v1',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`
+        }
+    });
+
+    return { faceitDataApi, faceitChatApi };
+}
 
 // Send message to match room
-async function sendMatchMessage(matchId, message) {
+async function sendMatchMessage(faceitChatApi, matchId, message) {
     try {
         const response = await faceitChatApi.post(`/rooms/${matchId}/messages`, { message });
         console.log(`Message sent to match ${matchId}: ${message}`);
@@ -70,7 +91,7 @@ async function sendMatchMessage(matchId, message) {
 }
 
 // Test API connection
-async function testApiConnection() {
+async function testApiConnection(faceitDataApi) {
     try {
         const response = await faceitDataApi.get('/hubs');
         console.log('API connection successful:', response.data);
@@ -79,7 +100,7 @@ async function testApiConnection() {
     }
 }
 
-async function getMatchDetails(matchId) {
+async function getMatchDetails(faceitDataApi, matchId) {
     try {
         const response = await faceitDataApi.get(`/matches/${matchId}`);
         return response.data;
@@ -89,7 +110,7 @@ async function getMatchDetails(matchId) {
     }
 }
 
-async function getHubMatches() {
+async function getHubMatches(faceitDataApi) {
     try {
         const response = await faceitDataApi.get(`/hubs/${FACEIT_HUB_ID}/matches?type=ongoing&offset=0&limit=20`);
         return response.data.items || [];
@@ -133,7 +154,7 @@ function isPlayerInMatch(matchDetails, userId) {
 }
 
 // Handle rehost command
-async function handleRehost(matchId, userId) {
+async function handleRehost(faceitChatApi, matchId, userId) {
     console.log(`Processing rehost command. Match ID: ${matchId}, User ID: ${userId}`);
     const matchState = matchStates.get(matchId);
 
@@ -147,7 +168,7 @@ async function handleRehost(matchId, userId) {
 
     if (voteCount >= REHOST_VOTE_COUNT) {
         console.log(`Rehost vote count reached for match ${matchId}. Sending rehost message.`);
-        await sendMatchMessage(matchId, 'Rehost conditions met. Rehosting the match.');
+        await sendMatchMessage(faceitChatApi, matchId, 'Rehost conditions met. Rehosting the match.');
         matchState.clearVotes();
     } else {
         console.log(`Rehost vote added for match ${matchId}. Current count: ${voteCount}`);
@@ -155,7 +176,7 @@ async function handleRehost(matchId, userId) {
 }
 
 // Handle cancel command
-async function handleCancel(matchId, userId) {
+async function handleCancel(faceitChatApi, matchId, userId) {
     console.log(`Processing cancel command. Match ID: ${matchId}, User ID: ${userId}`);
     const matchState = matchStates.get(matchId);
 
@@ -169,30 +190,30 @@ async function handleCancel(matchId, userId) {
 
     if (voteCount >= REHOST_VOTE_COUNT) {
         console.log(`Cancel vote count reached for match ${matchId}. Sending cancel message.`);
-        await sendMatchMessage(matchId, 'Cancel conditions met. Cancelling the match.');
+        await sendMatchMessage(faceitChatApi, matchId, 'Cancel conditions met. Cancelling the match.');
         matchState.clearVotes();
     } else {
         console.log(`Cancel vote added for match ${matchId}. Current count: ${voteCount}`);
     }
 }
 
-async function pollMatches() {
+async function pollMatches(faceitDataApi, faceitChatApi) {
     try {
-        const matches = await getHubMatches();
+        const matches = await getHubMatches(faceitDataApi);
         console.log(`\nProcessing ${matches.length} matches`);
 
         for (const match of matches) {
-            const matchDetails = await getMatchDetails(match.match_id);
+            const matchDetails = await getMatchDetails(faceitDataApi, match.match_id);
             const elos = await calculateTeamElos(matchDetails);
 
             if (elos && elos.ratingDiff > ELO_THRESHOLD) {
                 console.log(`High ELO difference detected for match ${match.match_id}`);
-                await sendMatchMessage(match.match_id, `High ELO difference detected: ${elos.ratingDiff} points`);
+                await sendMatchMessage(faceitChatApi, match.match_id, `High ELO difference detected: ${elos.ratingDiff} points`);
             }
 
             // Greet players when a new match starts
             if (!matchStates.has(match.match_id)) {
-                await sendMatchMessage(match.match_id, 'Welcome to the match! 🎮\nAvailable commands:\n!rehost - Vote to rehost the match\n!cancel - Vote to cancel the match');
+                await sendMatchMessage(faceitChatApi, match.match_id, 'Welcome to the match! 🎮\nAvailable commands:\n!rehost - Vote to rehost the match\n!cancel - Vote to cancel the match');
                 matchStates.set(match.match_id, new MatchState(match.match_id));
             }
         }
@@ -215,13 +236,15 @@ app.use((req, res, next) => {
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+    const { faceitDataApi } = await createApiClients();
     res.json({ status: 'healthy', activeMatches: matchStates.size, uptime: process.uptime() });
 });
 
 // FACEIT webhook callback endpoint
 app.post('/callback', async (req, res) => {
     try {
+        const { faceitDataApi, faceitChatApi } = await createApiClients();
         const { match_id, message, user_id } = req.body;
 
         if (!match_id || !message || !user_id) {
@@ -231,10 +254,10 @@ app.post('/callback', async (req, res) => {
         let matchState = matchStates.get(match_id);
 
         if (!matchState) {
-            const matchDetails = await getMatchDetails(match_id);
+            const matchDetails = await getMatchDetails(faceitDataApi, match_id);
             matchState = new MatchState(match_id);
             matchStates.set(match_id, matchState);
-            await sendMatchMessage(match_id, 'Welcome to the match! 🎮\nAvailable commands:\n!rehost - Vote to rehost the match\n!cancel - Vote to cancel the match');
+            await sendMatchMessage(faceitChatApi, match_id, 'Welcome to the match! 🎮\nAvailable commands:\n!rehost - Vote to rehost the match\n!cancel - Vote to cancel the match');
         }
 
         if (!isPlayerInMatch(matchState, user_id)) {
@@ -242,9 +265,9 @@ app.post('/callback', async (req, res) => {
         }
 
         if (message === '!rehost') {
-            await handleRehost(match_id, user_id);
+            await handleRehost(faceitChatApi, match_id, user_id);
         } else if (message === '!cancel') {
-            await handleCancel(match_id, user_id);
+            await handleCancel(faceitChatApi, match_id, user_id);
         } else {
             return res.status(400).json({ error: 'Unknown command' });
         }
@@ -258,7 +281,8 @@ app.post('/callback', async (req, res) => {
 
 // Start the server and test API connection
 app.listen(port, async () => {
+    const { faceitDataApi, faceitChatApi } = await createApiClients();
     console.log(`Bot is running on port ${port}`);
-    await testApiConnection();
-    setInterval(pollMatches, 30000); // Poll matches every 30 seconds
+    await testApiConnection(faceitDataApi);
+    setInterval(() => pollMatches(faceitDataApi, faceitChatApi), 30000); // Poll matches every 30 seconds
 });
