@@ -52,16 +52,29 @@ class MatchState {
 }
 
 // Function to get access token
+const qs = require('qs');
+
 async function getAccessToken() {
     try {
-        const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', {
+        const data = qs.stringify({
             grant_type: 'client_credentials',
             client_id: FACEIT_CLIENT_ID,
-            client_secret: FACEIT_CLIENT_SECRET
+            client_secret: FACEIT_CLIENT_SECRET,
         });
+
+        const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', data, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        });
+
         return response.data.access_token;
     } catch (error) {
-        console.error('Error fetching access token:', error.response?.data || error.message);
+        if (error.response) {
+            console.error('Error fetching access token:', error.response.data);
+        } else {
+            console.error('Error fetching access token:', error.message);
+        }
         throw error;
     }
 }
