@@ -1,1 +1,1 @@
-web: node bot.js
+web: cd . && node bot.js
