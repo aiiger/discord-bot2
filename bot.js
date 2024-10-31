@@ -262,12 +262,3 @@ app.listen(port, async () => {
     await testApiConnection();
     setInterval(pollMatches, 30000); // Poll matches every 30 seconds
 });
-
-{
-  "name": "your-app-name",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    // your dependencies
-  }
-}
