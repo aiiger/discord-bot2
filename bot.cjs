@@ -8,9 +8,14 @@ dotenv.config();
 // Constants
 const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
-const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
-const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
-const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
+const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID || '';
+const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET || '';
+const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID || '';
+
+if (!FACEIT_CLIENT_ID || !FACEIT_CLIENT_SECRET || !FACEIT_HUB_ID) {
+    console.error('Missing required environment variables. Please set FACEIT_CLIENT_ID, FACEIT_CLIENT_SECRET, and FACEIT_HUB_ID.');
+    process.exit(1);
+}
 
 // Track match states
 const matchStates = new Map();
@@ -85,7 +90,7 @@ async function createApiClients() {
 // Send message to match room
 async function sendMatchMessage(faceitChatApi, chatRoomId, message) {
     try {
-        const response = await faceitChatApi.post(`/rooms/${chatRoomId}/messages`, { message });
+        await faceitChatApi.post(`/rooms/${chatRoomId}/messages`, { message });
         console.log(`Message sent to room ${chatRoomId}: ${message}`);
     } catch (error) {
         console.error(`Error sending message to room ${chatRoomId}:`, error.response?.data || error.message);
@@ -226,14 +231,14 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 
 // Request logging middleware
-app.use((req, res, next) => {
+app.use((req, _, next) => {
     console.log('Incoming request:', req.method, req.url, req.body);
     next();
 });
 
 // Health check endpoint
-app.get('/health', async (req, res) => {
-    const { faceitDataApi } = await createApiClients();
+app.get('/health', async (_, res) => {
+    await createApiClients();
     res.json({ status: 'healthy', activeMatches: matchStates.size, uptime: process.uptime() });
 });
 
@@ -262,7 +267,7 @@ app.post('/callback', async (req, res) => {
 
         // Find the match state by chat room ID
         let matchState;
-        for (let [matchId, state] of matchStates.entries()) {
+        for (let [, state] of matchStates.entries()) {
             if (state.chatRoomId === roomId) {
                 matchState = state;
                 break;
