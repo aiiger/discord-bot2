@@ -16,10 +16,12 @@ const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
 const matchStates = new Map();
 
 class MatchState {
-    constructor(matchId) {
+    constructor(matchId, chatRoomId) {
         this.matchId = matchId;
+        this.chatRoomId = chatRoomId;
         this.rehostVotes = new Set();
         this.cancelVotes = new Set();
+        this.hasGreeted = false;
     }
 
     addRehostVote(userId) {
@@ -81,12 +83,12 @@ async function createApiClients() {
 }
 
 // Send message to match room
-async function sendMatchMessage(faceitChatApi, matchId, message) {
+async function sendMatchMessage(faceitChatApi, chatRoomId, message) {
     try {
-        const response = await faceitChatApi.post(`/rooms/${matchId}/messages`, { message });
-        console.log(`Message sent to match ${matchId}: ${message}`);
+        const response = await faceitChatApi.post(`/rooms/${chatRoomId}/messages`, { message });
+        console.log(`Message sent to room ${chatRoomId}: ${message}`);
     } catch (error) {
-        console.error(`Error sending message to match ${matchId}:`, error.response?.data || error.message);
+        console.error(`Error sending message to room ${chatRoomId}:`, error.response?.data || error.message);
     }
 }
 
@@ -147,53 +149,41 @@ async function calculateTeamElos(matchDetails) {
 // Check if user is a player in the match
 function isPlayerInMatch(matchDetails, userId) {
     const teams = matchDetails.teams || {};
-    const faction1Players = teams.faction1?.roster?.map(player => player.id) || [];
-    const faction2Players = teams.faction2?.roster?.map(player => player.id) || [];
+    const faction1Players = teams.faction1?.roster?.map(player => player.player_id) || [];
+    const faction2Players = teams.faction2?.roster?.map(player => player.player_id) || [];
 
     return faction1Players.includes(userId) || faction2Players.includes(userId);
 }
 
 // Handle rehost command
-async function handleRehost(faceitChatApi, matchId, userId) {
-    console.log(`Processing rehost command. Match ID: ${matchId}, User ID: ${userId}`);
-    const matchState = matchStates.get(matchId);
-
-    if (!matchState) {
-        console.error(`Match state not found for match ID: ${matchId}`);
-        return;
-    }
+async function handleRehost(faceitChatApi, matchState, userId) {
+    console.log(`Processing rehost command. Match ID: ${matchState.matchId}, User ID: ${userId}`);
 
     matchState.addRehostVote(userId);
     const voteCount = matchState.getRehostVoteCount();
 
     if (voteCount >= REHOST_VOTE_COUNT) {
-        console.log(`Rehost vote count reached for match ${matchId}. Sending rehost message.`);
-        await sendMatchMessage(faceitChatApi, matchId, 'Rehost conditions met. Rehosting the match.');
+        console.log(`Rehost vote count reached for match ${matchState.matchId}. Sending rehost message.`);
+        await sendMatchMessage(faceitChatApi, matchState.chatRoomId, 'Rehost conditions met. Rehosting the match.');
         matchState.clearVotes();
     } else {
-        console.log(`Rehost vote added for match ${matchId}. Current count: ${voteCount}`);
+        console.log(`Rehost vote added for match ${matchState.matchId}. Current count: ${voteCount}`);
     }
 }
 
 // Handle cancel command
-async function handleCancel(faceitChatApi, matchId, userId) {
-    console.log(`Processing cancel command. Match ID: ${matchId}, User ID: ${userId}`);
-    const matchState = matchStates.get(matchId);
-
-    if (!matchState) {
-        console.error(`Match state not found for match ID: ${matchId}`);
-        return;
-    }
+async function handleCancel(faceitChatApi, matchState, userId) {
+    console.log(`Processing cancel command. Match ID: ${matchState.matchId}, User ID: ${userId}`);
 
     matchState.addCancelVote(userId);
     const voteCount = matchState.getCancelVoteCount();
 
     if (voteCount >= REHOST_VOTE_COUNT) {
-        console.log(`Cancel vote count reached for match ${matchId}. Sending cancel message.`);
-        await sendMatchMessage(faceitChatApi, matchId, 'Cancel conditions met. Cancelling the match.');
+        console.log(`Cancel vote count reached for match ${matchState.matchId}. Sending cancel message.`);
+        await sendMatchMessage(faceitChatApi, matchState.chatRoomId, 'Cancel conditions met. Cancelling the match.');
         matchState.clearVotes();
     } else {
-        console.log(`Cancel vote added for match ${matchId}. Current count: ${voteCount}`);
+        console.log(`Cancel vote added for match ${matchState.matchId}. Current count: ${voteCount}`);
     }
 }
 
@@ -208,13 +198,19 @@ async function pollMatches(faceitDataApi, faceitChatApi) {
 
             if (elos && elos.ratingDiff > ELO_THRESHOLD) {
                 console.log(`High ELO difference detected for match ${match.match_id}`);
-                await sendMatchMessage(faceitChatApi, match.match_id, `High ELO difference detected: ${elos.ratingDiff} points`);
+                await sendMatchMessage(faceitChatApi, matchDetails.chat_room_id, `High ELO difference detected: ${elos.ratingDiff} points`);
             }
 
-            // Greet players when a new match starts
-            if (!matchStates.has(match.match_id)) {
-                await sendMatchMessage(faceitChatApi, match.match_id, 'Welcome to the match! 🎮\nAvailable commands:\n!rehost - Vote to rehost the match\n!cancel - Vote to cancel the match');
-                matchStates.set(match.match_id, new MatchState(match.match_id));
+            let matchState = matchStates.get(match.match_id);
+
+            if (!matchState) {
+                matchState = new MatchState(match.match_id, matchDetails.chat_room_id);
+                matchStates.set(match.match_id, matchState);
+            }
+
+            if (matchDetails.status === 'VOTING' && !matchState.hasGreeted) {
+                await sendMatchMessage(faceitChatApi, matchDetails.chat_room_id, 'Welcome to the match! 🎮\nAvailable commands:\n!rehost - Vote to rehost the match\n!cancel - Vote to cancel the match');
+                matchState.hasGreeted = true;
             }
         }
     } catch (error) {
@@ -245,31 +241,68 @@ app.get('/health', async (req, res) => {
 app.post('/callback', async (req, res) => {
     try {
         const { faceitDataApi, faceitChatApi } = await createApiClients();
-        const { match_id, message, user_id } = req.body;
 
-        if (!match_id || !message || !user_id) {
+        const eventData = req.body;
+
+        if (!eventData || !eventData.event || !eventData.payload) {
             return res.status(400).json({ error: 'Invalid payload' });
         }
 
-        let matchState = matchStates.get(match_id);
-
-        if (!matchState) {
-            const matchDetails = await getMatchDetails(faceitDataApi, match_id);
-            matchState = new MatchState(match_id);
-            matchStates.set(match_id, matchState);
-            await sendMatchMessage(faceitChatApi, match_id, 'Welcome to the match! 🎮\nAvailable commands:\n!rehost - Vote to rehost the match\n!cancel - Vote to cancel the match');
+        if (eventData.event !== 'chat_message') {
+            return res.status(400).json({ error: 'Unsupported event type' });
         }
 
-        if (!isPlayerInMatch(matchState, user_id)) {
+        const messageContent = eventData.payload.content;
+        const userId = eventData.payload.actor_id;
+        const roomId = eventData.payload.room_id;
+
+        if (!messageContent || !userId || !roomId) {
+            return res.status(400).json({ error: 'Invalid payload data' });
+        }
+
+        // Find the match state by chat room ID
+        let matchState;
+        for (let [matchId, state] of matchStates.entries()) {
+            if (state.chatRoomId === roomId) {
+                matchState = state;
+                break;
+            }
+        }
+
+        if (!matchState) {
+            // Try to find the match based on the room ID
+            const matches = await getHubMatches(faceitDataApi);
+            for (const match of matches) {
+                const matchDetails = await getMatchDetails(faceitDataApi, match.match_id);
+                if (matchDetails.chat_room_id === roomId) {
+                    matchState = matchStates.get(match.match_id);
+                    if (!matchState) {
+                        matchState = new MatchState(match.match_id, roomId);
+                        matchStates.set(match.match_id, matchState);
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (!matchState) {
+            return res.status(400).json({ error: 'Match not found for the chat room' });
+        }
+
+        const matchDetails = await getMatchDetails(faceitDataApi, matchState.matchId);
+
+        if (!isPlayerInMatch(matchDetails, userId)) {
             return res.status(403).json({ error: 'Only match players can vote' });
         }
 
+        const message = messageContent.trim();
+
         if (message === '!rehost') {
-            await handleRehost(faceitChatApi, match_id, user_id);
+            await handleRehost(faceitChatApi, matchState, userId);
         } else if (message === '!cancel') {
-            await handleCancel(faceitChatApi, match_id, user_id);
+            await handleCancel(faceitChatApi, matchState, userId);
         } else {
-            return res.status(400).json({ error: 'Unknown command' });
+            return res.status(200).json({ status: 'Message ignored' });
         }
 
         res.status(200).json({ status: 'success' });
