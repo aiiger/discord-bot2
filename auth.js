@@ -1,6 +1,5 @@
-const express = require('express');
-const axios = require('axios');
-const querystring = require('querystring');
+import express from 'express';
+import axios from 'axios';
 
 const app = express();
 const port = 3000;
@@ -12,7 +11,7 @@ const AUTHORIZATION_URL = 'https://api.faceit.com/auth/v1/oauth/authorize';
 const TOKEN_URL = 'https://api.faceit.com/auth/v1/oauth/token';
 
 app.get('/login', (req, res) => {
-    const authUrl = `${AUTHORIZATION_URL}?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=chat.read chat.write`;
+app.get('/login', (_, res) => {
     res.redirect(authUrl);
 });
 
@@ -20,13 +19,14 @@ app.get('/callback', async (req, res) => {
     const { code } = req.query;
 
     try {
-        const response = await axios.post(TOKEN_URL, querystring.stringify({
-            grant_type: 'authorization_code',
-            code,
-            redirect_uri: REDIRECT_URI,
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET
-        }), {
+        const params = new URLSearchParams();
+        params.append('grant_type', 'authorization_code');
+        params.append('code', code);
+        params.append('redirect_uri', REDIRECT_URI);
+        params.append('client_id', CLIENT_ID);
+        params.append('client_secret', CLIENT_SECRET);
+
+        const response = await axios.post(TOKEN_URL, params.toString(), {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
