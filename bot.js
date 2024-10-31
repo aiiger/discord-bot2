@@ -1,4 +1,27 @@
-// ... (previous code remains the same until sendMatchMessage function)
+import dotenv from 'dotenv';
+import axios from 'axios';
+
+dotenv.config();
+
+const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
+const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
+
+// Add startup logging
+console.log('Bot is starting...');
+console.log('Checking environment variables...');
+
+if (!FACEIT_API_KEY) {
+    console.error('ERROR: FACEIT_API_KEY is not set in environment variables');
+    process.exit(1);
+}
+
+if (!FACEIT_HUB_ID) {
+    console.error('ERROR: FACEIT_HUB_ID is not set in environment variables');
+    process.exit(1);
+}
+
+console.log('Environment variables verified ✓');
+console.log('Bot is ready to handle messages');
 
 // Send message to match room
 async function sendMatchMessage(matchId, message) {
@@ -17,6 +40,7 @@ async function sendMatchMessage(matchId, message) {
             }
         });
         console.log('Message sent successfully:', response.data);
+        return true;
     } catch (error) {
         console.error('Error sending message:', {
             status: error.response?.status,
@@ -27,4 +51,27 @@ async function sendMatchMessage(matchId, message) {
     }
 }
 
-// ... (rest of the code remains the same)
+// Add a test endpoint
+import express from 'express';
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+    res.send('Bot is running! ✓');
+});
+
+app.get('/test-message/:matchId', async (req, res) => {
+    try {
+        const { matchId } = req.params;
+        await sendMatchMessage(matchId, 'Test message from bot');
+        res.send('Test message sent successfully! ✓');
+    } catch (error) {
+        res.status(500).send(`Error sending test message: ${error.message}`);
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
+
+export { sendMatchMessage };
