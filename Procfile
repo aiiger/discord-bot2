@@ -1,1 +1,1 @@
-web: node --experimental-modules ./bot.js
+web: node bot.js
