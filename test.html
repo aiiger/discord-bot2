@@ -1,92 +1,80 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>FACEIT Bot Webhook Tester</title>
+    <title>Webhook Test</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 10px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        #response {
-            margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            background-color: #f9f9f9;
-            white-space: pre-wrap;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 10px; padding: 10px; }
+        pre { background: #f0f0f0; padding: 10px; }
     </style>
 </head>
 <body>
-    <h1>FACEIT Bot Webhook Tester</h1>
-    <form id="webhookForm">
-        <div class="form-group">
-            <label for="matchId">Match ID:</label>
-            <input type="text" id="matchId" name="match_id" value="1-a2de5e78-f4d9-4695-b16d-90d728fc64ac">
-        </div>
-        <div class="form-group">
-            <label for="userId">User ID:</label>
-            <input type="text" id="userId" name="user_id" value="test-user">
-        </div>
-        <div class="form-group">
-            <label for="message">Message:</label>
-            <input type="text" id="message" name="message" value="!rehost">
-        </div>
-        <button type="submit">Send Webhook</button>
-    </form>
-    <div id="response"></div>
+    <h1>FACEIT Webhook Test</h1>
+    
+    <h2>Match Webhook Test</h2>
+    <button onclick="testMatchWebhook()">Test Match Webhook</button>
+    <pre id="matchResult"></pre>
+
+    <h2>Chat Webhook Test</h2>
+    <button onclick="testChatWebhook()">Test Chat Webhook</button>
+    <pre id="chatResult"></pre>
 
     <script>
-        document.getElementById('webhookForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const responseDiv = document.getElementById('response');
-            
-            const formData = new FormData(e.target);
-            const payload = {
-                match_id: formData.get('match_id'),
-                user_id: formData.get('user_id'),
-                message: formData.get('message')
+        async function testMatchWebhook() {
+            const url = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/webhook/match?secret=faceit-webhook-secret-123';
+            const data = {
+                event: 'match_status_ready',
+                payload: {
+                    id: 'test-match-123',
+                    status: 'READY'
+                }
             };
-
+            
             try {
-                responseDiv.textContent = 'Sending request...\n';
-                const response = await fetch('http://localhost:3000/callback', {
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'x-webhook-secret': 'faceit-webhook-secret-123'
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(data)
                 });
-
-                const data = await response.json();
-                responseDiv.textContent += `Response (${response.status}):\n${JSON.stringify(data, null, 2)}`;
+                
+                const result = await response.json();
+                document.getElementById('matchResult').textContent = JSON.stringify(result, null, 2);
             } catch (error) {
-                responseDiv.textContent += `Error:\n${error.message}`;
+                document.getElementById('matchResult').textContent = 'Error: ' + error.message;
             }
-        });
+        }
+
+        async function testChatWebhook() {
+            const url = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/webhook/chat?secret=faceit-webhook-secret-123';
+            const data = {
+                payload: {
+                    match_id: 'test-match-123',
+                    user_id: 'test-user-123',
+                    message: {
+                        text: '!test'
+                    }
+                }
+            };
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-webhook-secret': 'faceit-webhook-secret-123'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                document.getElementById('chatResult').textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                document.getElementById('chatResult').textContent = 'Error: ' + error.message;
+            }
+        }
     </script>
 </body>
 </html>

@@ -4,6 +4,19 @@ const app = express();
 // Add middleware for parsing JSON
 app.use(express.json());
 
+// Add CORS middleware
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, x-webhook-secret');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    next();
+});
+
 // Security constants
 const WEBHOOK_SECRET = 'faceit-webhook-secret-123';
 
