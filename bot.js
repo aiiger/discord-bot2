@@ -40,20 +40,30 @@ const verifyWebhookSecret = (req, res, next) => {
 // Helper function to send message to match room
 async function sendMessage(roomId, message) {
     try {
-        const response = await axios.post(
-            `https://api.faceit.com/chat/v1/rooms/${roomId}/messages`,
-            { message },
-            {
-                headers: {
-                    'Authorization': `Bearer ${FACEIT_API_KEY}`,
-                    'Content-Type': 'application/json'
-                }
+        console.log(`Sending message to room ${roomId}:`, message);
+        
+        const response = await axios({
+            method: 'post',
+            url: `https://api.faceit.com/chat/v1/rooms/${roomId}/messages`,
+            headers: {
+                'Authorization': `Bearer ${FACEIT_API_KEY}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            data: {
+                type: 'text',
+                body: message
             }
-        );
-        console.log('Message sent:', message);
+        });
+        
+        console.log('Message sent successfully:', response.data);
         return response.data;
     } catch (error) {
-        console.error('Error sending message:', error);
+        console.error('Error sending message:', {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message
+        });
         throw error;
     }
 }
@@ -61,15 +71,14 @@ async function sendMessage(roomId, message) {
 // Helper function to get match details
 async function getMatchDetails(matchId) {
     try {
-        const response = await axios.get(
-            `https://open.faceit.com/data/v4/matches/${matchId}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${FACEIT_API_KEY}`,
-                    'Content-Type': 'application/json'
-                }
+        const response = await axios({
+            method: 'get',
+            url: `https://open.faceit.com/data/v4/matches/${matchId}`,
+            headers: {
+                'Authorization': `Bearer ${FACEIT_API_KEY}`,
+                'Accept': 'application/json'
             }
-        );
+        });
         return response.data;
     } catch (error) {
         console.error('Error getting match details:', error);
@@ -80,8 +89,6 @@ async function getMatchDetails(matchId) {
 // Basic request logging
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-    console.log('Headers:', req.headers);
-    console.log('Body:', req.body);
     next();
 });
 
