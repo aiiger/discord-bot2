@@ -7,7 +7,13 @@
     <h1>Bot is running! ✓</h1>
     <p>Available endpoints:</p>
     <ul>
-        <li><a href="/ping">GET /ping - Test endpoint</a></li>
+        <li><a href="/test">GET /test - Test endpoint</a></li>
     </ul>
+    <script>
+        fetch('/test')
+            .then(response => response.json())
+            .then(data => console.log('Test endpoint response:', data))
+            .catch(error => console.error('Error:', error));
+    </script>
 </body>
 </html>
