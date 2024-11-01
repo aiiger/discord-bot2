@@ -8,34 +8,6 @@ dotenv.config();
 
 const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
 
-// Match state storage
-const matchStates = new Map();
-
-class MatchState {
-    constructor(matchId, startTime) {
-        this.matchId = matchId;
-        this.startTime = startTime;
-        this.rehostVotes = new Set();
-        this.commandsEnabled = true;
-    }
-
-    canUseCommands() {
-        const now = Date.now();
-        const timeElapsed = now - this.startTime;
-        const fiveMinutes = 5 * 60 * 1000;
-        
-        if (timeElapsed > fiveMinutes) {
-            this.commandsEnabled = false;
-        }
-        return this.commandsEnabled;
-    }
-
-    addRehostVote(playerId) {
-        this.rehostVotes.add(playerId);
-        return this.rehostVotes.size;
-    }
-}
-
 // Add startup logging
 console.log('Bot is starting...');
 console.log('Checking environment variables...');
@@ -78,8 +50,8 @@ async function sendMessage(roomId, message, accessToken) {
     }
 }
 
-// Get match details
-async function getMatchDetails(matchId, accessToken) {
+// Get match room ID
+async function getMatchRoomId(matchId, accessToken) {
     try {
         const response = await axios.get(`https://open.faceit.com/data/v4/matches/${matchId}`, {
             headers: {
@@ -88,17 +60,11 @@ async function getMatchDetails(matchId, accessToken) {
             }
         });
         
-        return response.data;
+        return response.data.chat_room_id;
     } catch (error) {
-        console.error('Error getting match details:', error);
+        console.error('Error getting match room ID:', error);
         throw error;
     }
-}
-
-// Calculate team average elo
-function calculateTeamElo(team) {
-    const totalElo = team.reduce((sum, player) => sum + player.elo, 0);
-    return totalElo / team.length;
 }
 
 // Check if access token exists and is valid
@@ -115,42 +81,6 @@ async function getValidAccessToken() {
     return currentToken;
 }
 
-// Handle match commands
-async function handleMatchCommand(matchId, command, playerId, accessToken) {
-    const matchState = matchStates.get(matchId);
-    
-    if (!matchState || !matchState.canUseCommands()) {
-        return "Commands are only available within the first 5 minutes of the match.";
-    }
-
-    switch (command.toLowerCase()) {
-        case '!rehost': {
-            const voteCount = matchState.addRehostVote(playerId);
-            if (voteCount >= 6) {
-                return "⚠️ Rehost vote passed! 6 or more players voted for rehost. Please wait for admin assistance.";
-            } else {
-                return `Rehost vote registered (${voteCount}/6 votes)`;
-            }
-        }
-        
-        case '!cancel': {
-            const matchDetails = await getMatchDetails(matchId, accessToken);
-            const team1Avg = calculateTeamElo(matchDetails.teams.faction1.roster);
-            const team2Avg = calculateTeamElo(matchDetails.teams.faction2.roster);
-            const eloDiff = Math.abs(team1Avg - team2Avg);
-            
-            if (eloDiff >= 70) {
-                return "⚠️ Match cancellation approved - ELO difference is 70 or greater. Please wait for admin assistance.";
-            } else {
-                return `Cannot cancel - ELO difference (${eloDiff}) is less than 70.`;
-            }
-        }
-        
-        default:
-            return null;
-    }
-}
-
 // Setup Express server
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -164,6 +94,22 @@ app.get('/', (req, res) => {
     res.send('Bot is running! ✓');
 });
 
+// Auth callback endpoint
+app.get('/callback', async (req, res) => {
+    try {
+        const { code } = req.query;
+        if (!code) {
+            return res.status(400).send('No authorization code provided');
+        }
+
+        const tokenData = await authenticate();
+        res.send('Authentication successful! You can close this window.');
+    } catch (error) {
+        console.error('Authentication error:', error);
+        res.status(500).send('Authentication failed: ' + error.message);
+    }
+});
+
 // Match webhook endpoint
 app.post('/webhook/match', async (req, res) => {
     try {
@@ -174,15 +120,11 @@ app.post('/webhook/match', async (req, res) => {
             const matchId = req.body.payload.id;
             console.log(`Match ${matchId} is starting`);
             
-            // Initialize match state
-            matchStates.set(matchId, new MatchState(matchId, Date.now()));
-            
             // Get a valid access token
             const accessToken = await getValidAccessToken();
             
-            // Get match details
-            const matchDetails = await getMatchDetails(matchId, accessToken);
-            const roomId = matchDetails.chat_room_id;
+            // Get the match room ID
+            const roomId = await getMatchRoomId(matchId, accessToken);
             
             // Send greeting message
             const greetingMessage = "👋 Welcome to the match! Commands available for the next 5 minutes:\n" +
@@ -244,6 +186,7 @@ app.get('/health', (_, res) => {
 const server = app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log('Available endpoints:');
+    console.log('- GET /callback - Handle authentication');
     console.log('- POST /webhook/match - Receive match webhooks');
     console.log('- POST /webhook/chat - Receive chat webhooks');
     console.log('- GET /health - Check server status');
