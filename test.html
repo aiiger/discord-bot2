@@ -1,37 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Webhook Test</title>
+    <title>FACEIT Bot Test</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        button { margin: 10px; padding: 10px; }
-        pre { background: #f0f0f0; padding: 10px; }
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        button { margin: 5px; padding: 10px; cursor: pointer; }
+        pre { background: #f0f0f0; padding: 10px; overflow-x: auto; }
+        .success { color: green; }
+        .error { color: red; }
     </style>
 </head>
 <body>
-    <h1>FACEIT Webhook Test</h1>
-    
-    <h2>Match Webhook Test</h2>
-    <button onclick="testMatchWebhook()">Test Match Webhook</button>
-    <pre id="matchResult"></pre>
+    <h1>FACEIT Bot Test Panel</h1>
 
-    <h2>Chat Webhook Test</h2>
-    <button onclick="testChatWebhook()">Test Chat Webhook</button>
-    <pre id="chatResult"></pre>
+    <div class="section">
+        <h2>1. Match Start Test</h2>
+        <button onclick="testMatchStart()">Test Match Start</button>
+        <pre id="matchStartResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>2. Rehost Vote Test</h2>
+        <button onclick="testRehostVote('player1')">Vote as Player 1</button>
+        <button onclick="testRehostVote('player2')">Vote as Player 2</button>
+        <button onclick="testRehostVote('player3')">Vote as Player 3</button>
+        <button onclick="testRehostVote('player4')">Vote as Player 4</button>
+        <button onclick="testRehostVote('player5')">Vote as Player 5</button>
+        <button onclick="testRehostVote('player6')">Vote as Player 6</button>
+        <pre id="rehostResult"></pre>
+    </div>
+
+    <div class="section">
+        <h2>3. Cancel Check Test</h2>
+        <button onclick="testCancelCheck()">Test Cancel Check</button>
+        <pre id="cancelResult"></pre>
+    </div>
 
     <script>
-        async function testMatchWebhook() {
-            const url = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/webhook/match?secret=faceit-webhook-secret-123';
-            const data = {
-                event: 'match_status_ready',
-                payload: {
-                    id: 'test-match-123',
-                    status: 'READY'
-                }
-            };
-            
+        const BASE_URL = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com';
+        const MATCH_ID = 'test-match-123';
+        const ROOM_ID = 'test-room-123';
+
+        async function makeRequest(endpoint, data) {
             try {
-                const response = await fetch(url, {
+                const response = await fetch(`${BASE_URL}${endpoint}?secret=faceit-webhook-secret-123`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -39,41 +52,50 @@
                     },
                     body: JSON.stringify(data)
                 });
-                
-                const result = await response.json();
-                document.getElementById('matchResult').textContent = JSON.stringify(result, null, 2);
+                return await response.json();
             } catch (error) {
-                document.getElementById('matchResult').textContent = 'Error: ' + error.message;
+                return { error: error.message };
             }
         }
 
-        async function testChatWebhook() {
-            const url = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/webhook/chat?secret=faceit-webhook-secret-123';
-            const data = {
+        async function testMatchStart() {
+            const result = await makeRequest('/webhook/match', {
+                event: 'match_status_ready',
                 payload: {
-                    match_id: 'test-match-123',
-                    user_id: 'test-user-123',
+                    id: MATCH_ID,
+                    chat_room_id: ROOM_ID,
+                    status: 'READY'
+                }
+            });
+            document.getElementById('matchStartResult').textContent = JSON.stringify(result, null, 2);
+        }
+
+        async function testRehostVote(playerId) {
+            const result = await makeRequest('/webhook/chat', {
+                payload: {
+                    match_id: MATCH_ID,
+                    room_id: ROOM_ID,
+                    user_id: playerId,
                     message: {
-                        text: '!test'
+                        text: '!rehost'
                     }
                 }
-            };
-            
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-webhook-secret': 'faceit-webhook-secret-123'
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                const result = await response.json();
-                document.getElementById('chatResult').textContent = JSON.stringify(result, null, 2);
-            } catch (error) {
-                document.getElementById('chatResult').textContent = 'Error: ' + error.message;
-            }
+            });
+            document.getElementById('rehostResult').textContent = JSON.stringify(result, null, 2);
+        }
+
+        async function testCancelCheck() {
+            const result = await makeRequest('/webhook/chat', {
+                payload: {
+                    match_id: MATCH_ID,
+                    room_id: ROOM_ID,
+                    user_id: 'test-user',
+                    message: {
+                        text: '!cancel'
+                    }
+                }
+            });
+            document.getElementById('cancelResult').textContent = JSON.stringify(result, null, 2);
         }
     </script>
 </body>
