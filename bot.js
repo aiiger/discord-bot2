@@ -47,11 +47,9 @@ async function sendMessage(roomId, message) {
             url: `https://api.faceit.com/chat/v1/rooms/${roomId}/messages`,
             headers: {
                 'Authorization': `Bearer ${FACEIT_API_KEY}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Content-Type': 'application/json'
             },
             data: {
-                type: 'text',
                 body: message
             }
         });
@@ -64,6 +62,79 @@ async function sendMessage(roomId, message) {
             data: error.response?.data,
             message: error.message
         });
+        throw error;
+    }
+}
+
+// Helper function to get room details
+async function getRoomDetails(roomId) {
+    try {
+        const response = await axios({
+            method: 'get',
+            url: `https://api.faceit.com/chat/v1/rooms/${roomId}`,
+            headers: {
+                'Authorization': `Bearer ${FACEIT_API_KEY}`,
+                'Accept': 'application/json'
+            }
+        });
+        
+        // Response format:
+        // {
+        //   "members": [{
+        //     "is_online": true,
+        //     "member_id": "string",
+        //     "nickname": "string",
+        //     "photo": "string",
+        //     "roles": ["string"],
+        //     "status": "string"
+        //   }],
+        //   "name": "string",
+        //   "roles": [{
+        //     "color": "string",
+        //     "displayed": true,
+        //     "mentionable": true,
+        //     "name": "string",
+        //     "permissions": ["string"],
+        //     "ranking": 0,
+        //     "role_id": "string"
+        //   }]
+        // }
+        
+        return response.data;
+    } catch (error) {
+        console.error('Error getting room details:', error);
+        throw error;
+    }
+}
+
+// Helper function to get room messages
+async function getRoomMessages(roomId) {
+    try {
+        const response = await axios({
+            method: 'get',
+            url: `https://api.faceit.com/chat/v1/rooms/${roomId}/messages`,
+            headers: {
+                'Authorization': `Bearer ${FACEIT_API_KEY}`,
+                'Accept': 'application/json'
+            }
+        });
+        
+        // Response format:
+        // {
+        //   "is_last_page": true,
+        //   "messages": [{
+        //     "avatar": "string",
+        //     "body": "string",
+        //     "from": "string",
+        //     "id": "string",
+        //     "nickname": "string",
+        //     "timestamp": "string"
+        //   }]
+        // }
+        
+        return response.data;
+    } catch (error) {
+        console.error('Error getting room messages:', error);
         throw error;
     }
 }
