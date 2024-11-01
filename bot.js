@@ -14,9 +14,9 @@ app.get('/', (req, res) => {
 });
 
 // Test endpoint
-app.get('/test', (req, res) => {
+app.get('/ping', (req, res) => {
     res.type('text/plain');
-    res.send('Test endpoint works!');
+    res.send('pong');
 });
 
 // Health check endpoint
@@ -38,23 +38,8 @@ app.use((err, req, res, next) => {
     res.status(500).type('text/plain').send('Something broke!');
 });
 
-// Get port from environment or use 0 to let OS assign a port
-const port = process.env.PORT || 0;
-
-// Create HTTP server with error handling
-const server = app.listen(port, () => {
-    const actualPort = server.address().port;
-    console.log('Server is running on port', actualPort);
-}).on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-        console.log('Port', port, 'is in use, trying another port...');
-        // Try again with a random port
-        app.listen(0, () => {
-            const actualPort = server.address().port;
-            console.log('Server is running on port', actualPort);
-        });
-    } else {
-        console.error('Server error:', err);
-        process.exit(1);
-    }
+// Start server
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+    console.log('Server is running on port', port);
 });

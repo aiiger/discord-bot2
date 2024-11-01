@@ -6,7 +6,8 @@
     "start": "node bot.js"
   },
   "engines": {
-    "node": "20.x"
+    "node": "16.x",
+    "npm": "8.x"
   },
   "dependencies": {
     "express": "4.18.2"
