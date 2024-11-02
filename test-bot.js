@@ -1,110 +1,122 @@
-import express from 'express';
-import axios from 'axios';
-import dotenv from 'dotenv';
-import open from 'open';
-import { URLSearchParams } from 'url';
+const faceitAPI = require('../endpoints');
+require('dotenv').config();
+const assert = require('assert');
 
-dotenv.config();
+/*
+FACEIT API Endpoints:
 
-const app = express();
-const port = process.env.PORT || 3000;
+Hub Endpoints:
+- getHubsById: Get detailed information about a hub including name, game, organizer, etc.
+- getHubMatches: Get matches for a hub (ongoing, past, or upcoming)
 
-const config = {
-    clientId: process.env.FACEIT_CLIENT_ID,
-    clientSecret: process.env.FACEIT_CLIENT_SECRET,
-    authorizationUrl: 'https://api.faceit.com/auth/v1/oauth/authorize',
-    tokenUrl: 'https://api.faceit.com/auth/v1/oauth/token',
-    redirectUri: process.env.REDIRECT_URI || `http://localhost:${port}/auth/callback`
-};
+Match Endpoints:
+- getMatchDetails: Get detailed match information including teams, map, status, etc.
+- getMatchStats: Get match statistics including player performance, scores, etc.
 
-app.get('/', (req, res) => {
-    res.send('Hello World!');
-});
+Player Endpoints:
+- getPlayerDetails: Get player information including games, skill levels, etc.
+- getPlayerStats: Get detailed player statistics for a specific game
+*/
 
-app.get('/auth/callback', async (req, res) => {
-    const { code } = req.query;
-
-    if (!code) {
-        return res.status(400).send('No authorization code received');
-    }
-
+async function testGetHubsById() {
     try {
-        const tokenResponse = await getAccessToken(code);
-        res.send(`Access Token: ${tokenResponse.access_token}`);
-    } catch (error) {
-        console.error('Error in callback:', error);
-        res.status(500).send('Authentication failed! Please check the console.');
-    }
-});
-
-async function getAuthorizationCode() {
-    return new Promise((resolve, reject) => {
-        const authUrl = `${config.authorizationUrl}?response_type=code&client_id=${config.clientId}&redirect_uri=${config.redirectUri}&scope=chat.read chat.write`;
-        open(authUrl);
-
-        const server = app.listen(port, () => {
-            console.log(`Server running at http://localhost:${port}/`);
-        });
-
-        app.get('/auth/callback', (req, res) => {
-            const { code } = req.query;
-            if (code) {
-                res.send('Authorization code received. You can close this window.');
-                server.close();
-                resolve(code);
-            } else {
-                res.status(400).send('No authorization code received');
-                server.close();
-                resolve(null);
-            }
-        });
-
-        app.use((err, req, res, next) => {
-            console.error('Error in callback:', err);
-            res.status(500).send('Authentication failed! Please check the console.');
-            server.close();
-            resolve(null);
-        });
-    });
-}
-
-async function getAccessToken(authCode) {
-    try {
-        const basicAuth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
-        const response = await axios.post(config.tokenUrl, new URLSearchParams({
-            grant_type: 'authorization_code',
-            code: authCode,
-            redirect_uri: config.redirectUri
-        }), {
-            headers: {
-                'Authorization': `Basic ${basicAuth}`,
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error getting access token:', error.response?.data || error.message);
-        throw error;
-    }
-}
-
-async function authenticate() {
-    console.log('Starting authentication process...');
-    try {
-        const authCode = await getAuthorizationCode();
-        if (!authCode) {
-            throw new Error('Failed to get authorization code');
+        const hubId = process.env.FACEIT_HUB_ID;
+        console.log('Using Hub ID:', hubId);
+        
+        console.log('\nTesting getHubsById...');
+        const hubInfo = await faceitAPI.getHubsById(hubId, ['organizer', 'game']);
+        
+        if (hubInfo instanceof Error) {
+            throw hubInfo;
         }
-        console.log('Authorization code received');
-        const tokenResponse = await getAccessToken(authCode);
-        console.log('Access token received:', tokenResponse.access_token);
+        
+        console.log('Hub Info:', JSON.stringify(hubInfo, null, 2));
     } catch (error) {
-        console.error('Authentication failed:', error);
+        console.error('\nError occurred:', error.message || error);
+        if (error.response) {
+            console.error('API Response:', error.response.data);
+        }
     }
 }
 
-authenticate();
+async function testGetHubMatches() {
+    try {
+        const hubId = process.env.FACEIT_HUB_ID;
+        console.log('Using Hub ID:', hubId);
+        
+        console.log('\nTesting getHubMatches...');
+        const matches = await faceitAPI.getHubMatches(hubId);
+        
+        if (matches instanceof Error) {
+            throw matches;
+        }
+        
+        console.log('Matches:', JSON.stringify(matches, null, 2));
+        
+        if (matches.length > 0) {
+            const matchId = matches[0].match_id;
+            console.log('\nTesting getMatchDetails...');
+            const matchDetails = await faceitAPI.getMatchDetails(matchId);
+            
+            if (matchDetails instanceof Error) {
+                throw matchDetails;
+            }
+            
+            console.log('Match Details:', JSON.stringify(matchDetails, null, 2));
+            
+            console.log('\nTesting getPlayerDetails...');
+            const playerId = matchDetails.teams.faction1.players[0].player_id;
+            const playerDetails = await faceitAPI.getPlayerDetails(playerId);
+            
+            if (playerDetails instanceof Error) {
+                throw playerDetails;
+            }
+            
+            console.log('Player Details:', JSON.stringify(playerDetails, null, 2));
+        }
+    } catch (error) {
+        console.error('\nError occurred:', error.message || error);
+        if (error.response) {
+            console.error('API Response:', error.response.data);
+        }
+    }
+}
 
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}/`);
+// Mock function to simulate bot behavior
+function botCommand(command, votes, eloDifferential) {
+    if (command === '!rehost') {
+        return votes >= 6 ? 'Rehost initiated' : 'Rehost failed';
+    } else if (command === '!cancel') {
+        return eloDifferential >= 70 ? 'Match cancelled' : 'Match continues';
+    }
+    return 'Invalid command';
+}
+
+// Test for bot commands
+describe('Bot Commands', function() {
+    it('should initiate rehost if 6 or more players vote yes', function() {
+        const result = botCommand('!rehost', 6, 0);
+        assert.strictEqual(result, 'Rehost initiated');
+    });
+
+    it('should fail rehost if less than 6 players vote yes', function() {
+        const result = botCommand('!rehost', 5, 0);
+        assert.strictEqual(result, 'Rehost failed');
+    });
+
+    it('should cancel match if elo differential is 70 or greater', function() {
+        const result = botCommand('!cancel', 0, 70);
+        assert.strictEqual(result, 'Match cancelled');
+    });
+
+    it('should not cancel match if elo differential is less than 70', function() {
+        const result = botCommand('!cancel', 0, 69);
+        assert.strictEqual(result, 'Match continues');
+    });
 });
+
+// Execute tests
+(async () => {
+    await testGetHubsById();
+    await testGetHubMatches();
+})();
