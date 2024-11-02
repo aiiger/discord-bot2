@@ -3,6 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const path = require('path');
 const auth = require('./auth');
+const faceitAPI = require('./endpoints');
 const app = express();
 
 // Add middleware for parsing JSON
@@ -97,19 +98,15 @@ app.get('/auth/callback', async (req, res) => {
 // Helper function to get hub matches
 async function getHubMatches() {
     try {
-        const response = await axios({
-            method: 'get',
-            url: `https://open.faceit.com/data/v4/hubs/${FACEIT_HUB_ID}/matches?offset=0&limit=20`,
-            headers: {
-                'Authorization': `Bearer ${FACEIT_API_KEY}`,
-                'Accept': 'application/json'
-            }
-        });
+        const response = await faceitAPI.getHubMatches(FACEIT_HUB_ID, 'ongoing');
+        if (response instanceof Error) {
+            throw response;
+        }
         
-        const matches = response.data.items.map(match => ({
+        const matches = response.items.map(match => ({
             id: match.match_id,
             status: match.status,
-            chatRoomId: `match-${match.match_id}`,
+            chatRoomId: match.chat_room_id,
             teams: match.teams ? Object.keys(match.teams).length : 0
         }));
         
@@ -189,27 +186,89 @@ async function handleCommand(roomId, matchId, message) {
         const currentVotes = votes.size;
         
         if (currentVotes >= REHOST_VOTE_COUNT) {
+            // Get match details to verify it's still active
+            const matchDetails = await faceitAPI.getMatchDetails(matchId);
+            if (matchDetails instanceof Error) {
+                await sendMessage(roomId, "Error checking match status for rehost.");
+                return;
+            }
+
+            if (matchDetails.status !== 'ONGOING') {
+                await sendMessage(roomId, "Cannot rehost - match is not in progress.");
+                return;
+            }
+
             // Reset votes
             rehostVotes.delete(matchId);
-            await sendMessage(roomId, `Rehost vote passed! (${REHOST_VOTE_COUNT}/${REHOST_VOTE_COUNT} votes) Please wait for an admin to rehost the match.`);
+
+            // Attempt to rehost the match
+            try {
+                await axios({
+                    method: 'post',
+                    url: `https://api.faceit.com/match/v1/matches/${matchId}/rehost`,
+                    headers: {
+                        'Authorization': `Bearer ${userAccessToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                await sendMessage(roomId, `✅ Rehost vote passed! (${REHOST_VOTE_COUNT}/${REHOST_VOTE_COUNT} votes) Match will be rehosted.`);
+            } catch (error) {
+                console.error('Error rehosting match:', error);
+                await sendMessage(roomId, "❌ Error rehosting match. Please contact an admin for assistance.");
+            }
         } else {
-            await sendMessage(roomId, `Rehost vote registered (${currentVotes}/${REHOST_VOTE_COUNT} votes needed)`);
+            await sendMessage(roomId, `📊 Rehost vote registered (${currentVotes}/${REHOST_VOTE_COUNT} votes needed)`);
         }
     }
     else if (command === '!cancel') {
         try {
-            const matchDetails = await getMatchDetails(matchId);
-            
-            // Calculate average ELO for each team
-            const team1Avg = matchDetails.teams.faction1.roster.reduce((sum, player) => sum + player.elo, 0) / 5;
-            const team2Avg = matchDetails.teams.faction2.roster.reduce((sum, player) => sum + player.elo, 0) / 5;
-            
+            // Get match details including player stats
+            const matchDetails = await faceitAPI.getMatchDetails(matchId);
+            if (matchDetails instanceof Error) {
+                await sendMessage(roomId, "Error checking match status for cancellation.");
+                return;
+            }
+
+            if (matchDetails.status !== 'ONGOING') {
+                await sendMessage(roomId, "Cannot cancel - match is not in progress.");
+                return;
+            }
+
+            // Get player details for ELO calculation
+            const team1Players = matchDetails.teams.faction1.roster;
+            const team2Players = matchDetails.teams.faction2.roster;
+
+            const team1Elos = await Promise.all(team1Players.map(async player => {
+                const details = await faceitAPI.getPlayerDetails(player.player_id);
+                return details instanceof Error ? 0 : (details.games?.cs2?.faceit_elo || 0);
+            }));
+
+            const team2Elos = await Promise.all(team2Players.map(async player => {
+                const details = await faceitAPI.getPlayerDetails(player.player_id);
+                return details instanceof Error ? 0 : (details.games?.cs2?.faceit_elo || 0);
+            }));
+
+            const team1Avg = team1Elos.reduce((a, b) => a + b, 0) / team1Elos.length;
+            const team2Avg = team2Elos.reduce((a, b) => a + b, 0) / team2Elos.length;
             const eloDiff = Math.abs(team1Avg - team2Avg);
             
             if (eloDiff >= ELO_THRESHOLD) {
-                await sendMessage(roomId, `Match can be cancelled - ELO difference (${Math.round(eloDiff)}) is greater than ${ELO_THRESHOLD}`);
+                try {
+                    await axios({
+                        method: 'post',
+                        url: `https://api.faceit.com/match/v1/matches/${matchId}/cancel`,
+                        headers: {
+                            'Authorization': `Bearer ${userAccessToken}`,
+                            'Accept': 'application/json'
+                        }
+                    });
+                    await sendMessage(roomId, `✅ Match cancelled - ELO difference (${Math.round(eloDiff)}) is greater than ${ELO_THRESHOLD}`);
+                } catch (error) {
+                    console.error('Error cancelling match:', error);
+                    await sendMessage(roomId, "❌ Error cancelling match. Please contact an admin for assistance.");
+                }
             } else {
-                await sendMessage(roomId, `Cannot cancel - ELO difference (${Math.round(eloDiff)}) is less than ${ELO_THRESHOLD}`);
+                await sendMessage(roomId, `❌ Cannot cancel - ELO difference (${Math.round(eloDiff)}) is less than ${ELO_THRESHOLD}`);
             }
         } catch (error) {
             console.error('Error checking match cancellation:', error);
@@ -260,50 +319,6 @@ async function sendMessage(roomId, message) {
             console.log('Access token expired. Please re-authenticate.');
             userAccessToken = null;
         }
-        throw error;
-    }
-}
-
-// Helper function to get match details
-async function getMatchDetails(matchId) {
-    if (TEST_MODE) {
-        console.log('TEST MODE: Would fetch match details from FACEIT API');
-        return {
-            teams: {
-                faction1: {
-                    roster: [
-                        { elo: 1500 },
-                        { elo: 1550 },
-                        { elo: 1600 },
-                        { elo: 1450 },
-                        { elo: 1500 }
-                    ]
-                },
-                faction2: {
-                    roster: [
-                        { elo: 1700 },
-                        { elo: 1750 },
-                        { elo: 1800 },
-                        { elo: 1650 },
-                        { elo: 1700 }
-                    ]
-                }
-            }
-        };
-    }
-
-    try {
-        const response = await axios({
-            method: 'get',
-            url: `https://open.faceit.com/data/v4/matches/${matchId}`,
-            headers: {
-                'Authorization': `Bearer ${FACEIT_API_KEY}`,
-                'Accept': 'application/json'
-            }
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error getting match details:', error);
         throw error;
     }
 }
