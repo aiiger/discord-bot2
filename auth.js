@@ -46,11 +46,35 @@ async function getAccessToken(code) {
 }
 
 function getAuthUrl() {
+    // Basic required scopes
+    const scopes = [
+        'openid',
+        'profile',
+        'email',
+        // Chat permissions
+        'chat.messages.read',
+        'chat.messages.write',
+        'chat.rooms.read',
+        'chat.rooms.write',
+        // Match permissions
+        'matches',
+        'matches:read',
+        'matches:write',
+        // Tournament permissions
+        'tournaments',
+        'tournaments:read',
+        'tournaments:write',
+        // Hub permissions
+        'hubs',
+        'hubs:read',
+        'hubs:write'
+    ];
+    
     const params = new URLSearchParams({
         response_type: 'code',
         client_id: FACEIT_CLIENT_ID,
         redirect_uri: REDIRECT_URI,
-        scope: 'openid profile email chat.messages.read chat.messages.write chat.rooms.read chat.rooms.write matches matches:read matches:write tournaments tournaments:read tournaments:write hubs hubs:read hubs:write'
+        scope: scopes.join(' ')  // Join scopes with space instead of +
     });
     
     const url = `${AUTH_URL}?${params.toString()}`;
