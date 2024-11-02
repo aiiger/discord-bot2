@@ -34,7 +34,30 @@
             debug: true
         };
 
-        FACEIT.init(initParams);
+        function callback(code) {
+            if (code) {
+                // Send the code to our server
+                fetch('/auth/callback?code=' + encodeURIComponent(code))
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Authentication failed');
+                        }
+                        return response.text();
+                    })
+                    .then(html => {
+                        // Replace the current page content with the success message
+                        document.documentElement.innerHTML = html;
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Authentication failed. Please try again.');
+                    });
+            } else {
+                alert("The id token is not valid, something went wrong");
+            }
+        }
+
+        FACEIT.init(initParams, callback);
     </script>
 </head>
 <body>
