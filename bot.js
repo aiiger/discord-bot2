@@ -37,7 +37,7 @@ let userAccessToken = null; // Store the user access token
 
 // Root endpoint - serve login page
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // OAuth2 routes
@@ -393,7 +393,7 @@ app.get('/health', (req, res) => {
 
 // 404 handler
 app.use((req, res) => {
-    res.status(404).type('text/plain').send('Not found');
+    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
 });
 
 // Error handler
