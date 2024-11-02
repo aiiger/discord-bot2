@@ -1,74 +1,63 @@
-import express from 'express';
-import axios from 'axios';
-import dotenv from 'dotenv';
-import cors from 'cors';
+const express = require('express');
+const axios = require('axios');
 
-// Load environment variables
-dotenv.config();
+const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
+const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
+const REDIRECT_URI = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/auth/callback';
 
-const app = express();
-const port = 3000;
+// OAuth2 endpoints
+const AUTH_URL = 'https://accounts.faceit.com/users/auth/web';
+const TOKEN_URL = 'https://api.faceit.com/auth/v1/oauth/token';
 
-// Add middleware
-app.use(express.json());
-app.use(cors());
-
-// FACEIT API configuration
-const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
-const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
-
-// Validate required environment variables
-if (!FACEIT_API_KEY || !FACEIT_HUB_ID) {
-    console.error('Missing required environment variables:');
-    if (!FACEIT_API_KEY) console.error('- FACEIT_API_KEY');
-    if (!FACEIT_HUB_ID) console.error('- FACEIT_HUB_ID');
-    process.exit(1);
-}
-
-// Test endpoint to verify API authentication using hub details
-app.get('/test-auth', async (_, res) => {
+async function getAccessToken(code) {
     try {
-        console.log('Testing API authentication...');
-        const response = await axios.get(`https://open.faceit.com/data/v4/hubs/${FACEIT_HUB_ID}`, {
+        console.log('Getting access token with code:', code);
+        
+        const response = await axios({
+            method: 'post',
+            url: TOKEN_URL,
             headers: {
-                'Authorization': `Bearer ${FACEIT_API_KEY}`
-            }
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json'
+            },
+            auth: {
+                username: FACEIT_CLIENT_ID,
+                password: FACEIT_CLIENT_SECRET
+            },
+            data: new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: REDIRECT_URI
+            }).toString()
         });
         
-        console.log('API authentication successful');
-        res.json({
-            status: 'success',
-            message: 'API authentication successful',
-            hubName: response.data.name,
-            hubGame: response.data.game_id,
-            hubRegion: response.data.region
-        });
+        console.log('Token response:', response.data);
+        return response.data;
     } catch (error) {
-        console.error('API authentication failed:', {
+        console.error('Token error:', {
             status: error.response?.status,
             data: error.response?.data,
             message: error.message
         });
-
-        res.status(500).json({
-            error: 'API authentication failed',
-            details: error.response?.data || error.message
-        });
+        throw error;
     }
-});
+}
 
-// Health check endpoint
-app.get('/health', (_, res) => {
-    res.json({
-        status: 'healthy',
-        apiKey: FACEIT_API_KEY ? 'configured' : 'missing',
-        hubId: FACEIT_HUB_ID ? 'configured' : 'missing'
+function getAuthUrl() {
+    const params = new URLSearchParams({
+        client_id: FACEIT_CLIENT_ID,
+        response_type: 'code',
+        redirect_uri: REDIRECT_URI,
+        scope: 'openid profile email',
+        state: Math.random().toString(36).substring(7)
     });
-});
+    
+    const url = `${AUTH_URL}/login?${params.toString()}`;
+    console.log('Auth URL:', url);
+    return url;
+}
 
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
-    console.log('Available endpoints:');
-    console.log('- GET /test-auth - Test API authentication');
-    console.log('- GET /health - Check server status');
-});
+module.exports = {
+    getAccessToken,
+    getAuthUrl
+};
