@@ -10,7 +10,7 @@ dotenv.config();
 const config = {
     clientId: process.env.FACEIT_CLIENT_ID,
     clientSecret: process.env.FACEIT_CLIENT_SECRET,
-    redirectUri: 'https://meslx-13b51d23300b.herokuapp.com/callback',
+    redirectUri: 'http://localhost:3001/callback',
     authorizationUrl: 'https://accounts.faceit.com',
     tokenUrl: 'https://api.faceit.com/auth/v1/oauth/token',
     scopes: [
@@ -30,8 +30,10 @@ async function getAuthorizationCode() {
     
     return new Promise((resolve) => {
         const app = express();
-        const server = app.listen(process.env.PORT || 3001, () => {
+        const server = app.listen(3001, () => {
             console.log(`\nAuthentication URL: ${authUrl}`);
+            console.log('\nOpening browser for authentication...');
+            open(authUrl);
         });
 
         app.get('/callback', async (req, res) => {
