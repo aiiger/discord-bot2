@@ -3,7 +3,8 @@ import express from 'express';
 import axios from 'axios';
 import open from 'open';
 import { URLSearchParams } from 'url';
-import auth from './auth';
+import { config, getAccessToken } from './auth.js';
+
 
 dotenv.config();
 
