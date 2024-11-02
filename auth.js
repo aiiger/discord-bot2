@@ -46,35 +46,19 @@ async function getAccessToken(code) {
 }
 
 function getAuthUrl() {
-    // Basic required scopes
+    // Only request the scopes we absolutely need
     const scopes = [
         'openid',
         'profile',
         'email',
-        // Chat permissions
-        'chat.messages.read',
-        'chat.messages.write',
-        'chat.rooms.read',
-        'chat.rooms.write',
-        // Match permissions
-        'matches',
-        'matches:read',
-        'matches:write',
-        // Tournament permissions
-        'tournaments',
-        'tournaments:read',
-        'tournaments:write',
-        // Hub permissions
-        'hubs',
-        'hubs:read',
-        'hubs:write'
+        'chat_api'  // This is the main scope we need for chat functionality
     ];
     
     const params = new URLSearchParams({
         response_type: 'code',
         client_id: FACEIT_CLIENT_ID,
         redirect_uri: REDIRECT_URI,
-        scope: scopes.join(' ')  // Join scopes with space instead of +
+        scope: scopes.join(' ')
     });
     
     const url = `${AUTH_URL}?${params.toString()}`;
