@@ -50,7 +50,7 @@ function getAuthUrl() {
         response_type: 'code',
         client_id: FACEIT_CLIENT_ID,
         redirect_uri: REDIRECT_URI,
-        scope: 'openid profile email chat.messages.read chat.messages.write'
+        scope: 'openid profile email chat.messages.read chat.messages.write chat.rooms.read chat.rooms.write matches matches:read matches:write tournaments tournaments:read tournaments:write hubs hubs:read hubs:write'
     });
     
     const url = `${AUTH_URL}?${params.toString()}`;
