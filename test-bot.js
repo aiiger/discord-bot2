@@ -1,45 +1,62 @@
-import dotenv from 'dotenv';
-import axios from 'axios';
 import express from 'express';
+import axios from 'axios';
+import dotenv from 'dotenv';
 import open from 'open';
-import { promises as fs } from 'fs';
+import { URLSearchParams } from 'url';
 
 dotenv.config();
+
+const app = express();
+const port = process.env.PORT || 3000;
 
 const config = {
     clientId: process.env.FACEIT_CLIENT_ID,
     clientSecret: process.env.FACEIT_CLIENT_SECRET,
-    redirectUri: 'http://localhost:3001/callback',
-    authorizationUrl: 'https://accounts.faceit.com',
+    authorizationUrl: 'https://api.faceit.com/auth/v1/oauth/authorize',
     tokenUrl: 'https://api.faceit.com/auth/v1/oauth/token',
-    scopes: [
-        'openid',
-        'chat.messages.read',
-        'chat.messages.write',
-        'chat.rooms.read'
-    ].join(' ')
+    redirectUri: process.env.REDIRECT_URI || `http://localhost:${port}/auth/callback`
 };
 
-async function getAuthorizationCode() {
-    const authUrl = `${config.authorizationUrl}/oauth/authorize?` +
-        `client_id=${config.clientId}&` +
-        `response_type=code&` +
-        `redirect_uri=${encodeURIComponent(config.redirectUri)}&` +
-        `scope=${encodeURIComponent(config.scopes)}`;
+app.get('/', (req, res) => {
+    res.send('Hello World!');
+});
 
-    return new Promise((resolve) => {
-        const app = express();
-        const server = app.listen(3001, () => {
-            console.log(`\nAuthentication URL: ${authUrl}`);
-            console.log('\nOpening browser for authentication...');
-            open(authUrl);
+app.get('/auth/callback', async (req, res) => {
+    const { code } = req.query;
+
+    if (!code) {
+        return res.status(400).send('No authorization code received');
+    }
+
+    try {
+        const tokenResponse = await getAccessToken(code);
+        res.send(`Access Token: ${tokenResponse.access_token}`);
+    } catch (error) {
+        console.error('Error in callback:', error);
+        res.status(500).send('Authentication failed! Please check the console.');
+    }
+});
+
+async function getAuthorizationCode() {
+    return new Promise((resolve, reject) => {
+        const authUrl = `${config.authorizationUrl}?response_type=code&client_id=${config.clientId}&redirect_uri=${config.redirectUri}&scope=chat.read chat.write`;
+        open(authUrl);
+
+        const server = app.listen(port, () => {
+            console.log(`Server running at http://localhost:${port}/`);
         });
 
-        app.get('/callback', async (req, res) => {
+        app.get('/auth/callback', (req, res) => {
             const { code } = req.query;
-            res.send('Authentication successful! You can close this window.');
-            server.close();
-            resolve(code);
+            if (code) {
+                res.send('Authorization code received. You can close this window.');
+                server.close();
+                resolve(code);
+            } else {
+                res.status(400).send('No authorization code received');
+                server.close();
+                resolve(null);
+            }
         });
 
         app.use((err, req, res, next) => {
@@ -79,24 +96,15 @@ async function authenticate() {
             throw new Error('Failed to get authorization code');
         }
         console.log('Authorization code received');
-        
-        const tokenData = await getAccessToken(authCode);
-        console.log('Access token received');
-        
-        if (process.env.NODE_ENV !== 'production') {
-            const envContent = `
-FACEIT_ACCESS_TOKEN=${tokenData.access_token}
-FACEIT_REFRESH_TOKEN=${tokenData.refresh_token}
-TOKEN_EXPIRES_AT=${Date.now() + (tokenData.expires_in * 1000)}
-`;
-            await fs.appendFile('.env', envContent);
-            console.log('Tokens saved to .env file');
-        }
-        return tokenData;
+        const tokenResponse = await getAccessToken(authCode);
+        console.log('Access token received:', tokenResponse.access_token);
     } catch (error) {
         console.error('Authentication failed:', error);
-        throw error;
     }
 }
 
-export { authenticate };
+authenticate();
+
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}/`);
+});
