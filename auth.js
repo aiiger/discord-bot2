@@ -5,8 +5,8 @@ const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
 const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
 const REDIRECT_URI = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/auth/callback';
 
-// OAuth2 endpoints
-const AUTH_URL = 'https://accounts.faceit.com/users/auth/web';
+// OAuth2 endpoints from OpenID configuration
+const AUTH_URL = 'https://accounts.faceit.com';
 const TOKEN_URL = 'https://api.faceit.com/auth/v1/oauth/token';
 
 async function getAccessToken(code) {
@@ -45,14 +45,13 @@ async function getAccessToken(code) {
 
 function getAuthUrl() {
     const params = new URLSearchParams({
-        client_id: FACEIT_CLIENT_ID,
         response_type: 'code',
+        client_id: FACEIT_CLIENT_ID,
         redirect_uri: REDIRECT_URI,
-        scope: 'openid profile email',
-        state: Math.random().toString(36).substring(7)
+        scope: 'openid profile email chat.messages.read chat.messages.write'
     });
     
-    const url = `${AUTH_URL}/login?${params.toString()}`;
+    const url = `${AUTH_URL}?${params.toString()}`;
     console.log('Auth URL:', url);
     return url;
 }
