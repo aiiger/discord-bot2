@@ -30,10 +30,14 @@ const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
 const TEST_MODE = process.env.NODE_ENV !== 'production';
 
-// Store rehost votes, match states, and user token
+// Store rehost votes, match states, and user tokens
 const rehostVotes = new Map(); // matchId -> Set of playerIds
 const matchStates = new Map(); // matchId -> { commandsEnabled: boolean }
-let userAccessToken = null; // Store the user access token
+let userTokens = {
+    access_token: null,
+    refresh_token: null,
+    expires_at: null
+}; // Store both tokens and expiration
 
 // Root endpoint - serve login page
 app.get('/', (req, res) => {
@@ -55,9 +59,14 @@ app.get('/auth/callback', async (req, res) => {
         }
 
         const tokenData = await auth.getAccessToken(code);
-        console.log('Got access token:', tokenData);
+        console.log('Got access token data');
         
-        userAccessToken = tokenData.access_token;
+        // Store tokens and calculate expiration
+        userTokens = {
+            access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token,
+            expires_at: Date.now() + (tokenData.expires_in * 1000)
+        };
         
         res.send(`
             <html>
@@ -95,6 +104,32 @@ app.get('/auth/callback', async (req, res) => {
     }
 });
 
+// Helper function to ensure valid token
+async function ensureValidToken() {
+    if (!userTokens.access_token) {
+        throw new Error('No access token available');
+    }
+
+    // Check if token is expired or about to expire (within 5 minutes)
+    if (userTokens.expires_at && Date.now() >= (userTokens.expires_at - 300000)) {
+        try {
+            const newTokenData = await auth.refreshToken(userTokens.refresh_token);
+            userTokens = {
+                access_token: newTokenData.access_token,
+                refresh_token: newTokenData.refresh_token,
+                expires_at: Date.now() + (newTokenData.expires_in * 1000)
+            };
+            console.log('Token refreshed successfully');
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+            userTokens = { access_token: null, refresh_token: null, expires_at: null };
+            throw new Error('Token refresh failed');
+        }
+    }
+
+    return userTokens.access_token;
+}
+
 // Helper function to get hub matches
 async function getHubMatches() {
     try {
@@ -124,17 +159,14 @@ async function getHubMatches() {
 
 // Helper function to monitor a chat room
 async function monitorChatRoom(roomId, matchId) {
-    if (!userAccessToken) {
-        console.log('No user access token available. Please authenticate first.');
-        return;
-    }
-
     try {
+        const token = await ensureValidToken();
+        
         const response = await axios({
             method: 'get',
             url: `https://api.faceit.com/chat/v1/rooms/${roomId}/messages`,
             headers: {
-                'Authorization': `Bearer ${userAccessToken}`,
+                'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'
             }
         });
@@ -150,9 +182,9 @@ async function monitorChatRoom(roomId, matchId) {
         }
     } catch (error) {
         console.error('Error monitoring chat room:', error);
-        if (error.response?.status === 401) {
-            console.log('Access token expired. Please re-authenticate.');
-            userAccessToken = null;
+        if (error.message === 'Token refresh failed') {
+            console.log('Authentication required. Please log in again.');
+            return;
         }
     }
 
@@ -203,11 +235,12 @@ async function handleCommand(roomId, matchId, message) {
 
             // Attempt to rehost the match
             try {
+                const token = await ensureValidToken();
                 await axios({
                     method: 'post',
                     url: `https://api.faceit.com/match/v1/matches/${matchId}/rehost`,
                     headers: {
-                        'Authorization': `Bearer ${userAccessToken}`,
+                        'Authorization': `Bearer ${token}`,
                         'Accept': 'application/json'
                     }
                 });
@@ -254,11 +287,12 @@ async function handleCommand(roomId, matchId, message) {
             
             if (eloDiff >= ELO_THRESHOLD) {
                 try {
+                    const token = await ensureValidToken();
                     await axios({
                         method: 'post',
                         url: `https://api.faceit.com/match/v1/matches/${matchId}/cancel`,
                         headers: {
-                            'Authorization': `Bearer ${userAccessToken}`,
+                            'Authorization': `Bearer ${token}`,
                             'Accept': 'application/json'
                         }
                     });
@@ -279,27 +313,24 @@ async function handleCommand(roomId, matchId, message) {
 
 // Helper function to send message to match room
 async function sendMessage(roomId, message) {
-    if (!userAccessToken) {
-        console.log('No user access token available. Please authenticate first.');
-        return;
-    }
-
-    console.log(`Sending message to room ${roomId}:`, message);
-    
-    if (TEST_MODE) {
-        console.log('TEST MODE: Message would be sent to FACEIT API:', {
-            roomId,
-            message
-        });
-        return { status: 'success', test: true };
-    }
-    
     try {
+        const token = await ensureValidToken();
+        
+        console.log(`Sending message to room ${roomId}:`, message);
+        
+        if (TEST_MODE) {
+            console.log('TEST MODE: Message would be sent to FACEIT API:', {
+                roomId,
+                message
+            });
+            return { status: 'success', test: true };
+        }
+        
         const response = await axios({
             method: 'post',
             url: `https://api.faceit.com/chat/v1/rooms/${roomId}/messages`,
             headers: {
-                'Authorization': `Bearer ${userAccessToken}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
             data: {
@@ -315,10 +346,6 @@ async function sendMessage(roomId, message) {
             data: error.response?.data,
             message: error.message
         });
-        if (error.response?.status === 401) {
-            console.log('Access token expired. Please re-authenticate.');
-            userAccessToken = null;
-        }
         throw error;
     }
 }
@@ -382,7 +409,8 @@ app.get('/health', (req, res) => {
             rehostVoteCount: REHOST_VOTE_COUNT,
             testMode: TEST_MODE,
             hubId: FACEIT_HUB_ID,
-            hasUserToken: !!userAccessToken
+            hasUserToken: !!userTokens.access_token,
+            tokenExpiresIn: userTokens.expires_at ? Math.floor((userTokens.expires_at - Date.now()) / 1000) : null
         },
         activeMatches: Array.from(matchStates.entries()).map(([matchId, state]) => ({
             matchId,

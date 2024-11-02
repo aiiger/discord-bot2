@@ -28,16 +28,53 @@ async function getAccessToken(code) {
             method: 'post',
             url: TOKEN_URL,
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json'
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
             data: formData.toString()
         });
         
-        console.log('Token response:', response.data);
+        console.log('Token response:', {
+            access_token: 'REDACTED',
+            token_type: response.data.token_type,
+            expires_in: response.data.expires_in,
+            scope: response.data.scope
+        });
+        
         return response.data;
     } catch (error) {
         console.error('Token error:', {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message
+        });
+        throw error;
+    }
+}
+
+async function refreshToken(refresh_token) {
+    try {
+        console.log('Refreshing access token');
+        
+        const formData = new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: refresh_token,
+            client_id: FACEIT_CLIENT_ID,
+            client_secret: FACEIT_CLIENT_SECRET
+        });
+        
+        const response = await axios({
+            method: 'post',
+            url: TOKEN_URL,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: formData.toString()
+        });
+        
+        console.log('Token refreshed successfully');
+        return response.data;
+    } catch (error) {
+        console.error('Token refresh error:', {
             status: error.response?.status,
             data: error.response?.data,
             message: error.message
@@ -61,7 +98,8 @@ function getAuthUrl() {
         response_type: 'code',
         client_id: FACEIT_CLIENT_ID,
         redirect_uri: REDIRECT_URI,
-        scope: scopes.join(' ')
+        scope: scopes.join(' '),
+        state: Math.random().toString(36).substring(7)  // Add state parameter for security
     });
     
     const url = `${AUTH_URL}?${params.toString()}`;
@@ -71,5 +109,6 @@ function getAuthUrl() {
 
 module.exports = {
     getAccessToken,
+    refreshToken,
     getAuthUrl
 };
