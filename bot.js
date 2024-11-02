@@ -1,4 +1,6 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+import { authenticate } from './auth.js';
+dotenv.config();
 const express = require('express');
 const axios = require('axios');
 const path = require('path');
