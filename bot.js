@@ -5,11 +5,10 @@ import open from 'open';
 import { URLSearchParams } from 'url';
 import { config, getAccessToken } from './auth.js';
 
-
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3001; // Change to a different port if needed
+const port = process.env.PORT || 3001;
 
 // Add middleware for parsing JSON
 app.use(express.json());
@@ -48,7 +47,7 @@ app.get('/auth/callback', async (req, res) => {
     }
 
     try {
-        const tokenResponse = await auth.getAccessToken(code);
+        const tokenResponse = await getAccessToken(code);
         userTokens = tokenResponse;
         res.send(`Access Token: ${tokenResponse.access_token}`);
     } catch (error) {
@@ -59,7 +58,7 @@ app.get('/auth/callback', async (req, res) => {
 
 async function getAuthorizationCode() {
     return new Promise((resolve, reject) => {
-        const authUrl = `${auth.config.authorizationUrl}?response_type=code&client_id=${auth.config.clientId}&redirect_uri=${auth.config.redirectUri}&scope=chat.read chat.write`;
+        const authUrl = `${config.authorizationUrl}?response_type=code&client_id=${config.clientId}&redirect_uri=${config.redirectUri}&scope=chat.read chat.write`;
         open(authUrl);
 
         const server = app.listen(port, () => {
@@ -86,26 +85,6 @@ async function getAuthorizationCode() {
             resolve(null);
         });
     });
-}
-
-async function getAccessToken(authCode) {
-    try {
-        const basicAuth = Buffer.from(`${auth.config.clientId}:${auth.config.clientSecret}`).toString('base64');
-        const response = await axios.post(auth.config.tokenUrl, new URLSearchParams({
-            grant_type: 'authorization_code',
-            code: authCode,
-            redirect_uri: auth.config.redirectUri
-        }), {
-            headers: {
-                'Authorization': `Basic ${basicAuth}`,
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error getting access token:', error.response?.data || error.message);
-        throw error;
-    }
 }
 
 async function authenticate() {
