@@ -6,7 +6,7 @@ const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
 const REDIRECT_URI = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/auth/callback';
 
 // OAuth2 endpoints from OpenID configuration
-const AUTH_URL = 'https://accounts.faceit.com';
+const AUTH_URL = 'https://api.faceit.com/auth/v1/oauth/authorize';
 const TOKEN_URL = 'https://api.faceit.com/auth/v1/oauth/token';
 
 async function getAccessToken(code) {
