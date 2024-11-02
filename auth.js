@@ -15,6 +15,15 @@ async function getAccessToken(code) {
     try {
         console.log('Getting access token with code:', code);
         
+        // Create the form data
+        const formData = new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: REDIRECT_URI,
+            client_id: FACEIT_CLIENT_ID,
+            client_secret: FACEIT_CLIENT_SECRET
+        });
+        
         const response = await axios({
             method: 'post',
             url: TOKEN_URL,
@@ -22,15 +31,7 @@ async function getAccessToken(code) {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Accept': 'application/json'
             },
-            auth: {
-                username: FACEIT_CLIENT_ID,
-                password: FACEIT_CLIENT_SECRET
-            },
-            data: new URLSearchParams({
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: REDIRECT_URI
-            }).toString()
+            data: formData.toString()
         });
         
         console.log('Token response:', response.data);
