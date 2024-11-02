@@ -6,7 +6,6 @@ import { promises as fs } from 'fs';
 
 dotenv.config();
 
-// FACEIT OAuth2 Configuration
 const config = {
     clientId: process.env.FACEIT_CLIENT_ID,
     clientSecret: process.env.FACEIT_CLIENT_SECRET,
@@ -22,12 +21,12 @@ const config = {
 };
 
 async function getAuthorizationCode() {
-    const authUrl = `${config.authorizationUrl}/oauth/authorize?` + 
+    const authUrl = `${config.authorizationUrl}/oauth/authorize?` +
         `client_id=${config.clientId}&` +
         `response_type=code&` +
         `redirect_uri=${encodeURIComponent(config.redirectUri)}&` +
         `scope=${encodeURIComponent(config.scopes)}`;
-    
+
     return new Promise((resolve) => {
         const app = express();
         const server = app.listen(3001, () => {
@@ -43,7 +42,6 @@ async function getAuthorizationCode() {
             resolve(code);
         });
 
-        // Also handle errors
         app.use((err, req, res, next) => {
             console.error('Error in callback:', err);
             res.status(500).send('Authentication failed! Please check the console.');
@@ -55,9 +53,7 @@ async function getAuthorizationCode() {
 
 async function getAccessToken(authCode) {
     try {
-        // Create Basic Auth header
         const basicAuth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
-        
         const response = await axios.post(config.tokenUrl, new URLSearchParams({
             grant_type: 'authorization_code',
             code: authCode,
@@ -68,7 +64,6 @@ async function getAccessToken(authCode) {
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
         });
-
         return response.data;
     } catch (error) {
         console.error('Error getting access token:', error.response?.data || error.message);
@@ -79,20 +74,16 @@ async function getAccessToken(authCode) {
 async function authenticate() {
     console.log('Starting authentication process...');
     try {
-        // Get authorization code
         const authCode = await getAuthorizationCode();
         if (!authCode) {
             throw new Error('Failed to get authorization code');
         }
         console.log('Authorization code received');
-
-        // Exchange code for access token
+        
         const tokenData = await getAccessToken(authCode);
         console.log('Access token received');
-
-        // In production, we'll use environment variables directly
+        
         if (process.env.NODE_ENV !== 'production') {
-            // Save tokens to .env file only in development
             const envContent = `
 FACEIT_ACCESS_TOKEN=${tokenData.access_token}
 FACEIT_REFRESH_TOKEN=${tokenData.refresh_token}
@@ -101,7 +92,6 @@ TOKEN_EXPIRES_AT=${Date.now() + (tokenData.expires_in * 1000)}
             await fs.appendFile('.env', envContent);
             console.log('Tokens saved to .env file');
         }
-
         return tokenData;
     } catch (error) {
         console.error('Authentication failed:', error);
