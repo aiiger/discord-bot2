@@ -7,32 +7,19 @@
         var response_type = "code";
         var redirect_popup = true;
 
+        function callback(code) {
+            if (code) {
+                console.log("Authorization code: " + code);
+            } else {
+                console.log("The id token is not valid, something went wrong");
+            }
+        }
+
         FACEIT.init({
             client_id: client_id,
             response_type: response_type,
             redirect_popup: redirect_popup
-        }, function(code) {
-            if (code) {
-                // Send the code to our server
-                fetch('/auth/callback?code=' + encodeURIComponent(code))
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Authentication failed');
-                        }
-                        return response.text();
-                    })
-                    .then(html => {
-                        // Replace the current page content with the success message
-                        document.documentElement.innerHTML = html;
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Authentication failed. Please try again.');
-                    });
-            } else {
-                alert("The id token is not valid, something went wrong");
-            }
-        });
+        }, callback);
     </script>
 </head>
 <body>
