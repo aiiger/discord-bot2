@@ -73,10 +73,11 @@
                     });
             }
 
-            // Initialize the SDK
+            // Initialize the SDK with response_group parameter
             FACEIT.init({
                 client_id: "075a09a2-3155-47b1-8b9b-62f6de5f7bf1",
                 response_type: "code",
+                response_group: true,  // Add this parameter as shown in their example
                 redirect_popup: true,
                 debug: true
             }, handleCallback);
