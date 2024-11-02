@@ -16,21 +16,22 @@ async function getAccessToken(code) {
         console.log('Getting access token with code:', code);
         
         // Create the form data
-        const formData = new URLSearchParams({
-            grant_type: 'authorization_code',
-            code: code,
-            redirect_uri: REDIRECT_URI,
-            client_id: FACEIT_CLIENT_ID,
-            client_secret: FACEIT_CLIENT_SECRET
-        });
+        const formData = new URLSearchParams();
+        formData.append('grant_type', 'authorization_code');
+        formData.append('code', code);
+        formData.append('redirect_uri', REDIRECT_URI);
+        
+        // Use basic auth for client credentials
+        const auth = Buffer.from(`${FACEIT_CLIENT_ID}:${FACEIT_CLIENT_SECRET}`).toString('base64');
         
         const response = await axios({
             method: 'post',
             url: TOKEN_URL,
             headers: {
+                'Authorization': `Basic ${auth}`,
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            data: formData.toString()
+            data: formData
         });
         
         console.log('Token response:', {
@@ -55,20 +56,21 @@ async function refreshToken(refresh_token) {
     try {
         console.log('Refreshing access token');
         
-        const formData = new URLSearchParams({
-            grant_type: 'refresh_token',
-            refresh_token: refresh_token,
-            client_id: FACEIT_CLIENT_ID,
-            client_secret: FACEIT_CLIENT_SECRET
-        });
+        const formData = new URLSearchParams();
+        formData.append('grant_type', 'refresh_token');
+        formData.append('refresh_token', refresh_token);
+        
+        // Use basic auth for client credentials
+        const auth = Buffer.from(`${FACEIT_CLIENT_ID}:${FACEIT_CLIENT_SECRET}`).toString('base64');
         
         const response = await axios({
             method: 'post',
             url: TOKEN_URL,
             headers: {
+                'Authorization': `Basic ${auth}`,
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            data: formData.toString()
+            data: formData
         });
         
         console.log('Token refreshed successfully');
