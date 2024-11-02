@@ -49,8 +49,8 @@
     <script type="text/javascript">
         window.onload = function() {
             var initParams = {
-                client_id: '075a09a2-3155-47b1-8b9b-62f6de5f7bf1',
-                response_type: 'code',
+                client_id: "075a09a2-3155-47b1-8b9b-62f6de5f7bf1",
+                response_type: "code",
                 redirect_popup: true,
                 debug: true
             };
@@ -80,8 +80,14 @@
                     });
             }
 
-            // Initialize the SDK
-            FACEIT.init(initParams, handleCallback);
+            // Initialize the SDK with the faceitLogin div ID
+            FACEIT.init({
+                client_id: "075a09a2-3155-47b1-8b9b-62f6de5f7bf1",
+                response_type: "code",
+                redirect_popup: true,
+                debug: true,
+                faceitLogin: "faceitLogin"  // Add this to match the documentation
+            }, handleCallback);
         };
     </script>
 </body>
