@@ -3,7 +3,9 @@ const axios = require('axios');
 
 const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
 const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
-const REDIRECT_URI = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/auth/callback';
+const REDIRECT_URI = process.env.NODE_ENV === 'production' 
+    ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/auth/callback'
+    : 'http://localhost:3000/auth/callback';
 
 // OAuth2 endpoints from OpenID configuration
 const AUTH_URL = 'https://api.faceit.com/auth/v1/oauth/authorize';
