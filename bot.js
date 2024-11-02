@@ -54,6 +54,33 @@ app.get('/auth', (req, res) => {
 app.get('/auth/callback', async (req, res) => {
     try {
         const code = req.query.code;
+        const state = req.query.state;
+        const error = req.query.error;
+        const error_description = req.query.error_description;
+
+        console.log('Received callback:', {
+            code: code ? 'present' : 'missing',
+            state: state ? 'present' : 'missing',
+            error,
+            error_description
+        });
+
+        if (error) {
+            console.error('OAuth error:', error, error_description);
+            return res.status(400).send(`
+                <html>
+                <body style="font-family: Arial, sans-serif; background-color: #1f1f1f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
+                    <div style="text-align: center; padding: 20px; border-radius: 8px; background-color: #2d2d2d; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
+                        <h2>Authentication failed</h2>
+                        <p>Error: ${error}</p>
+                        <p>Details: ${error_description}</p>
+                        <p>Please try again.</p>
+                    </div>
+                </body>
+                </html>
+            `);
+        }
+
         if (!code) {
             return res.status(400).send('No code provided');
         }
@@ -89,13 +116,13 @@ app.get('/auth/callback', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Auth error:', error);
+        console.error('Auth error:', error.response?.data || error.message);
         res.status(500).send(`
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1f1f1f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
                 <div style="text-align: center; padding: 20px; border-radius: 8px; background-color: #2d2d2d; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
                     <h2>Authentication failed</h2>
-                    <p>Error: ${error.message}</p>
+                    <p>Error: ${error.response?.data?.message || error.message}</p>
                     <p>Please try again.</p>
                 </div>
             </body>
