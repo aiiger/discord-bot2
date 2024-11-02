@@ -47,12 +47,37 @@
     </div>
 
     <script type="text/javascript">
+        function handleCallback(code) {
+            // Send the code to our server
+            fetch('/auth/callback?code=' + code)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Authentication failed');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    // Replace the current page content with the success message
+                    document.documentElement.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Authentication failed. Please try again.');
+                });
+        }
+
         FACEIT.init({
             client_id: '075a09a2-3155-47b1-8b9b-62f6de5f7bf1',
             response_type: 'code',
             redirect_popup: true,
-            state: Math.random().toString(36).substring(7),
             debug: true
+        }, function(code) {
+            if (code) {
+                handleCallback(code);
+            } else {
+                console.error('No authorization code received');
+                alert('Login failed. Please try again.');
+            }
         });
     </script>
 </body>
