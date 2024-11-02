@@ -1,42 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script type="text/javascript" src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
-    <script type="text/javascript">
-        var initParams = {
-            client_id: "075a09a2-3155-47b1-8b9b-62f6de5f7bf1",
-            response_type: "code",
-            redirect_popup: true,
-            state: "..."
-        };
-
-        function callback(code) {
-            if (code) {
-                // Send the code to our server
-                fetch('/auth/callback?code=' + encodeURIComponent(code))
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Authentication failed');
-                        }
-                        return response.text();
-                    })
-                    .then(html => {
-                        // Replace the current page content with the success message
-                        document.documentElement.innerHTML = html;
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Authentication failed. Please try again.');
-                    });
-            } else {
-                alert("The id token is not valid, something went wrong");
-            }
+    <title>FACEIT Bot Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1f1f1f;
+            color: white;
         }
-
-        FACEIT.init(initParams, callback);
-    </script>
+        .container {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #2d2d2d;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .login-button {
+            background-color: #ff5500;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .login-button:hover {
+            background-color: #ff6a1f;
+        }
+    </style>
 </head>
 <body>
-    <div id="faceitLogin"></div>
+    <div class="container">
+        <h1>FACEIT Bot Login</h1>
+        <p>Click the button below to authenticate with FACEIT</p>
+        <a href="https://accounts.faceit.com/oauth/authorize?client_id=075a09a2-3155-47b1-8b9b-62f6de5f7bf1&response_type=code&redirect_uri=https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/auth/callback&scope=openid%20chat.messages.read%20chat.messages.write%20chat.rooms.read" class="login-button">
+            Login with FACEIT
+        </a>
+    </div>
 </body>
 </html>
