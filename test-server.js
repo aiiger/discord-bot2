@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const port = 3002;
+const port = process.env.PORT || 3002;
 
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
@@ -41,39 +41,16 @@ app.get('/auth/callback', async (req, res) => {
                     'Authorization': `Basic ${Buffer.from(`${process.env.FACEIT_CLIENT_ID}:${process.env.FACEIT_CLIENT_SECRET}`).toString('base64')}`,
                     'Content-Type': 'application/x-www-form-urlencoded'
                 }
-            }
-        );
+            });
 
-        // Save tokens to .env file
-        const envContent = `\nFACEIT_ACCESS_TOKEN=${tokenResponse.data.access_token}\nFACEIT_REFRESH_TOKEN=${tokenResponse.data.refresh_token}\nTOKEN_EXPIRES_AT=${Date.now() + (tokenResponse.data.expires_in * 1000)}`;
-        
-        res.send(`
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1f1f1f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-                <div style="text-align: center; padding: 20px; border-radius: 8px; background-color: #2d2d2d; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
-                    <h2>Authentication successful!</h2>
-                    <p>The bot is now authorized to use chat commands.</p>
-                    <p>You can close this window.</p>
-                </div>
-            </body>
-            </html>
-        `);
+        const { access_token } = tokenResponse.data;
+        res.send(`Access Token: ${access_token}`);
     } catch (error) {
-        console.error('Token exchange error:', error.response?.data || error.message);
-        res.status(500).send(`
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1f1f1f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-                <div style="text-align: center; padding: 20px; border-radius: 8px; background-color: #2d2d2d; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
-                    <h2>Authentication failed</h2>
-                    <p>Error: ${error.response?.data?.message || error.message}</p>
-                    <p>Please try again.</p>
-                </div>
-            </body>
-            </html>
-        `);
+        console.error('Error exchanging code for token:', error);
+        res.status(500).send('Error exchanging code for token');
     }
 });
 
 app.listen(port, () => {
-    console.log(`Test server running at http://localhost:${port}`);
+    console.log(`Server running at http://localhost:${port}/`);
 });

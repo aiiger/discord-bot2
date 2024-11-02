@@ -2,11 +2,11 @@
   "name": "your-app-name",
   "version": "1.0.0",
   "description": "FACEIT match management bot for rehosting and cancellation",
-  "main": "test-bot.js",
+  "main": "test-server.js",
   "type": "module",
   "scripts": {
-    "start": "node test-bot.js",
-    "dev": "nodemon test-bot.js"
+    "start": "node test-server.js",
+    "dev": "nodemon test-server.js"
   },
   "dependencies": {
     "axios": "^1.7.7",
@@ -15,7 +15,8 @@
     "rcon": "^1.1.0",
     "ws": "^8.18.0",
     "lru-cache": "^7.14.0",
-    "glob": "^9.0.0"
+    "glob": "^9.0.0",
+    "open": "^8.4.0"
   },
   "engines": {
     "node": "20.x",
