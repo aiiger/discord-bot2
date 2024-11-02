@@ -31,7 +31,7 @@
         <div id="faceitLogin"></div>
     </div>
 
-    <script src="https://cdn.faceit.com/auth/faceit-auth-sdk-1.3.0.min.js" type="text/javascript"></script>
+    <script src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js" type="text/javascript"></script>
     <script type="text/javascript">
         var initParams = {
             client_id: "075a09a2-3155-47b1-8b9b-62f6de5f7bf1",
@@ -40,7 +40,7 @@
             state: "..."
         };
 
-        function callback(code) {
+        FACEIT.init(initParams, function(code) {
             if (code) {
                 // Send the code to our server
                 fetch('/auth/callback?code=' + encodeURIComponent(code))
@@ -61,9 +61,7 @@
             } else {
                 alert("The id token is not valid, something went wrong");
             }
-        }
-
-        FACEIT.init(initParams, callback);
+        });
     </script>
 </body>
 </html>
