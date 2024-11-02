@@ -38,49 +38,73 @@
             background-color: #ff6a1f;
         }
     </style>
+    <script type="text/javascript" src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
 </head>
 <body>
     <div class="login-container">
         <h1>FACEIT Bot Login</h1>
         <p>Log in with your FACEIT account to enable bot commands in match chat</p>
-        <div id="faceitLogin">
-            <a href="#" class="button faceit" onclick="FACEIT.loginWithFaceit()">Connect with FACEIT</a>
-        </div>
+        <div id="faceitLogin"></div>
     </div>
 
-    <script type="text/javascript" src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
     <script type="text/javascript">
-        var initParams = {
-            client_id: "075a09a2-3155-47b1-8b9b-62f6de5f7bf1",
-            response_type: "code",
-            redirect_popup: true,
-            state: "..."
-        };
-
-        function callback(code) {
-            if (code) {
-                // Send the code to our server
-                fetch('/auth/callback?code=' + encodeURIComponent(code))
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Authentication failed');
-                        }
-                        return response.text();
-                    })
-                    .then(html => {
-                        // Replace the current page content with the success message
-                        document.documentElement.innerHTML = html;
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Authentication failed. Please try again.');
-                    });
-            } else {
-                alert("The id token is not valid, something went wrong");
+        // Wait for the SDK to load
+        window.onload = function() {
+            // Check if SDK is loaded
+            if (typeof FACEIT === 'undefined') {
+                console.error('FACEIT SDK not loaded');
+                return;
             }
-        }
 
-        FACEIT.init(initParams, callback);
+            // Create login button
+            var button = document.createElement('a');
+            button.href = '#';
+            button.className = 'button faceit';
+            button.onclick = function() {
+                FACEIT.loginWithFaceit();
+                return false;
+            };
+            button.textContent = 'Connect with FACEIT';
+            document.getElementById('faceitLogin').appendChild(button);
+
+            // Initialize SDK
+            var initParams = {
+                client_id: "075a09a2-3155-47b1-8b9b-62f6de5f7bf1",
+                response_type: "code",
+                redirect_popup: true,
+                state: "..."
+            };
+
+            function callback(code) {
+                if (code) {
+                    // Send the code to our server
+                    fetch('/auth/callback?code=' + encodeURIComponent(code))
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Authentication failed');
+                            }
+                            return response.text();
+                        })
+                        .then(html => {
+                            // Replace the current page content with the success message
+                            document.documentElement.innerHTML = html;
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Authentication failed. Please try again.');
+                        });
+                } else {
+                    alert("The id token is not valid, something went wrong");
+                }
+            }
+
+            try {
+                FACEIT.init(initParams, callback);
+                console.log('FACEIT SDK initialized successfully');
+            } catch (error) {
+                console.error('Error initializing FACEIT SDK:', error);
+            }
+        };
     </script>
 </body>
 </html>
