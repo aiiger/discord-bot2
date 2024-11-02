@@ -1,10 +1,10 @@
 {
   "name": "faceit-bot-test",
   "version": "1.0.0",
-  "main": "bot.js",
+  "main": "test-bot",
   "type": "module",
   "scripts": {
-    "start": "node bot.js",
+    "start": "node test-bot.js",
     "test": "node test/faceit-api.test.js"
   },
   "engines": {
