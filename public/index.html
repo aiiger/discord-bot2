@@ -33,15 +33,15 @@
 
     <script type="text/javascript" src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
     <script type="text/javascript">
-        var initParams = {
-            client_id: "075a09a2-3155-47b1-8b9b-62f6de5f7bf1",
-            response_type: "code",
-            redirect_popup: true,
-            state: "...",
-            faceitLogin: "faceitLogin"
-        };
+        var client_id = "075a09a2-3155-47b1-8b9b-62f6de5f7bf1";
+        var response_type = "code";
+        var redirect_popup = true;
 
-        FACEIT.init(initParams, function(code) {
+        FACEIT.init({
+            client_id: client_id,
+            response_type: response_type,
+            redirect_popup: redirect_popup
+        }, function(code) {
             if (code) {
                 // Send the code to our server
                 fetch('/auth/callback?code=' + encodeURIComponent(code))
