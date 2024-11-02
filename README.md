@@ -1,95 +1,106 @@
-# FACEIT API Integration
+# FACEIT Bot
 
-This project provides a clean interface to interact with the FACEIT API, specifically designed for CS2 hub management and player statistics.
+A Discord bot for managing FACEIT CS2 matches, with features for rehosting and cancelling matches based on ELO differences.
 
 ## Setup
 
-1. Create a `.env` file in the root directory with your FACEIT API credentials:
-```env
-FACEIT_API_KEY=your_api_key_here
-FACEIT_HUB_ID=your_hub_id_here
-```
-
+1. Clone the repository
 2. Install dependencies:
 ```bash
 npm install
 ```
 
-## Available Endpoints
+3. Set up environment variables:
 
-### Hub Endpoints
+Required environment variables:
+```env
+# FACEIT API Credentials
+FACEIT_API_KEY=your_api_key_here
+FACEIT_HUB_ID=your_hub_id_here
 
-#### getHubsById(hubId, expanded)
-Get detailed information about a hub including name, game, organizer, etc.
-- `hubId`: The ID of the hub
-- `expanded`: Array of fields to expand (e.g., ['organizer', 'game'])
-
-#### getHubMatches(hubId, type, offset, limit)
-Get matches for a hub
-- `hubId`: The ID of the hub
-- `type`: Type of matches ('ongoing', 'past', 'upcoming')
-- `offset`: Starting position (optional)
-- `limit`: Number of matches to return (optional, default: 20)
-
-### Match Endpoints
-
-#### getMatchDetails(matchId)
-Get detailed match information including teams, map, status, etc.
-- `matchId`: The ID of the match
-
-#### getMatchStats(matchId)
-Get match statistics including player performance, scores, etc.
-- `matchId`: The ID of the match
-
-### Player Endpoints
-
-#### getPlayerDetails(playerId)
-Get player information including games, skill levels, etc.
-- `playerId`: The ID of the player
-
-#### getPlayerStats(playerId, gameId)
-Get detailed player statistics for a specific game
-- `playerId`: The ID of the player
-- `gameId`: The ID of the game (e.g., 'cs2' for Counter-Strike 2)
-
-## Usage Example
-
-```javascript
-const faceitAPI = require('./endpoints');
-
-// Get hub information
-const hubInfo = await faceitAPI.getHubsById(process.env.FACEIT_HUB_ID, ['organizer', 'game']);
-
-// Get ongoing matches
-const matches = await faceitAPI.getHubMatches(process.env.FACEIT_HUB_ID, 'ongoing');
-
-// Get match details
-const matchDetails = await faceitAPI.getMatchDetails(matchId);
-
-// Get player stats
-const playerStats = await faceitAPI.getPlayerStats(playerId, 'cs2');
+# Bot Configuration
+ELO_THRESHOLD=70        # Minimum ELO difference for match cancellation
+REHOST_VOTE_COUNT=6     # Number of votes needed for rehost
+NODE_ENV=production     # Set to 'production' in Heroku
 ```
 
-## Testing
+## Heroku Deployment
 
-Run the test suite to verify the API integration:
+1. Create a new Heroku app
+2. Set the environment variables in Heroku:
+   - Go to Settings -> Config Vars
+   - Add all the required environment variables listed above
+
+3. Deploy to Heroku:
+```bash
+git add .
+git commit -m "Initial commit"
+git push heroku master
+```
+
+## Features
+
+### Match Commands
+
+- `!rehost` - Vote for match rehost
+  - Requires configured number of votes (default: 6)
+  - Only works during active matches
+  - Automatically resets votes when match ends
+
+- `!cancel` - Check if match can be cancelled
+  - Checks ELO difference between teams
+  - Cancels match if difference exceeds threshold
+  - Shows current ELO difference
+
+### API Integration
+
+The bot uses the FACEIT API to:
+- Monitor match status
+- Calculate team ELO differences
+- Execute match rehosts
+- Process match cancellations
+
+## Project Structure
+
+```
+├── bot.js              # Main bot file
+├── auth.js             # Authentication handling
+├── endpoints/          # FACEIT API endpoints
+│   ├── hubs/          # Hub-related endpoints
+│   ├── matches/       # Match-related endpoints
+│   └── players/       # Player-related endpoints
+├── utils/             # Utility functions
+│   ├── headers.js     # API headers
+│   └── urlConstructor.js # URL construction
+└── public/            # Public web files
+```
+
+## Development
+
+To run locally:
+```bash
+npm start
+```
+
+For testing:
 ```bash
 node test/faceit-api.test.js
 ```
 
-The test suite will:
-1. Get matches from your hub
-2. Get details and stats for a match
-3. Get player details and stats for a player from the match
-
 ## Error Handling
 
-All endpoints return an Error object if the request fails. You can check for errors like this:
+The bot includes comprehensive error handling for:
+- API failures
+- Invalid commands
+- Missing permissions
+- Network issues
 
-```javascript
-const result = await faceitAPI.getHubsById(hubId);
-if (result instanceof Error) {
-    console.error('Error:', result.message);
-    return;
-}
-// Process successful result
+All errors are logged and appropriate feedback is provided to users.
+
+## Monitoring
+
+Health check endpoint available at `/health` showing:
+- Server status
+- Active matches
+- Configuration
+- Uptime
