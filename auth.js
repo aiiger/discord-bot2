@@ -46,12 +46,14 @@ async function getAccessToken(code) {
 }
 
 function getAuthUrl() {
-    // Only request the scopes we absolutely need
+    // Using the exact scope names from FACEIT
     const scopes = [
         'openid',
         'profile',
         'email',
-        'chat_api'  // This is the main scope we need for chat functionality
+        'chat.messages.read',
+        'chat.messages.write',
+        'chat.rooms.read'
     ];
     
     const params = new URLSearchParams({
