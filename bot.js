@@ -66,8 +66,17 @@ app.get('/callback', async (req, res) => {
         }
 
         console.log('Authorization code:', code);
-        await auth.getAccessToken(code);
+        const tokens = await auth.getAccessToken(code);
         console.log('Authentication successful');
+
+        // Use the access token to retrieve user information
+        const userInfo = await axios.get('https://api.faceit.com/auth/v1/resources/userinfo', {
+            headers: {
+                'Authorization': `Bearer ${tokens.access_token}`
+            }
+        });
+
+        console.log('User Info:', userInfo.data);
 
         res.send(`
             <html>
@@ -75,6 +84,7 @@ app.get('/callback', async (req, res) => {
                 <div style="text-align: center; padding: 20px; border-radius: 8px; background-color: #2d2d2d; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
                     <h2>Authentication successful!</h2>
                     <p>The bot is now authorized to use chat commands.</p>
+                    <p>User Info: ${JSON.stringify(userInfo.data)}</p>
                     <p>You can close this window.</p>
                 </div>
             </body>

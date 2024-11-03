@@ -7,7 +7,7 @@ dotenv.config();
 
 const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
 const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
-const REDIRECT_URI = 'http://localhost:3000/auth/callback';
+const REDIRECT_URI = process.env.FACEIT_REDIRECT_URI;
 
 let tokens = {};
 
