@@ -1,53 +1,71 @@
 // auth.js
 
-import axios from 'axios';
+import { AuthorizationCode } from 'simple-oauth2';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
-const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
-const REDIRECT_URI = process.env.FACEIT_REDIRECT_URI;
+const config = {
+    client: {
+        id: process.env.FACEIT_CLIENT_ID,
+        secret: process.env.FACEIT_CLIENT_SECRET,
+    },
+    auth: {
+        tokenHost: 'https://api.faceit.com',
+        authorizePath: '/auth/v1/oauth/authorize',
+        tokenPath: '/auth/v1/oauth/token',
+    },
+};
 
-let tokens = {};
+const client = new AuthorizationCode(config);
+
+let accessToken = null;
 
 const auth = {
-    async getAccessToken(code) {
+    getAuthorizationUrl() {
+        const authorizationUri = client.authorizeURL({
+            redirect_uri: process.env.FACEIT_REDIRECT_URI,
+            scope: 'openid profile email chat.messages.read chat.messages.write chat.rooms.read',
+            state: 'random_state_string', // You should generate a random string for security
+        });
+        return authorizationUri;
+    },
+
+    async getAccessTokenFromCode(code) {
+        const tokenParams = {
+            code,
+            redirect_uri: process.env.FACEIT_REDIRECT_URI,
+            scope: 'openid profile email chat.messages.read chat.messages.write chat.rooms.read',
+        };
+
         try {
-            const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', {
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: REDIRECT_URI,
-                client_id: FACEIT_CLIENT_ID,
-                client_secret: FACEIT_CLIENT_SECRET
-            });
-            tokens = response.data;
-            return tokens;
+            const result = await client.getToken(tokenParams);
+            accessToken = client.createToken(result.token);
+            console.log('Access Token successfully obtained.');
+            return accessToken;
         } catch (error) {
-            console.error('Error getting access token:', error);
+            console.error('Access Token Error', error.message);
             throw error;
         }
     },
 
-    async refreshAccessToken(refreshToken) {
-        try {
-            const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', {
-                grant_type: 'refresh_token',
-                refresh_token: refreshToken,
-                client_id: FACEIT_CLIENT_ID,
-                client_secret: FACEIT_CLIENT_SECRET
-            });
-            tokens = response.data;
-            return tokens;
-        } catch (error) {
-            console.error('Error refreshing access token:', error);
-            throw error;
+    async refreshAccessToken() {
+        if (accessToken && accessToken.expired()) {
+            try {
+                accessToken = await accessToken.refresh();
+                console.log('Access Token refreshed.');
+                return accessToken;
+            } catch (error) {
+                console.error('Error refreshing access token:', error.message);
+                throw error;
+            }
         }
+        return accessToken;
     },
 
-    getCurrentTokens() {
-        return tokens;
-    }
+    getAccessToken() {
+        return accessToken;
+    },
 };
 
 export default auth;
