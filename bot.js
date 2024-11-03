@@ -1,10 +1,7 @@
-// bot.js
-
 import express from 'express';
 import axios from 'axios';
 import auth from './auth.js'; // Ensure the correct path
 import faceitAPI from './endpoints/faceitAPI.js'; // Ensure the correct path
-import { getHubMatches } from './endpoints/faceitAPI.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -79,7 +76,7 @@ app.get('/auth/callback', async (req, res) => {
         `);
 
         // Start monitoring active matches
-        const matches = await getHubMatches();
+        const matches = await faceitAPI.getHubMatches(FACEIT_HUB_ID, 'ongoing');
         matches.forEach(match => {
             if (['READY', 'ONGOING', 'VOTING'].includes(match.status)) {
                 matchStates.set(match.id, { commandsEnabled: true });
@@ -101,33 +98,6 @@ app.get('/auth/callback', async (req, res) => {
         `);
     }
 });
-
-// Helper function to get hub matches
-async function getHubMatches() {
-    try {
-        const response = await faceitAPI.getHubMatches(FACEIT_HUB_ID, 'ongoing');
-        if (response instanceof Error) {
-            throw response;
-        }
-        
-        const matches = response.items.map(match => ({
-            id: match.match_id,
-            status: match.status,
-            chatRoomId: match.chat_room_id,
-            teams: match.teams ? Object.keys(match.teams).length : 0
-        }));
-        
-        console.log('Current hub matches:', {
-            total: matches.length,
-            matches: matches
-        });
-        
-        return matches;
-    } catch (error) {
-        console.error('Error getting hub matches:', error);
-        throw error;
-    }
-}
 
 // Helper function to monitor a chat room
 async function monitorChatRoom(roomId, matchId) {
