@@ -17,43 +17,20 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize Redis Store
+// Initialize Redis client
+const Redis = require('ioredis');
+const redisClient = new Redis();
+
+// Initialize RedisStore
 const RedisStore = connectRedis(session);
 
-// Create Redis client with SSL enabled
-const redisClient = createClient({
-    url: process.env.REDIS_URL,
-    socket: {
-        tls: true,
-        rejectUnauthorized: false // Set to true in production with valid certificates
-    },
-});
-
-// Redis event handlers
-redisClient.on('error', (err) => {
-    console.error('Redis Client Error:', err);
-});
-
-// Connect to Redis
-(async () => {
-    try {
-        await redisClient.connect();
-        console.log('Connected to Redis');
-    } catch (error) {
-        console.error('Could not connect to Redis:', error);
-    }
-})();
-
-// Configure session middleware to use Redis
-app.use(
-    session({
-        store: new RedisStore({ client: redisClient }), // Ensure 'new' is used here
-        secret: process.env.SESSION_SECRET || 'your-secret-key', // Replace with a strong secret in production
-        resave: false,
-        saveUninitialized: false,
-        cookie: { secure: process.env.NODE_ENV === 'production' },
-    })
-);
+// Session configuration
+app.use(session({
+    store: new RedisStore({ client: redisClient }),
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+}));
 
 // Middleware to parse JSON
 app.use(express.json());
