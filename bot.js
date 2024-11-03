@@ -1,10 +1,10 @@
 // app.js
 
-const express = require('express');
-const axios = require('axios');
-const path = require('path');
-const auth = require('./auth');
-const faceitAPI = require('./endpoints');
+const express = ('express');
+const axios = ('axios');
+const path = ('path');
+const auth = ('./auth');
+const faceitAPI = ('./endpoints');
 
 require('dotenv').config();
 const app = express();
