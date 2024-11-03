@@ -3,8 +3,8 @@ import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import session from 'express-session';
-import RedisStore from 'connect-redis';
 import { createClient } from 'redis';
+import RedisStore from 'connect-redis';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,29 +15,30 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Redis Client Setup
-const redisClient = createClient({
-    url: process.env.REDIS_URL,
-    socket: {
-        tls: process.env.NODE_ENV === 'production',
-        rejectUnauthorized: false
-    }
-});
-
-redisClient.connect().catch(console.error);
-
-// Initialize Redis Store
-const redisStore = new RedisStore({
-    client: redisClient,
-    prefix: "faceit:",
-});
-
 // Environment Variables
 const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
 const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
 const FACEIT_REDIRECT_URI = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback';
-const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
-const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
+
+// Redis Client Setup
+let redisClient = createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+        tls: true,
+        rejectUnauthorized: false
+    }
+});
+
+redisClient.on('error', err => console.log('Redis Client Error', err));
+redisClient.on('connect', () => console.log('Connected to Redis'));
+
+await redisClient.connect().catch(console.error);
+
+// Initialize store
+const redisStore = new RedisStore({
+    client: redisClient,
+    prefix: "faceit:"
+});
 
 // Middleware
 app.use(express.json());
@@ -63,17 +64,13 @@ app.use((req, res, next) => {
     next();
 });
 
-// In-memory stores for rehost functionality
-const rehostVotes = new Map(); // matchId -> Set of playerIds
-const matchStates = new Map(); // matchId -> { commandsEnabled: boolean }
-
 // Routes
 app.get('/', (req, res) => {
     res.send(`
         <!DOCTYPE html>
         <html>
         <head>
-            <title>FACEIT Bot - Rehost Manager</title>
+            <title>FACEIT Bot Login</title>
         </head>
         <body>
             <div id="faceitLogin"></div>
@@ -103,13 +100,11 @@ app.get('/', (req, res) => {
     `);
 });
 
-// Auth endpoint
 app.get('/auth', (req, res) => {
     const authUrl = `https://accounts.faceit.com/auth?response_type=code&client_id=${FACEIT_CLIENT_ID}&redirect_popup=true`;
     res.redirect(authUrl);
 });
 
-// OAuth2 callback handler
 app.get('/callback', async (req, res) => {
     try {
         const { code } = req.query;
@@ -181,12 +176,47 @@ async function getUserInfo(accessToken) {
     }
 }
 
+// Rehost endpoint
+app.post('/api/matches/:matchId/rehost', async (req, res) => {
+    try {
+        if (!req.session.tokens?.access_token) {
+            throw new Error('Not authenticated');
+        }
+
+        const { matchId } = req.params;
+        await axios.post(`https://api.faceit.com/match/v1/matches/${matchId}/rehost`, {}, {
+            headers: { 'Authorization': `Bearer ${req.session.tokens.access_token}` }
+        });
+        
+        res.json({ success: true, message: 'Match rehosted successfully' });
+    } catch (error) {
+        console.error('Rehost Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Cancel match endpoint
+app.post('/api/matches/:matchId/cancel', async (req, res) => {
+    try {
+        if (!req.session.tokens?.access_token) {
+            throw new Error('Not authenticated');
+        }
+
+        const { matchId } = req.params;
+        await axios.post(`https://api.faceit.com/match/v1/matches/${matchId}/cancel`, {}, {
+            headers: { 'Authorization': `Bearer ${req.session.tokens.access_token}` }
+        });
+        
+        res.json({ success: true, message: 'Match cancelled successfully' });
+    } catch (error) {
+        console.error('Cancel Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
-
-// Handle Redis errors
-redisClient.on('error', (err) => console.log('Redis Client Error', err));
 
 export default app;
