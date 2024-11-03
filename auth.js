@@ -2,6 +2,7 @@
 
 import { AuthorizationCode } from 'simple-oauth2';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -12,8 +13,11 @@ const config = {
     },
     auth: {
         tokenHost: 'https://api.faceit.com',
-        authorizePath: '/auth/v1/oauth/authorize',
-        tokenPath: '/auth/v1/oauth/token',
+        authorizePath: '/oauth/v1/authorize',
+        tokenPath: '/oauth/v1/token',
+    },
+    options: {
+        authorizationMethod: 'body', // Adjust based on Faceit's requirements
     },
 };
 
@@ -21,12 +25,31 @@ const client = new AuthorizationCode(config);
 
 let accessToken = null;
 
+const AUTH_STATE = {
+    // Temporary in-memory store for state parameters (use persistent storage in production)
+    store: {},
+    generate() {
+        const state = crypto.randomBytes(16).toString('hex');
+        // In production, associate state with user session
+        this.store[state] = true;
+        return state;
+    },
+    validate(state) {
+        if (this.store[state]) {
+            delete this.store[state];
+            return true;
+        }
+        return false;
+    },
+};
+
 const auth = {
     getAuthorizationUrl() {
+        const state = AUTH_STATE.generate();
         const authorizationUri = client.authorizeURL({
             redirect_uri: process.env.FACEIT_REDIRECT_URI,
-            scope: 'openid profile email chat.messages.read chat.messages.write chat.rooms.read',
-            state: 'random_state_string', // Generate a random string in production
+            scope: 'openid profile email chat.messages.read chat.messages.write chat.rooms.read', // Adjust scopes as needed
+            state: state,
         });
         return authorizationUri;
     },
@@ -65,6 +88,10 @@ const auth = {
 
     getAccessToken() {
         return accessToken;
+    },
+
+    getAuthState() {
+        return AUTH_STATE;
     },
 };
 
