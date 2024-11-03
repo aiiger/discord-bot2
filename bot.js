@@ -56,7 +56,7 @@ app.get('/auth', (_, res) => {
 });
 
 // OAuth2 callback
-app.get('/auth/callback', async (req, res) => {
+app.get('/callback', async (req, res) => {
     try {
         console.log('Callback received');
         const code = req.query.code;
@@ -65,6 +65,7 @@ app.get('/auth/callback', async (req, res) => {
             return res.status(400).send('No code provided');
         }
 
+        console.log('Authorization code:', code);
         await auth.getAccessToken(code);
         console.log('Authentication successful');
 
