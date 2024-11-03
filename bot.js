@@ -3,6 +3,8 @@ import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import session from 'express-session';
+import Redis from 'ioredis';
+import connectRedis from 'connect-redis';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -16,28 +18,37 @@ const PORT = process.env.PORT || 3000;
 // Environment Variables
 const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
 const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
+const FACEIT_REDIRECT_URI = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback';
 const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
 const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
-const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
-const REDIRECT_URI = process.env.FACEIT_REDIRECT_URI;
 
-// In-memory Stores
-const rehostVotes = new Map(); // matchId -> Set of playerIds
-const matchStates = new Map(); // matchId -> { commandsEnabled: boolean }
-const lastMessageTimestamps = new Map(); // roomId -> last message timestamp
+// Redis configuration
+const RedisStore = connectRedis(session);
+let redisClient;
+
+if (process.env.REDIS_URL) {
+    redisClient = new Redis(process.env.REDIS_URL, {
+        tls: {
+            rejectUnauthorized: false
+        }
+    });
+} else {
+    redisClient = new Redis();
+}
 
 // Middleware
 app.use(express.json());
 app.use(express.static('public'));
 app.use(session({
+    store: new RedisStore({ client: redisClient }),
     secret: process.env.SESSION_SECRET || 'faceit-bot-secret',
     resave: false,
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        maxAge: 24 * 60 * 60 * 1000
     }
 }));
 
@@ -50,7 +61,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve the login page with SDK integration
+// Serve the SDK initialization page
 app.get('/', (req, res) => {
     res.send(`
         <!DOCTYPE html>
@@ -108,7 +119,7 @@ app.get('/callback', async (req, res) => {
                 code: code,
                 client_id: FACEIT_CLIENT_ID,
                 client_secret: FACEIT_CLIENT_SECRET,
-                redirect_uri: REDIRECT_URI
+                redirect_uri: FACEIT_REDIRECT_URI
             }), {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -128,6 +139,7 @@ app.get('/callback', async (req, res) => {
         const userInfo = await getUserInfo(tokenResponse.data.access_token);
         
         res.send(`
+            <!DOCTYPE html>
             <html>
             <head>
                 <title>Authentication Successful</title>
@@ -135,7 +147,6 @@ app.get('/callback', async (req, res) => {
             <body>
                 <h1>Authentication Successful</h1>
                 <p>Welcome ${userInfo.nickname}</p>
-                <p>The bot is now authorized to use chat commands.</p>
                 <script>
                     setTimeout(() => {
                         window.close();
@@ -186,76 +197,6 @@ async function refreshToken(refreshToken) {
         throw error;
     }
 }
-
-// Middleware to validate tokens
-const validateToken = async (req, res, next) => {
-    try {
-        if (!req.session.tokens) {
-            throw new Error('No tokens found');
-        }
-
-        if (Date.now() >= req.session.tokens.expires_in) {
-            const newTokens = await refreshToken(req.session.tokens.refresh_token);
-            req.session.tokens = {
-                ...newTokens,
-                expires_in: Date.now() + (newTokens.expires_in * 1000)
-            };
-        }
-
-        req.accessToken = req.session.tokens.access_token;
-        next();
-    } catch (error) {
-        res.status(401).json({ error: 'Authentication required' });
-    }
-};
-
-// API Routes
-app.get('/api/matches/:matchId', validateToken, async (req, res) => {
-    try {
-        const response = await axios.get(`https://api.faceit.com/match/v1/matches/${req.params.matchId}`, {
-            headers: { 'Authorization': `Bearer ${req.accessToken}` }
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Rehost voting system
-app.post('/api/matches/:matchId/rehost', validateToken, async (req, res) => {
-    const { matchId } = req.params;
-    const { playerId } = req.body;
-
-    if (!rehostVotes.has(matchId)) {
-        rehostVotes.set(matchId, new Set());
-    }
-
-    const votes = rehostVotes.get(matchId);
-    votes.add(playerId);
-
-    if (votes.size >= REHOST_VOTE_COUNT) {
-        try {
-            await axios.post(`https://api.faceit.com/match/v1/matches/${matchId}/rehost`, {}, {
-                headers: { 'Authorization': `Bearer ${req.accessToken}` }
-            });
-            rehostVotes.delete(matchId);
-            res.json({ success: true, message: 'Match rehosted successfully' });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    } else {
-        res.json({ 
-            success: true, 
-            votesNeeded: REHOST_VOTE_COUNT - votes.size 
-        });
-    }
-});
-
-// Error handler
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ error: 'Internal server error' });
-});
 
 // Start server
 app.listen(PORT, () => {
