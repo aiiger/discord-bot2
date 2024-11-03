@@ -1,3 +1,5 @@
+// app.js
+
 const express = require('express');
 const axios = require('axios');
 const path = require('path');
@@ -26,15 +28,17 @@ app.use((req, res, next) => {
 // Environment variables
 const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
 const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
-const WEBHOOK_SECRET = 'faceit-webhook-secret-123';
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'your-webhook-secret';
 const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
 const TEST_MODE = process.env.NODE_ENV !== 'production';
 
-// Store rehost votes, match states, and user token
+// Store rehost votes, match states, last message timestamps, and tokens
 const rehostVotes = new Map(); // matchId -> Set of playerIds
 const matchStates = new Map(); // matchId -> { commandsEnabled: boolean }
+const lastMessageTimestamps = new Map(); // roomId -> last message timestamp
 let userAccessToken = null; // Store the user access token
+let userRefreshToken = null; // Store the refresh token
 
 // Root endpoint - serve login page
 app.get('/', (req, res) => {
@@ -59,7 +63,8 @@ app.get('/auth/callback', async (req, res) => {
         console.log('Got access token:', tokenData);
         
         userAccessToken = tokenData.access_token;
-        
+        userRefreshToken = tokenData.refresh_token;
+
         res.send(`
             <html>
             <body style="font-family: Arial, sans-serif; background-color: #1f1f1f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
@@ -96,6 +101,25 @@ app.get('/auth/callback', async (req, res) => {
     }
 });
 
+// Helper function to refresh access token
+async function refreshAccessToken() {
+    if (!userRefreshToken) {
+        console.log('No refresh token available. Please authenticate again.');
+        userAccessToken = null;
+        return;
+    }
+    try {
+        const newTokenData = await auth.refreshAccessToken(userRefreshToken);
+        console.log('Refreshed access token:', newTokenData);
+        userAccessToken = newTokenData.access_token;
+        userRefreshToken = newTokenData.refresh_token;
+    } catch (error) {
+        console.error('Error refreshing access token:', error);
+        userAccessToken = null;
+        userRefreshToken = null;
+    }
+}
+
 // Helper function to get hub matches
 async function getHubMatches() {
     try {
@@ -131,6 +155,8 @@ async function monitorChatRoom(roomId, matchId) {
     }
 
     try {
+        let lastTimestamp = lastMessageTimestamps.get(roomId) || 0;
+
         const response = await axios({
             method: 'get',
             url: `https://api.faceit.com/chat/v1/rooms/${roomId}/messages`,
@@ -142,18 +168,30 @@ async function monitorChatRoom(roomId, matchId) {
 
         const messages = response.data.messages || [];
         if (messages.length > 0) {
-            // Process new messages
+            // Sort messages by timestamp
+            messages.sort((a, b) => a.timestamp - b.timestamp);
+
             messages.forEach(msg => {
-                if (msg.body && msg.body.startsWith('!')) {
-                    handleCommand(roomId, matchId, msg);
+                if (msg.timestamp > lastTimestamp) {
+                    if (msg.body && msg.body.startsWith('!')) {
+                        handleCommand(roomId, matchId, msg);
+                    }
+                    lastTimestamp = msg.timestamp;
                 }
             });
+
+            lastMessageTimestamps.set(roomId, lastTimestamp);
         }
     } catch (error) {
         console.error('Error monitoring chat room:', error);
         if (error.response?.status === 401) {
-            console.log('Access token expired. Please re-authenticate.');
-            userAccessToken = null;
+            console.log('Access token expired. Refreshing token...');
+            await refreshAccessToken();
+        } else if (error.response?.status === 429) {
+            console.log('Rate limited by FACEIT API. Waiting before retrying...');
+            await new Promise(resolve => setTimeout(resolve, 60000)); // Wait for 60 seconds
+        } else {
+            console.error('Unexpected error:', error.message);
         }
     }
 
@@ -215,6 +253,9 @@ async function handleCommand(roomId, matchId, message) {
                 await sendMessage(roomId, `✅ Rehost vote passed! (${REHOST_VOTE_COUNT}/${REHOST_VOTE_COUNT} votes) Match will be rehosted.`);
             } catch (error) {
                 console.error('Error rehosting match:', error);
+                if (error.response?.status === 401) {
+                    await refreshAccessToken();
+                }
                 await sendMessage(roomId, "❌ Error rehosting match. Please contact an admin for assistance.");
             }
         } else {
@@ -241,12 +282,12 @@ async function handleCommand(roomId, matchId, message) {
 
             const team1Elos = await Promise.all(team1Players.map(async player => {
                 const details = await faceitAPI.getPlayerDetails(player.player_id);
-                return details instanceof Error ? 0 : (details.games?.cs2?.faceit_elo || 0);
+                return details instanceof Error ? 0 : (details.games?.csgo?.faceit_elo || 0);
             }));
 
             const team2Elos = await Promise.all(team2Players.map(async player => {
                 const details = await faceitAPI.getPlayerDetails(player.player_id);
-                return details instanceof Error ? 0 : (details.games?.cs2?.faceit_elo || 0);
+                return details instanceof Error ? 0 : (details.games?.csgo?.faceit_elo || 0);
             }));
 
             const team1Avg = team1Elos.reduce((a, b) => a + b, 0) / team1Elos.length;
@@ -266,6 +307,9 @@ async function handleCommand(roomId, matchId, message) {
                     await sendMessage(roomId, `✅ Match cancelled - ELO difference (${Math.round(eloDiff)}) is greater than ${ELO_THRESHOLD}`);
                 } catch (error) {
                     console.error('Error cancelling match:', error);
+                    if (error.response?.status === 401) {
+                        await refreshAccessToken();
+                    }
                     await sendMessage(roomId, "❌ Error cancelling match. Please contact an admin for assistance.");
                 }
             } else {
@@ -275,6 +319,13 @@ async function handleCommand(roomId, matchId, message) {
             console.error('Error checking match cancellation:', error);
             await sendMessage(roomId, "Error checking match cancellation status.");
         }
+    } else if (command === '!help') {
+        const helpMessage = `👋 Available commands:\n` +
+                            `!rehost - Vote for match rehost (requires ${REHOST_VOTE_COUNT} votes)\n` +
+                            `!cancel - Check if match can be cancelled due to ELO difference (threshold: ${ELO_THRESHOLD})`;
+        await sendMessage(roomId, helpMessage);
+    } else {
+        await sendMessage(roomId, `Unknown command. Type !help for a list of available commands.`);
     }
 }
 
@@ -317,8 +368,8 @@ async function sendMessage(roomId, message) {
             message: error.message
         });
         if (error.response?.status === 401) {
-            console.log('Access token expired. Please re-authenticate.');
-            userAccessToken = null;
+            console.log('Access token expired. Refreshing token...');
+            await refreshAccessToken();
         }
         throw error;
     }
@@ -346,12 +397,24 @@ app.post('/webhook/match', async (req, res) => {
                 // Enable commands for this match
                 matchStates.set(payload.id, { commandsEnabled: true });
                 
+                // Use the correct chat room ID
+                let roomId = payload.chat_room_id;
+                if (!roomId) {
+                    // Fetch match details to get chat room ID
+                    const matchDetails = await faceitAPI.getMatchDetails(payload.id);
+                    if (matchDetails instanceof Error) {
+                        console.error('Error fetching match details for chat room ID.');
+                        return res.status(500).json({ error: 'Error fetching match details.' });
+                    }
+                    roomId = matchDetails.chat_room_id;
+                }
+                
                 // Send welcome message and start monitoring chat
                 const welcomeMessage = `👋 Welcome to the match! Commands available:\n` +
                                     `!rehost - Vote for match rehost (requires ${REHOST_VOTE_COUNT} votes)\n` +
-                                    `!cancel - Check if match can be cancelled due to ELO difference (threshold: ${ELO_THRESHOLD})`;
+                                    `!cancel - Check if match can be cancelled due to ELO difference (threshold: ${ELO_THRESHOLD})\n` +
+                                    `!help - Show this message`;
                 
-                const roomId = `match-${payload.id}`;
                 await sendMessage(roomId, welcomeMessage);
                 monitorChatRoom(roomId, payload.id);
                 break;
@@ -362,6 +425,7 @@ app.post('/webhook/match', async (req, res) => {
                 // Clean up match data
                 rehostVotes.delete(payload.id);
                 matchStates.delete(payload.id);
+                lastMessageTimestamps.delete(payload.id);
                 break;
             }
         }
