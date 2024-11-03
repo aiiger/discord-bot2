@@ -16,11 +16,11 @@ const PORT = process.env.PORT || 3000;
 // Environment Variables
 const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
 const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
-const FACEIT_REDIRECT_URI = process.env.FACEIT_REDIRECT_URI;
-const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
 const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
 const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
+const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
+const REDIRECT_URI = process.env.FACEIT_REDIRECT_URI;
 
 // In-memory Stores
 const rehostVotes = new Map(); // matchId -> Set of playerIds
@@ -34,7 +34,11 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'faceit-bot-secret',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === 'production' }
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
 }));
 
 // CORS Configuration
@@ -46,9 +50,40 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve the login page
+// Serve the login page with SDK integration
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>FACEIT Bot Login</title>
+        </head>
+        <body>
+            <div id="faceitLogin"></div>
+            
+            <script src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
+            <script>
+                var initParams = {
+                    client_id: '${FACEIT_CLIENT_ID}',
+                    response_type: 'code',
+                    state: '${req.sessionID}',
+                    redirect_popup: true,
+                    debug: true
+                };
+
+                function callback(response) {
+                    if(response.isIdTokenValid === true) {
+                        console.log('Authentication successful');
+                        return;
+                    }
+                    console.error('ID token validation failed');
+                }
+
+                FACEIT.init(initParams, callback);
+            </script>
+        </body>
+        </html>
+    `);
 });
 
 // Auth endpoint
@@ -73,7 +108,7 @@ app.get('/callback', async (req, res) => {
                 code: code,
                 client_id: FACEIT_CLIENT_ID,
                 client_secret: FACEIT_CLIENT_SECRET,
-                redirect_uri: FACEIT_REDIRECT_URI
+                redirect_uri: REDIRECT_URI
             }), {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -92,9 +127,7 @@ app.get('/callback', async (req, res) => {
         // Get user info
         const userInfo = await getUserInfo(tokenResponse.data.access_token);
         
-        // Send success page with SDK initialization
         res.send(`
-            <!DOCTYPE html>
             <html>
             <head>
                 <title>Authentication Successful</title>
@@ -102,27 +135,11 @@ app.get('/callback', async (req, res) => {
             <body>
                 <h1>Authentication Successful</h1>
                 <p>Welcome ${userInfo.nickname}</p>
-                
-                <script src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
+                <p>The bot is now authorized to use chat commands.</p>
                 <script>
-                    var initParams = {
-                        client_id: '${FACEIT_CLIENT_ID}',
-                        response_type: 'code',
-                        state: '${req.session.id}',
-                        redirect_popup: true,
-                        debug: true
-                    };
-
-                    function callback(response) {
-                        if(response.isIdTokenValid === true) {
-                            console.log('Token validation successful');
-                            window.close();
-                        } else {
-                            console.error('Token validation failed');
-                        }
-                    }
-
-                    FACEIT.init(initParams, callback);
+                    setTimeout(() => {
+                        window.close();
+                    }, 3000);
                 </script>
             </body>
             </html>
@@ -131,26 +148,6 @@ app.get('/callback', async (req, res) => {
     } catch (error) {
         console.error('Auth Error:', error);
         res.status(500).send(`Authentication Error: ${error.message}`);
-    }
-});
-
-// Token refresh endpoint
-app.post('/refresh-token', async (req, res) => {
-    try {
-        if (!req.session.tokens?.refresh_token) {
-            throw new Error('No refresh token available');
-        }
-
-        const newTokens = await refreshToken(req.session.tokens.refresh_token);
-        req.session.tokens = {
-            ...newTokens,
-            expires_in: Date.now() + (newTokens.expires_in * 1000)
-        };
-
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Token refresh error:', error);
-        res.status(500).json({ error: error.message });
     }
 });
 
@@ -197,7 +194,6 @@ const validateToken = async (req, res, next) => {
             throw new Error('No tokens found');
         }
 
-        // Check if token needs refresh
         if (Date.now() >= req.session.tokens.expires_in) {
             const newTokens = await refreshToken(req.session.tokens.refresh_token);
             req.session.tokens = {
@@ -213,7 +209,7 @@ const validateToken = async (req, res, next) => {
     }
 };
 
-// FACEIT API Endpoints
+// API Routes
 app.get('/api/matches/:matchId', validateToken, async (req, res) => {
     try {
         const response = await axios.get(`https://api.faceit.com/match/v1/matches/${req.params.matchId}`, {
@@ -238,7 +234,6 @@ app.post('/api/matches/:matchId/rehost', validateToken, async (req, res) => {
     votes.add(playerId);
 
     if (votes.size >= REHOST_VOTE_COUNT) {
-        // Trigger rehost through FACEIT API
         try {
             await axios.post(`https://api.faceit.com/match/v1/matches/${matchId}/rehost`, {}, {
                 headers: { 'Authorization': `Bearer ${req.accessToken}` }
@@ -254,44 +249,6 @@ app.post('/api/matches/:matchId/rehost', validateToken, async (req, res) => {
             votesNeeded: REHOST_VOTE_COUNT - votes.size 
         });
     }
-});
-
-// Create public/index.html
-app.get('/setup', (req, res) => {
-    const indexHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>FACEIT Bot Login</title>
-        </head>
-        <body>
-            <div id="faceitLogin"></div>
-            
-            <script src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
-            <script>
-                var initParams = {
-                    client_id: '${FACEIT_CLIENT_ID}',
-                    response_type: 'code',
-                    state: 'custom-state',
-                    redirect_popup: true,
-                    debug: true
-                };
-
-                function callback(response) {
-                    if(response.isIdTokenValid === true) {
-                        console.log('Authentication successful');
-                        return;
-                    }
-                    console.error('ID token validation failed');
-                }
-
-                FACEIT.init(initParams, callback);
-            </script>
-        </body>
-        </html>
-    `;
-
-    res.send(indexHtml);
 });
 
 // Error handler
