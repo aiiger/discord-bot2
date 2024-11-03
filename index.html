@@ -1,13 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Bot Status</title>
+    <title>FACEIT Bot Login</title>
+    <script src="https://cdn.faceit.com/widgets/sso/index.html" type="text/javascript"></script>
+    <script type="text/javascript">
+        var client_id = '30bdac0f-591c-408d-88c3-bebb897339b9';
+        var initParams = {
+            client_id: client_id,
+            response_type: 'code',
+            redirect_popup: false,
+            state: ''
+        };
+        FACEIT.init(initParams);
+    </script>
 </head>
 <body>
-    <h1>Bot is running! ✓</h1>
-    <p>Available endpoints:</p>
-    <ul>
-        <li><a href="/ping">GET /ping - Test endpoint</a></li>
-    </ul>
+    <div id="faceitLogin"></div>
+    <script type="text/javascript">
+        // Trigger the FACEIT login pop-up
+        FACEIT.loginWithFaceit(document.getElementById('faceitLogin'));
+    </script>
 </body>
 </html>
