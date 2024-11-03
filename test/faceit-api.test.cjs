@@ -119,4 +119,4 @@ describe('Bot Commands', function() {
 (async () => {
     await testGetHubsById();
     await testGetHubMatches();
-})();
+})();npx mocha faceit-api.test.js
