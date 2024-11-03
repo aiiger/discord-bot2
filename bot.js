@@ -3,9 +3,9 @@
 import express from 'express';
 import axios from 'axios';
 import auth from './auth.js'; // Ensure the correct path
-import faceitAPI from './endpoints/index.js'; // Update this line
+import faceitAPI from './endpoints/faceitAPI.js'; // Ensure the correct path
+import { getHubMatches } from './endpoints/faceitAPI.js';
 import dotenv from 'dotenv';
-import jwt from 'jsonwebtoken';
 
 dotenv.config();
 const app = express();
@@ -131,7 +131,10 @@ async function getHubMatches() {
 
 // Helper function to monitor a chat room
 async function monitorChatRoom(roomId, matchId) {
-    const tokens = await auth.getCurrentTokens();
+    let tokens = await auth.getCurrentTokens();
+    if (!tokens.access_token && tokens.refresh_token) {
+        tokens = await auth.refreshAccessToken(tokens.refresh_token);
+    }
     if (!tokens.access_token) {
         console.log('No access token available. Please authenticate first.');
         return;
