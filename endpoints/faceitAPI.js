@@ -1,32 +1,58 @@
+// endpoints/faceitAPI.js
+
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { URLSearchParams } from 'url';
 
 dotenv.config();
 
-const config = {
-    clientId: process.env.FACEIT_CLIENT_ID,
-    clientSecret: process.env.FACEIT_CLIENT_SECRET,
-    authorizationUrl: 'https://api.faceit.com/auth/v1/oauth/authorize',
-    tokenUrl: 'https://api.faceit.com/auth/v1/oauth/token',
-    redirectUri: 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/auth/callback' // Ensure this is correct
+const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
+const BASE_URL = 'https://open.faceit.com/data/v4';
+
+const faceitAPI = {
+    async getHubMatches(hubId, status) {
+        try {
+            const response = await axios.get(`${BASE_URL}/hubs/${hubId}/matches`, {
+                headers: {
+                    'Authorization': `Bearer ${FACEIT_API_KEY}`
+                },
+                params: {
+                    status: status
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching hub matches:', error);
+            return error;
+        }
+    },
+
+    async getMatchDetails(matchId) {
+        try {
+            const response = await axios.get(`${BASE_URL}/matches/${matchId}`, {
+                headers: {
+                    'Authorization': `Bearer ${FACEIT_API_KEY}`
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching match details:', error);
+            return error;
+        }
+    },
+
+    async getPlayerDetails(playerId) {
+        try {
+            const response = await axios.get(`${BASE_URL}/players/${playerId}`, {
+                headers: {
+                    'Authorization': `Bearer ${FACEIT_API_KEY}`
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching player details:', error);
+            return error;
+        }
+    }
 };
 
-export async function getAccessToken(authCode) {
-    try {
-        const basicAuth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
-        const response = await axios.post(config.tokenUrl, new URLSearchParams({
-            grant_type: 'authorization_code',
-            code: authCode,
-            redirect_uri: config.redirectUri
-        }), {
-            headers: {
-                'Authorization': `Basic ${basicAuth}`,
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-        });
-        return response.data;
-    } catch (error) {
-        console.error('Error getting access token:', error.response?.data || error.message);
-    }
-}
+export default faceitAPI;
