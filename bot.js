@@ -2,11 +2,10 @@
 
 import express from 'express';
 import axios from 'axios';
-import auth from './auth';
+import auth from './auth.js'; // Ensure the correct path
 import faceitAPI from './endpoints';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
-import './auth.js';
 
 dotenv.config();
 const app = express();
