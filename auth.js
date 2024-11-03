@@ -26,7 +26,7 @@ const auth = {
         const authorizationUri = client.authorizeURL({
             redirect_uri: process.env.FACEIT_REDIRECT_URI,
             scope: 'openid profile email chat.messages.read chat.messages.write chat.rooms.read',
-            state: 'random_state_string', // You should generate a random string for security
+            state: 'random_state_string', // Generate a random string in production
         });
         return authorizationUri;
     },
@@ -41,10 +41,10 @@ const auth = {
         try {
             const result = await client.getToken(tokenParams);
             accessToken = client.createToken(result.token);
-            console.log('Access Token successfully obtained.');
+            console.log('Access Token obtained.');
             return accessToken;
         } catch (error) {
-            console.error('Access Token Error', error.message);
+            console.error('Access Token Error:', error.message);
             throw error;
         }
     },
@@ -56,7 +56,7 @@ const auth = {
                 console.log('Access Token refreshed.');
                 return accessToken;
             } catch (error) {
-                console.error('Error refreshing access token:', error.message);
+                console.error('Token Refresh Error:', error.message);
                 throw error;
             }
         }
