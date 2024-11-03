@@ -7,6 +7,7 @@ import session from 'express-session';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import auth from './auth.js';
+import FaceitJS from './FaceitJS.js';
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +15,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Initialize FaceitJS with your API keys
+const faceit = new FaceitJS(process.env.FACEIT_API_KEY_SERVER, process.env.FACEIT_API_KEY_CLIENT);
 
 // Session configuration without Redis
 app.use(session({
@@ -26,18 +30,9 @@ app.use(session({
 // Middleware to parse JSON
 app.use(express.json());
 
-// Routes
-
 // Root Endpoint - Redirect to /auth
 app.get('/', (req, res) => {
     res.redirect('/auth');
-});
-
-// Auth Endpoint - Redirect to Faceit Authorization URL
-app.get('/auth', (req, res) => {
-    const authorizationUri = auth.getAuthorizationUrl();
-    console.log('Redirecting to:', authorizationUri);
-    res.redirect(authorizationUri);
 });
 
 // OAuth2 Callback Endpoint
@@ -70,48 +65,74 @@ app.get('/callback', async (req, res) => {
             }
         );
 
-        console.log('User Info:', userInfoResponse.data);
+        // Store access token and user info in session
+        req.session.accessToken = token.token.access_token;
+        req.session.user = userInfoResponse.data;
 
-        res.send(`
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1f1f1f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-                <div style="text-align: center; padding: 20px; border-radius: 8px; background-color: #2d2d2d; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
-                    <h2>Authentication Successful!</h2>
-                    <p>The bot is now authorized to use chat commands.</p>
-                    <p>User: ${userInfoResponse.data.username}</p>
-                    <p>You can close this window.</p>
-                </div>
-            </body>
-            </html>
-        `);
-
-        // Start monitoring active matches or perform other post-authentication tasks here
-
+        console.log('User authenticated:', req.session.user);
+        res.redirect('/dashboard');
     } catch (error) {
-        console.error('Error in callback:', error);
-        res.status(500).send(`
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1f1f1f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-                <div style="text-align: center; padding: 20px; border-radius: 8px; background-color: #2d2d2d; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
-                    <h2>Authentication Failed</h2>
-                    <p>Error: ${error.message}</p>
-                    <p>Please try again.</p>
-                </div>
-            </body>
-            </html>
-        `);
+        console.error('Error during OAuth callback:', error);
+        res.status(500).send('Authentication failed.');
     }
 });
 
-// Example API Route
-app.get('/api/status', (req, res) => {
-    res.json({ status: 'Bot is running smoothly!' });
+// Dashboard Route
+app.get('/dashboard', (req, res) => {
+    if (!req.session.accessToken) {
+        return res.redirect('/auth');
+    }
+    res.send(`Welcome to your dashboard, ${req.session.user.username}!`);
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('Unhandled Error:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+// Rehost Command
+app.post('/rehost', async (req, res) => {
+    if (!req.session.accessToken) {
+        return res.status(401).send('Unauthorized');
+    }
+
+    const { gameId, eventId } = req.body;
+
+    if (!gameId || !eventId) {
+        return res.status(400).send('Missing gameId or eventId');
+    }
+
+    try {
+        // Example: Rehost a championship
+        const response = await faceit.getChampionshipsById(eventId);
+        // Implement your rehosting logic here using FaceitJS methods
+
+        // Placeholder response
+        res.status(200).send(`Rehosted event ${eventId} for game ${gameId}`);
+    } catch (error) {
+        console.error('Error rehosting:', error);
+        res.status(500).send('Rehost failed.');
+    }
+});
+
+// Cancel Command
+app.post('/cancel', async (req, res) => {
+    if (!req.session.accessToken) {
+        return res.status(401).send('Unauthorized');
+    }
+
+    const { eventId } = req.body;
+
+    if (!eventId) {
+        return res.status(400).send('Missing eventId');
+    }
+
+    try {
+        // Example: Cancel a championship
+        const response = await faceit.getChampionshipsById(eventId);
+        // Implement your cancellation logic here using FaceitJS methods
+
+        // Placeholder response
+        res.status(200).send(`Canceled event ${eventId}`);
+    } catch (error) {
+        console.error('Error canceling:', error);
+        res.status(500).send('Cancellation failed.');
+    }
 });
 
 // Start the server
