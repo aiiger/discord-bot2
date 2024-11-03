@@ -1,10 +1,10 @@
-// app.js
+// bot.js
 
-const express = ('express');
-const axios = ('axios');
-const path = ('path');
-const auth = ('./auth');
-const faceitAPI = ('./endpoints');
+const express = require('express');
+const axios = require('axios');
+const path = require('path');
+const auth = require('./auth');
+const faceitAPI = require('./endpoints');
 
 require('dotenv').config();
 const app = express();
@@ -80,7 +80,7 @@ app.get('/auth/callback', async (req, res) => {
         // Start monitoring active matches
         const matches = await getHubMatches();
         matches.forEach(match => {
-            if (match.status === 'READY' || match.status === 'ONGOING' || match.status === 'VOTING') {
+            if (['READY', 'ONGOING', 'VOTING'].includes(match.status)) {
                 matchStates.set(match.id, { commandsEnabled: true });
                 monitorChatRoom(match.chatRoomId, match.id);
             }
@@ -322,7 +322,8 @@ async function handleCommand(roomId, matchId, message) {
     } else if (command === '!help') {
         const helpMessage = `👋 Available commands:\n` +
                             `!rehost - Vote for match rehost (requires ${REHOST_VOTE_COUNT} votes)\n` +
-                            `!cancel - Check if match can be cancelled due to ELO difference (threshold: ${ELO_THRESHOLD})`;
+                            `!cancel - Check if match can be cancelled due to ELO difference (threshold: ${ELO_THRESHOLD})\n` +
+                            `!help - Show this message`;
         await sendMessage(roomId, helpMessage);
     } else {
         await sendMessage(roomId, `Unknown command. Type !help for a list of available commands.`);

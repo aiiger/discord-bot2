@@ -1,28 +1,31 @@
-import axios from 'axios';
-import dotenv from 'dotenv';
-import { URLSearchParams } from 'url';
+// auth.js
 
-dotenv.config();
+const axios = require('axios');
+require('dotenv').config();
 
-export const config = {
-    clientId: process.env.FACEIT_CLIENT_ID,
-    clientSecret: process.env.FACEIT_CLIENT_SECRET,
-    authorizationUrl: 'https://api.faceit.com/auth/v1/oauth/authorize',
-    tokenUrl: 'https://api.faceit.com/auth/v1/oauth/token',
-    redirectUri: 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/auth/callback'
-};
+const CLIENT_ID = process.env.FACEIT_CLIENT_ID;
+const CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
+const REDIRECT_URI = process.env.FACEIT_REDIRECT_URI || 'http://localhost:3000/auth/callback';
+const AUTH_URL = 'https://cdn.faceit.com/widgets/sso/index.html';
 
-export const getAccessToken = async (authCode) => {
+function getAuthUrl() {
+    return `${AUTH_URL}?response_type=code&client_id=${CLIENT_ID}&redirect_popup=false&redirect_fragment=false&state=&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+}
+
+async function getAccessToken(code) {
+    const tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
     try {
-        const basicAuth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
-        const response = await axios.post(config.tokenUrl, new URLSearchParams({
-            grant_type: 'authorization_code',
-            code: authCode,
-            redirect_uri: config.redirectUri
-        }), {
+        const response = await axios({
+            method: 'post',
+            url: tokenUrl,
             headers: {
-                'Authorization': `Basic ${basicAuth}`,
-                'Content-Type': 'application/x-www-form-urlencoded'
+                'Content-Type': 'application/json',
+                'Authorization': 'Basic ' + Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')
+            },
+            data: {
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: REDIRECT_URI
             }
         });
         return response.data;
@@ -30,4 +33,32 @@ export const getAccessToken = async (authCode) => {
         console.error('Error getting access token:', error.response?.data || error.message);
         throw error;
     }
+}
+
+async function refreshAccessToken(refreshToken) {
+    const tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
+    try {
+        const response = await axios({
+            method: 'post',
+            url: tokenUrl,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Basic ' + Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')
+            },
+            data: {
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error refreshing access token:', error.response?.data || error.message);
+        throw error;
+    }
+}
+
+module.exports = {
+    getAuthUrl,
+    getAccessToken,
+    refreshAccessToken
 };
