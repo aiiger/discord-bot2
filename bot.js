@@ -48,7 +48,7 @@ app.get('/auth', (_, res) => {
     const authUrl = `https://accounts.faceit.com/oauth/authorize?` + new URLSearchParams({
         response_type: 'code',
         client_id: FACEIT_CLIENT_ID,
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: REDIRECT_URI, // Ensure this matches your callback URL
         scope: 'openid profile email chat.messages.read chat.messages.write chat.rooms.read'
     }).toString();
     
