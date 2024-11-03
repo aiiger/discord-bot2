@@ -31,6 +31,7 @@ const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
 const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
 const TEST_MODE = process.env.NODE_ENV !== 'production';
+const REDIRECT_URI = process.env.FACEIT_REDIRECT_URI;
 
 // Store rehost votes and match states
 const rehostVotes = new Map(); // matchId -> Set of playerIds
@@ -47,7 +48,7 @@ app.get('/auth', (_, res) => {
     const authUrl = `https://accounts.faceit.com/oauth/authorize?` + new URLSearchParams({
         response_type: 'code',
         client_id: FACEIT_CLIENT_ID,
-        redirect_uri: 'http://localhost:3000/auth/callback',
+        redirect_uri: REDIRECT_URI,
         scope: 'openid profile email chat.messages.read chat.messages.write chat.rooms.read'
     }).toString();
     
@@ -57,8 +58,10 @@ app.get('/auth', (_, res) => {
 // OAuth2 callback
 app.get('/auth/callback', async (req, res) => {
     try {
+        console.log('Callback received');
         const code = req.query.code;
         if (!code) {
+            console.log('No code provided');
             return res.status(400).send('No code provided');
         }
 
