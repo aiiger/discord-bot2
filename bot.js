@@ -27,8 +27,6 @@ const redisClient = createClient({
         tls: true,
         rejectUnauthorized: false // Set to true in production with valid certificates
     },
-    // Optional: Keep the connection alive with ping every 10 seconds
-    pingInterval: 10000
 });
 
 // Redis event handlers
@@ -49,7 +47,7 @@ redisClient.on('error', (err) => {
 // Configure session middleware to use Redis
 app.use(
     session({
-        store: new RedisStore({ client: redisClient }),
+        store: new RedisStore({ client: redisClient }), // Ensure 'new' is used here
         secret: process.env.SESSION_SECRET || 'your-secret-key', // Replace with a strong secret in production
         resave: false,
         saveUninitialized: false,
