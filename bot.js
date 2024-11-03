@@ -3,7 +3,7 @@
 import express from 'express';
 import axios from 'axios';
 import auth from './auth.js'; // Ensure the correct path
-import faceitAPI from './endpoints';
+import faceitAPI from './endpoints/index.js'; // Update this line
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 

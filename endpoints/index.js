@@ -1,3 +1,5 @@
+import faceitAPI from './endpoints/faceitAPI.js';
+
 // Hub endpoints
 const getHubsById = require('./hubs/getHubsById');
 const getHubMatches = require('./hubs/getHubMatches');
