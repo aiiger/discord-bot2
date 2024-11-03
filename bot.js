@@ -20,7 +20,6 @@ const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
 const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
 const FACEIT_REDIRECT_URI = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback';
 const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
-const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
 
 // Redis configuration
@@ -36,6 +35,10 @@ if (process.env.REDIS_URL) {
 } else {
     redisClient = new Redis();
 }
+
+// In-memory Stores for rehost functionality
+const rehostVotes = new Map(); // matchId -> Set of playerIds
+const matchStates = new Map(); // matchId -> { commandsEnabled: boolean }
 
 // Middleware
 app.use(express.json());
@@ -67,7 +70,7 @@ app.get('/', (req, res) => {
         <!DOCTYPE html>
         <html>
         <head>
-            <title>FACEIT Bot Login</title>
+            <title>FACEIT Bot - Rehost Manager</title>
         </head>
         <body>
             <div id="faceitLogin"></div>
@@ -142,11 +145,12 @@ app.get('/callback', async (req, res) => {
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Authentication Successful</title>
+                <title>Bot Authorization Successful</title>
             </head>
             <body>
-                <h1>Authentication Successful</h1>
+                <h1>Bot Authorization Successful</h1>
                 <p>Welcome ${userInfo.nickname}</p>
+                <p>The bot is now authorized to use rehost and cancel commands.</p>
                 <script>
                     setTimeout(() => {
                         window.close();
@@ -162,6 +166,57 @@ app.get('/callback', async (req, res) => {
     }
 });
 
+// Rehost endpoint
+app.post('/api/matches/:matchId/rehost', async (req, res) => {
+    try {
+        const { matchId } = req.params;
+        const { playerId } = req.body;
+
+        if (!matchStates.has(matchId)) {
+            matchStates.set(matchId, { commandsEnabled: true });
+        }
+
+        if (!rehostVotes.has(matchId)) {
+            rehostVotes.set(matchId, new Set());
+        }
+
+        const votes = rehostVotes.get(matchId);
+        votes.add(playerId);
+
+        if (votes.size >= REHOST_VOTE_COUNT) {
+            await axios.post(`https://api.faceit.com/match/v1/matches/${matchId}/rehost`, {}, {
+                headers: { 'Authorization': `Bearer ${req.session.tokens.access_token}` }
+            });
+            rehostVotes.delete(matchId);
+            res.json({ success: true, message: 'Match rehosted successfully' });
+        } else {
+            res.json({ 
+                success: true, 
+                votesNeeded: REHOST_VOTE_COUNT - votes.size 
+            });
+        }
+    } catch (error) {
+        console.error('Rehost Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Cancel match endpoint
+app.post('/api/matches/:matchId/cancel', async (req, res) => {
+    try {
+        const { matchId } = req.params;
+        
+        await axios.post(`https://api.faceit.com/match/v1/matches/${matchId}/cancel`, {}, {
+            headers: { 'Authorization': `Bearer ${req.session.tokens.access_token}` }
+        });
+        
+        res.json({ success: true, message: 'Match cancelled successfully' });
+    } catch (error) {
+        console.error('Cancel Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Helper Functions
 async function getUserInfo(accessToken) {
     try {
@@ -173,27 +228,6 @@ async function getUserInfo(accessToken) {
         return response.data;
     } catch (error) {
         console.error('Error fetching user info:', error);
-        throw error;
-    }
-}
-
-async function refreshToken(refreshToken) {
-    try {
-        const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token',
-            new URLSearchParams({
-                grant_type: 'refresh_token',
-                refresh_token: refreshToken,
-                client_id: FACEIT_CLIENT_ID,
-                client_secret: FACEIT_CLIENT_SECRET
-            }), {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
-            }
-        );
-        return response.data;
-    } catch (error) {
-        console.error('Error refreshing token:', error);
         throw error;
     }
 }
