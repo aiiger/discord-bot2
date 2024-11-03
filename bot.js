@@ -1,484 +1,308 @@
 // bot.js
-
 import express from 'express';
 import axios from 'axios';
-import auth from './auth.js';
 import dotenv from 'dotenv';
+import session from 'express-session';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
-
-// Middleware
-app.use(express.json());
-app.use(express.static('public'));
-
-// CORS Middleware
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-        'Access-Control-Allow-Methods',
-        'GET, POST, PUT, DELETE, OPTIONS'
-    );
-    res.header(
-        'Access-Control-Allow-Headers',
-        'Content-Type, Authorization, X-Requested-With'
-    );
-
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-    next();
-});
+const PORT = process.env.PORT || 3000;
 
 // Environment Variables
+const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
+const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
+const FACEIT_REDIRECT_URI = process.env.FACEIT_REDIRECT_URI;
+const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
 const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
 const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
-const FACEIT_API_KEY = process.env.FACEIT_API_KEY;
-const REDIRECT_URI = process.env.FACEIT_REDIRECT_URI;
 
 // In-memory Stores
 const rehostVotes = new Map(); // matchId -> Set of playerIds
 const matchStates = new Map(); // matchId -> { commandsEnabled: boolean }
 const lastMessageTimestamps = new Map(); // roomId -> last message timestamp
 
-// Routes
+// Middleware
+app.use(express.json());
+app.use(express.static('public'));
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'faceit-bot-secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: process.env.NODE_ENV === 'production' }
+}));
 
-// Root Endpoint - Redirect to /auth
+// CORS Configuration
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    next();
+});
+
+// Serve the login page
 app.get('/', (req, res) => {
-    res.redirect('/auth');
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Auth Endpoint - Redirect to Faceit Authorization URL
+// Auth endpoint
 app.get('/auth', (req, res) => {
-    const authorizationUri = auth.getAuthorizationUrl();
-    console.log('Redirecting to:', authorizationUri);
-    res.redirect(authorizationUri);
+    const authUrl = `https://accounts.faceit.com/auth?response_type=code&client_id=${FACEIT_CLIENT_ID}&redirect_popup=true`;
+    res.redirect(authUrl);
 });
 
-// OAuth2 Callback Endpoint
+// OAuth2 callback handler
 app.get('/callback', async (req, res) => {
     try {
-        console.log('Callback received with query:', req.query);
-        const code = req.query.code;
-        const state = req.query.state;
-
+        const { code } = req.query;
+        
         if (!code) {
-            console.log('No code provided');
-            return res.status(400).send('No code provided');
+            throw new Error('Authorization code not received');
         }
 
-        // Exchange code for access token
-        const token = await auth.getAccessTokenFromCode(code);
-
-        // Use the access token to retrieve user information
-        const userInfoResponse = await axios.get(
-            'https://api.faceit.com/auth/v1/resources/userinfo',
-            {
+        // Exchange code for tokens
+        const tokenResponse = await axios.post('https://api.faceit.com/auth/v1/oauth/token', 
+            new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                client_id: FACEIT_CLIENT_ID,
+                client_secret: FACEIT_CLIENT_SECRET,
+                redirect_uri: FACEIT_REDIRECT_URI
+            }), {
                 headers: {
-                    Authorization: `Bearer ${token.token.access_token}`,
-                },
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
             }
         );
 
-        console.log('User Info:', userInfoResponse.data);
+        // Store tokens in session
+        req.session.tokens = {
+            access_token: tokenResponse.data.access_token,
+            refresh_token: tokenResponse.data.refresh_token,
+            id_token: tokenResponse.data.id_token,
+            expires_in: Date.now() + (tokenResponse.data.expires_in * 1000)
+        };
 
+        // Get user info
+        const userInfo = await getUserInfo(tokenResponse.data.access_token);
+        
+        // Send success page with SDK initialization
         res.send(`
+            <!DOCTYPE html>
             <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1f1f1f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-                <div style="text-align: center; padding: 20px; border-radius: 8px; background-color: #2d2d2d; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
-                    <h2>Authentication Successful!</h2>
-                    <p>The bot is now authorized to use chat commands.</p>
-                    <p>User: ${userInfoResponse.data.username}</p>
-                    <p>You can close this window.</p>
-                </div>
+            <head>
+                <title>Authentication Successful</title>
+            </head>
+            <body>
+                <h1>Authentication Successful</h1>
+                <p>Welcome ${userInfo.nickname}</p>
+                
+                <script src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
+                <script>
+                    var initParams = {
+                        client_id: '${FACEIT_CLIENT_ID}',
+                        response_type: 'code',
+                        state: '${req.session.id}',
+                        redirect_popup: true,
+                        debug: true
+                    };
+
+                    function callback(response) {
+                        if(response.isIdTokenValid === true) {
+                            console.log('Token validation successful');
+                            window.close();
+                        } else {
+                            console.error('Token validation failed');
+                        }
+                    }
+
+                    FACEIT.init(initParams, callback);
+                </script>
             </body>
             </html>
         `);
 
-        // Start monitoring active matches
-        const matches = await getActiveMatches();
-        matches.forEach((match) => {
-            if (
-                ['READY', 'ONGOING', 'VOTING'].includes(match.status)
-            ) {
-                matchStates.set(match.id, { commandsEnabled: true });
-                monitorChatRoom(match.chat_room_id, match.id);
-            }
-        });
     } catch (error) {
-        console.error('Error in callback:', error);
-        res.status(500).send(`
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #1f1f1f; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-                <div style="text-align: center; padding: 20px; border-radius: 8px; background-color: #2d2d2d; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
-                    <h2>Authentication Failed</h2>
-                    <p>Error: ${error.message}</p>
-                    <p>Please try again.</p>
-                </div>
-            </body>
-            </html>
-        `);
+        console.error('Auth Error:', error);
+        res.status(500).send(`Authentication Error: ${error.message}`);
     }
 });
 
-// Match Webhook Endpoint
-app.post('/webhook/match', async (req, res) => {
-    const event = req.body.event || '';
-    const payload = req.body.payload || {};
-
-    console.log('Received match webhook:', {
-        event: event,
-        matchId: payload.id,
-        timestamp: new Date().toISOString(),
-    });
-
+// Token refresh endpoint
+app.post('/refresh-token', async (req, res) => {
     try {
-        // Handle match events
-        switch (event) {
-            case 'match_status_ready':
-            case 'match_status_configuring':
-            case 'match_status_voting': {
-                console.log('Match is starting:', payload.id);
-
-                matchStates.set(payload.id, { commandsEnabled: true });
-
-                let roomId = payload.chat_room_id;
-                if (!roomId) {
-                    const matchDetails = await getMatchDetails(payload.id);
-                    if (matchDetails instanceof Error) {
-                        console.error(
-                            'Error fetching match details for chat room ID.'
-                        );
-                        return res
-                            .status(500)
-                            .json({ error: 'Error fetching match details.' });
-                    }
-                    roomId = matchDetails.chat_room_id;
-                }
-
-                const welcomeMessage = `👋 Welcome to the match! Commands available:\n` +
-                    `!rehost - Vote for match rehost (requires ${REHOST_VOTE_COUNT} votes)\n` +
-                    `!cancel - Check if match can be cancelled due to ELO difference (threshold: ${ELO_THRESHOLD})\n` +
-                    `!help - Show this message`;
-
-                await sendMessage(roomId, welcomeMessage);
-                monitorChatRoom(roomId, payload.id);
-                break;
-            }
-            case 'match_status_finished':
-            case 'match_status_cancelled': {
-                console.log('Match has ended:', payload.id);
-                rehostVotes.delete(payload.id);
-                matchStates.delete(payload.id);
-                lastMessageTimestamps.delete(payload.id);
-                break;
-            }
-            default:
-                console.log('Unhandled event type:', event);
+        if (!req.session.tokens?.refresh_token) {
+            throw new Error('No refresh token available');
         }
 
-        res.json({ status: 'success', event: event });
+        const newTokens = await refreshToken(req.session.tokens.refresh_token);
+        req.session.tokens = {
+            ...newTokens,
+            expires_in: Date.now() + (newTokens.expires_in * 1000)
+        };
+
+        res.json({ success: true });
     } catch (error) {
-        console.error('Error handling match webhook:', error);
-        res.status(500).json({ error: 'Error handling match webhook.' });
+        console.error('Token refresh error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
 // Helper Functions
-
-async function getActiveMatches() {
+async function getUserInfo(accessToken) {
     try {
-        const response = await axios.get(
-            `https://api.faceit.com/match/v1/hubs/${FACEIT_HUB_ID}/matches`,
-            {
-                headers: {
-                    Authorization: `Bearer ${FACEIT_API_KEY}`,
-                },
+        const response = await axios.get('https://api.faceit.com/auth/v1/resources/userinfo', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
             }
-        );
-        return response.data.matches || [];
+        });
+        return response.data;
     } catch (error) {
-        console.error('Error fetching active matches:', error);
-        return [];
+        console.error('Error fetching user info:', error);
+        throw error;
     }
 }
 
-async function getMatchDetails(matchId) {
+async function refreshToken(refreshToken) {
     try {
-        const response = await axios.get(
-            `https://api.faceit.com/match/v1/matches/${matchId}`,
-            {
+        const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token',
+            new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken,
+                client_id: FACEIT_CLIENT_ID,
+                client_secret: FACEIT_CLIENT_SECRET
+            }), {
                 headers: {
-                    Authorization: `Bearer ${FACEIT_API_KEY}`,
-                },
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
             }
         );
         return response.data;
     } catch (error) {
-        console.error('Error fetching match details:', error);
-        return error;
+        console.error('Error refreshing token:', error);
+        throw error;
     }
 }
 
-async function handleCommand(roomId, matchId, message) {
-    const command = message.body.toLowerCase();
-
-    if (command === '!rehost') {
-        if (!rehostVotes.has(matchId)) {
-            rehostVotes.set(matchId, new Set());
-        }
-
-        const votes = rehostVotes.get(matchId);
-
-        if (votes.has(message.from)) {
-            await sendMessage(roomId, 'You have already voted for a rehost.');
-            return;
-        }
-
-        votes.add(message.from);
-        const currentVotes = votes.size;
-
-        if (currentVotes >= REHOST_VOTE_COUNT) {
-            const matchDetails = await getMatchDetails(matchId);
-            if (matchDetails instanceof Error) {
-                await sendMessage(
-                    roomId,
-                    'Error checking match status for rehost.'
-                );
-                return;
-            }
-
-            if (matchDetails.status !== 'ONGOING') {
-                await sendMessage(
-                    roomId,
-                    'Cannot rehost - match is not in progress.'
-                );
-                return;
-            }
-
-            rehostVotes.delete(matchId);
-
-            try {
-                const token = await auth.refreshAccessToken();
-                await axios.post(
-                    `https://api.faceit.com/match/v1/matches/${matchId}/rehost`,
-                    {},
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token.token.access_token}`,
-                            Accept: 'application/json',
-                        },
-                    }
-                );
-                await sendMessage(
-                    roomId,
-                    `✅ Rehost vote passed! (${REHOST_VOTE_COUNT}/${REHOST_VOTE_COUNT} votes) Match will be rehosted.`
-                );
-            } catch (error) {
-                console.error('Error rehosting match:', error);
-                await sendMessage(
-                    roomId,
-                    '❌ Error rehosting match. Please contact an admin for assistance.'
-                );
-            }
-        } else {
-            await sendMessage(
-                roomId,
-                `📊 Rehost vote registered (${currentVotes}/${REHOST_VOTE_COUNT} votes needed)`
-            );
-        }
-    } else if (command === '!cancel') {
-        try {
-            const matchDetails = await getMatchDetails(matchId);
-            if (matchDetails instanceof Error) {
-                await sendMessage(
-                    roomId,
-                    'Error checking match status for cancellation.'
-                );
-                return;
-            }
-
-            if (matchDetails.status !== 'ONGOING') {
-                await sendMessage(
-                    roomId,
-                    'Cannot cancel - match is not in progress.'
-                );
-                return;
-            }
-
-            const team1Players = matchDetails.teams.faction1.roster;
-            const team2Players = matchDetails.teams.faction2.roster;
-
-            const team1Elos = await Promise.all(
-                team1Players.map(async (player) => {
-                    const details = await getPlayerDetails(player.player_id);
-                    return details instanceof Error
-                        ? 0
-                        : details.games?.csgo?.faceit_elo || 0;
-                })
-            );
-
-            const team2Elos = await Promise.all(
-                team2Players.map(async (player) => {
-                    const details = await getPlayerDetails(player.player_id);
-                    return details instanceof Error
-                        ? 0
-                        : details.games?.csgo?.faceit_elo || 0;
-                })
-            );
-
-            const team1Avg =
-                team1Elos.reduce((a, b) => a + b, 0) / team1Elos.length;
-            const team2Avg =
-                team2Elos.reduce((a, b) => a + b, 0) / team2Elos.length;
-            const eloDiff = Math.abs(team1Avg - team2Avg);
-
-            if (eloDiff >= ELO_THRESHOLD) {
-                try {
-                    const token = await auth.refreshAccessToken();
-                    await axios.post(
-                        `https://api.faceit.com/match/v1/matches/${matchId}/cancel`,
-                        {},
-                        {
-                            headers: {
-                                Authorization: `Bearer ${token.token.access_token}`,
-                                Accept: 'application/json',
-                            },
-                        }
-                    );
-                    await sendMessage(
-                        roomId,
-                        `✅ Match cancelled - ELO difference (${Math.round(
-                            eloDiff
-                        )}) is greater than ${ELO_THRESHOLD}`
-                    );
-                } catch (error) {
-                    console.error('Error cancelling match:', error);
-                    await sendMessage(
-                        roomId,
-                        '❌ Error cancelling match. Please contact an admin for assistance.'
-                    );
-                }
-            } else {
-                await sendMessage(
-                    roomId,
-                    `❌ Cannot cancel - ELO difference (${Math.round(
-                        eloDiff
-                    )}) is less than ${ELO_THRESHOLD}`
-                );
-            }
-        } catch (error) {
-            console.error('Error checking match cancellation:', error);
-            await sendMessage(
-                roomId,
-                'Error checking match cancellation status.'
-            );
-        }
-    } else if (command === '!help') {
-        const helpMessage = `👋 Available commands:\n` +
-            `!rehost - Vote for match rehost (requires ${REHOST_VOTE_COUNT} votes)\n` +
-            `!cancel - Check if match can be cancelled due to ELO difference (threshold: ${ELO_THRESHOLD})\n` +
-            `!help - Show this message`;
-        await sendMessage(roomId, helpMessage);
-    } else {
-        await sendMessage(
-            roomId,
-            'Unknown command. Type !help for a list of available commands.'
-        );
-    }
-}
-
-async function getPlayerDetails(playerId) {
+// Middleware to validate tokens
+const validateToken = async (req, res, next) => {
     try {
-        const response = await axios.get(
-            `https://api.faceit.com/players/v1/players/${playerId}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${FACEIT_API_KEY}`,
-                },
-            }
-        );
-        return response.data;
-    } catch (error) {
-        console.error('Error fetching player details:', error);
-        return error;
-    }
-}
-
-async function sendMessage(roomId, message) {
-    try {
-        const token = await auth.refreshAccessToken();
-
-        console.log(`Sending message to room ${roomId}:`, message);
-
-        await axios.post(
-            `https://api.faceit.com/chat/v1/rooms/${roomId}/messages`,
-            {
-                body: message,
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${token.token.access_token}`,
-                    'Content-Type': 'application/json',
-                },
-            }
-        );
-
-        console.log('Message sent successfully.');
-    } catch (error) {
-        console.error('Error sending message:', error);
-    }
-}
-
-async function monitorChatRoom(roomId, matchId) {
-    try {
-        const token = await auth.refreshAccessToken();
-        if (!token) {
-            console.log('No access token available. Please authenticate first.');
-            return;
+        if (!req.session.tokens) {
+            throw new Error('No tokens found');
         }
 
-        let lastTimestamp = lastMessageTimestamps.get(roomId) || 0;
-
-        const response = await axios.get(
-            `https://api.faceit.com/chat/v1/rooms/${roomId}/messages`,
-            {
-                headers: {
-                    Authorization: `Bearer ${token.token.access_token}`,
-                    Accept: 'application/json',
-                },
-            }
-        );
-
-        const messages = response.data.messages || [];
-        if (messages.length > 0) {
-            messages.sort((a, b) => a.timestamp - b.timestamp);
-
-            for (const msg of messages) {
-                if (msg.timestamp > lastTimestamp) {
-                    if (msg.body && msg.body.startsWith('!')) {
-                        await handleCommand(roomId, matchId, msg);
-                    }
-                    lastTimestamp = msg.timestamp;
-                }
-            }
-
-            lastMessageTimestamps.set(roomId, lastTimestamp);
+        // Check if token needs refresh
+        if (Date.now() >= req.session.tokens.expires_in) {
+            const newTokens = await refreshToken(req.session.tokens.refresh_token);
+            req.session.tokens = {
+                ...newTokens,
+                expires_in: Date.now() + (newTokens.expires_in * 1000)
+            };
         }
+
+        req.accessToken = req.session.tokens.access_token;
+        next();
     } catch (error) {
-        console.error('Error monitoring chat room:', error);
+        res.status(401).json({ error: 'Authentication required' });
     }
+};
 
-    // Continue monitoring if match is active
-    const match = matchStates.get(matchId);
-    if (match && match.commandsEnabled) {
-        setTimeout(() => monitorChatRoom(roomId, matchId), 5000);
+// FACEIT API Endpoints
+app.get('/api/matches/:matchId', validateToken, async (req, res) => {
+    try {
+        const response = await axios.get(`https://api.faceit.com/match/v1/matches/${req.params.matchId}`, {
+            headers: { 'Authorization': `Bearer ${req.accessToken}` }
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
-}
-
-// Start the Server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
 });
+
+// Rehost voting system
+app.post('/api/matches/:matchId/rehost', validateToken, async (req, res) => {
+    const { matchId } = req.params;
+    const { playerId } = req.body;
+
+    if (!rehostVotes.has(matchId)) {
+        rehostVotes.set(matchId, new Set());
+    }
+
+    const votes = rehostVotes.get(matchId);
+    votes.add(playerId);
+
+    if (votes.size >= REHOST_VOTE_COUNT) {
+        // Trigger rehost through FACEIT API
+        try {
+            await axios.post(`https://api.faceit.com/match/v1/matches/${matchId}/rehost`, {}, {
+                headers: { 'Authorization': `Bearer ${req.accessToken}` }
+            });
+            rehostVotes.delete(matchId);
+            res.json({ success: true, message: 'Match rehosted successfully' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    } else {
+        res.json({ 
+            success: true, 
+            votesNeeded: REHOST_VOTE_COUNT - votes.size 
+        });
+    }
+});
+
+// Create public/index.html
+app.get('/setup', (req, res) => {
+    const indexHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>FACEIT Bot Login</title>
+        </head>
+        <body>
+            <div id="faceitLogin"></div>
+            
+            <script src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
+            <script>
+                var initParams = {
+                    client_id: '${FACEIT_CLIENT_ID}',
+                    response_type: 'code',
+                    state: 'custom-state',
+                    redirect_popup: true,
+                    debug: true
+                };
+
+                function callback(response) {
+                    if(response.isIdTokenValid === true) {
+                        console.log('Authentication successful');
+                        return;
+                    }
+                    console.error('ID token validation failed');
+                }
+
+                FACEIT.init(initParams, callback);
+            </script>
+        </body>
+        </html>
+    `;
+
+    res.send(indexHtml);
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ error: 'Internal server error' });
+});
+
+// Start server
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
+
+export default app;
