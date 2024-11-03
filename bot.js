@@ -5,6 +5,8 @@ import axios from 'axios';
 import auth from './auth';
 import faceitAPI from './endpoints';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import './auth.js';
 
 dotenv.config();
 const app = express();
@@ -28,7 +30,6 @@ app.use((req, res, next) => {
 // Environment variables
 const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
 const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
-// const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'your-webhook-secret';
 const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
 const TEST_MODE = process.env.NODE_ENV !== 'production';
@@ -390,6 +391,12 @@ app.post('/webhook/match', async (req, res) => {
         res.json({ status: 'success', event: event });
     } catch (error) {
         console.error('Error handling match webhook:', error);
-                res.status(500).json({ error: 'Error handling match webhook.' });
-            }
-        });
+        res.status(500).json({ error: 'Error handling match webhook.' });
+    }
+});
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
