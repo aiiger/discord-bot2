@@ -1,4 +1,3 @@
-// bot.js
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
@@ -15,34 +14,44 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Redis Client Setup with proper error handling and reconnection
+const redisClient = createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+        tls: true,
+        rejectUnauthorized: false
+    },
+    pingInterval: 10000 // Keep connection alive with ping every 10 seconds
+});
+
+// Redis event handlers
+redisClient.on('error', (err) => {
+    console.error('Redis Client Error:', err);
+});
+
+redisClient.on('connect', () => {
+    console.log('Connected to Redis successfully');
+});
+
+redisClient.on('reconnecting', () => {
+    console.log('Redis client is reconnecting');
+});
+
+// Connect to Redis
+await redisClient.connect().catch(console.error);
+
+// Initialize Redis Store
+const redisStore = new RedisStore({
+    client: redisClient,
+    prefix: "faceit:",
+});
+
 // Environment Variables
 const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
 const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
 const FACEIT_REDIRECT_URI = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback';
 
-// Redis Client Setup
-let redisClient = createClient({
-    url: process.env.REDIS_URL,
-    socket: {
-        tls: true,
-        rejectUnauthorized: false
-    }
-});
-
-redisClient.on('error', err => console.log('Redis Client Error', err));
-redisClient.on('connect', () => console.log('Connected to Redis'));
-
-await redisClient.connect().catch(console.error);
-
-// Initialize store
-const redisStore = new RedisStore({
-    client: redisClient,
-    prefix: "faceit:"
-});
-
-// Middleware
-app.use(express.json());
-app.use(express.static('public'));
+// Session Middleware with Redis Store
 app.use(session({
     store: redisStore,
     secret: process.env.SESSION_SECRET || 'faceit-bot-secret',
@@ -52,7 +61,8 @@ app.use(session({
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000
-    }
+    },
+    proxy: true // Required for Heroku
 }));
 
 // CORS Configuration
