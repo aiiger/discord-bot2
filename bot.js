@@ -1,9 +1,9 @@
+// bot.js
+
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import session from 'express-session';
-import { createClient } from 'redis';
-import connectRedis from 'connect-redis';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import auth from './auth.js';
@@ -15,20 +15,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize Redis client
-const redisClient = createClient();
-
-redisClient.on('error', (err) => console.error('Redis Client Error', err));
-
-// Wait for the Redis client to connect
-await redisClient.connect();
-
-// Initialize RedisStore
-const RedisStore = connectRedis(session);
-
-// Session configuration
+// Session configuration without Redis
 app.use(session({
-    store: new RedisStore({ client: redisClient }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
