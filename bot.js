@@ -3,8 +3,8 @@ import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import session from 'express-session';
-import Redis from 'ioredis';
-import connectRedis from 'connect-redis';
+import RedisStore from 'connect-redis';
+import { createClient } from 'redis';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,6 +15,23 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Redis Client Setup
+const redisClient = createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+        tls: process.env.NODE_ENV === 'production',
+        rejectUnauthorized: false
+    }
+});
+
+redisClient.connect().catch(console.error);
+
+// Initialize Redis Store
+const redisStore = new RedisStore({
+    client: redisClient,
+    prefix: "faceit:",
+});
+
 // Environment Variables
 const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
 const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET;
@@ -22,29 +39,11 @@ const FACEIT_REDIRECT_URI = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/
 const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
 
-// Redis configuration
-const RedisStore = connectRedis(session);
-let redisClient;
-
-if (process.env.REDIS_URL) {
-    redisClient = new Redis(process.env.REDIS_URL, {
-        tls: {
-            rejectUnauthorized: false
-        }
-    });
-} else {
-    redisClient = new Redis();
-}
-
-// In-memory Stores for rehost functionality
-const rehostVotes = new Map(); // matchId -> Set of playerIds
-const matchStates = new Map(); // matchId -> { commandsEnabled: boolean }
-
 // Middleware
 app.use(express.json());
 app.use(express.static('public'));
 app.use(session({
-    store: new RedisStore({ client: redisClient }),
+    store: redisStore,
     secret: process.env.SESSION_SECRET || 'faceit-bot-secret',
     resave: false,
     saveUninitialized: false,
@@ -64,7 +63,11 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve the SDK initialization page
+// In-memory stores for rehost functionality
+const rehostVotes = new Map(); // matchId -> Set of playerIds
+const matchStates = new Map(); // matchId -> { commandsEnabled: boolean }
+
+// Routes
 app.get('/', (req, res) => {
     res.send(`
         <!DOCTYPE html>
@@ -115,7 +118,6 @@ app.get('/callback', async (req, res) => {
             throw new Error('Authorization code not received');
         }
 
-        // Exchange code for tokens
         const tokenResponse = await axios.post('https://api.faceit.com/auth/v1/oauth/token', 
             new URLSearchParams({
                 grant_type: 'authorization_code',
@@ -130,7 +132,6 @@ app.get('/callback', async (req, res) => {
             }
         );
 
-        // Store tokens in session
         req.session.tokens = {
             access_token: tokenResponse.data.access_token,
             refresh_token: tokenResponse.data.refresh_token,
@@ -138,7 +139,6 @@ app.get('/callback', async (req, res) => {
             expires_in: Date.now() + (tokenResponse.data.expires_in * 1000)
         };
 
-        // Get user info
         const userInfo = await getUserInfo(tokenResponse.data.access_token);
         
         res.send(`
@@ -166,57 +166,6 @@ app.get('/callback', async (req, res) => {
     }
 });
 
-// Rehost endpoint
-app.post('/api/matches/:matchId/rehost', async (req, res) => {
-    try {
-        const { matchId } = req.params;
-        const { playerId } = req.body;
-
-        if (!matchStates.has(matchId)) {
-            matchStates.set(matchId, { commandsEnabled: true });
-        }
-
-        if (!rehostVotes.has(matchId)) {
-            rehostVotes.set(matchId, new Set());
-        }
-
-        const votes = rehostVotes.get(matchId);
-        votes.add(playerId);
-
-        if (votes.size >= REHOST_VOTE_COUNT) {
-            await axios.post(`https://api.faceit.com/match/v1/matches/${matchId}/rehost`, {}, {
-                headers: { 'Authorization': `Bearer ${req.session.tokens.access_token}` }
-            });
-            rehostVotes.delete(matchId);
-            res.json({ success: true, message: 'Match rehosted successfully' });
-        } else {
-            res.json({ 
-                success: true, 
-                votesNeeded: REHOST_VOTE_COUNT - votes.size 
-            });
-        }
-    } catch (error) {
-        console.error('Rehost Error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Cancel match endpoint
-app.post('/api/matches/:matchId/cancel', async (req, res) => {
-    try {
-        const { matchId } = req.params;
-        
-        await axios.post(`https://api.faceit.com/match/v1/matches/${matchId}/cancel`, {}, {
-            headers: { 'Authorization': `Bearer ${req.session.tokens.access_token}` }
-        });
-        
-        res.json({ success: true, message: 'Match cancelled successfully' });
-    } catch (error) {
-        console.error('Cancel Error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
 // Helper Functions
 async function getUserInfo(accessToken) {
     try {
@@ -236,5 +185,8 @@ async function getUserInfo(accessToken) {
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+
+// Handle Redis errors
+redisClient.on('error', (err) => console.log('Redis Client Error', err));
 
 export default app;
