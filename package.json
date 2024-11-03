@@ -2,10 +2,11 @@
   "name": "faceit-match-bot",
   "version": "1.0.0",
   "description": "FACEIT match management bot for rehosting and cancellation",
-  "main": "bot.js",
+  "main": "bot.mjs",
+  "type": "module",
   "scripts": {
-    "start": "node bot.js",
-    "dev": "nodemon bot.js"
+    "start": "node bot.mjs",
+    "dev": "nodemon bot.mjs"
   },
   "dependencies": {
     "axios": "^1.7.7",
