@@ -1,12 +1,12 @@
 // bot.js
 
-const express = require('express');
-const axios = require('axios');
-const path = require('path');
-const auth = require('./auth');
-const faceitAPI = require('./endpoints');
+import express from 'express';
+import axios from 'axios';
+import auth from './auth';
+import faceitAPI from './endpoints';
+import dotenv from 'dotenv';
 
-require('dotenv').config();
+dotenv.config();
 const app = express();
 
 // Add middleware for parsing JSON
@@ -28,7 +28,7 @@ app.use((req, res, next) => {
 // Environment variables
 const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID;
 const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID;
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'your-webhook-secret';
+// const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'your-webhook-secret';
 const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
 const TEST_MODE = process.env.NODE_ENV !== 'production';
@@ -39,12 +39,12 @@ const matchStates = new Map(); // matchId -> { commandsEnabled: boolean }
 const lastMessageTimestamps = new Map(); // roomId -> last message timestamp
 
 // Root endpoint - serve login page
-app.get('/', (req, res) => {
+app.get('/', (_, res) => {
     res.redirect('/auth');
 });
 
 // Auth endpoint - redirect to FACEIT login
-app.get('/auth', (req, res) => {
+app.get('/auth', (_, res) => {
     const authUrl = `https://accounts.faceit.com/oauth/authorize?` + new URLSearchParams({
         response_type: 'code',
         client_id: FACEIT_CLIENT_ID,
@@ -63,7 +63,7 @@ app.get('/auth/callback', async (req, res) => {
             return res.status(400).send('No code provided');
         }
 
-        const tokenData = await auth.getAccessToken(code);
+        await auth.getAccessToken(code);
         console.log('Authentication successful');
 
         res.send(`
@@ -390,4 +390,6 @@ app.post('/webhook/match', async (req, res) => {
         res.json({ status: 'success', event: event });
     } catch (error) {
         console.error('Error handling match webhook:', error);
-        res
+                res.status(500).json({ error: 'Error handling match webhook.' });
+            }
+        });
