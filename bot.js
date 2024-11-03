@@ -1,5 +1,3 @@
-// bot.js
-
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
@@ -8,8 +6,7 @@ import { createClient } from 'redis';
 import connectRedis from 'connect-redis';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import auth from './auth.js'; // Ensure you have an auth module as discussed earlier
-import Redis from 'ioredis'; // Added ES module import for ioredis
+import auth from './auth.js';
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -19,7 +16,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize Redis client
-const redisClient = new Redis();
+const redisClient = createClient();
+
+redisClient.on('error', (err) => console.error('Redis Client Error', err));
+
+// Wait for the Redis client to connect
+await redisClient.connect();
 
 // Initialize RedisStore
 const RedisStore = connectRedis(session);
@@ -30,6 +32,7 @@ app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    cookie: { secure: process.env.NODE_ENV === 'production' },
 }));
 
 // Middleware to parse JSON
