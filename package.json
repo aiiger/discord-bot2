@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "FACEIT match management bot for rehosting and cancellation",
   "main": "bot.js",
-  "type": "module",
   "scripts": {
     "start": "node bot.js",
     "dev": "nodemon bot.js"
