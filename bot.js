@@ -9,6 +9,7 @@ import connectRedis from 'connect-redis';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import auth from './auth.js'; // Ensure you have an auth module as discussed earlier
+import Redis from 'ioredis'; // Added ES module import for ioredis
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -18,7 +19,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize Redis client
-const Redis = require('ioredis');
 const redisClient = new Redis();
 
 // Initialize RedisStore
