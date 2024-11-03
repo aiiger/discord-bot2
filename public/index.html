@@ -2,48 +2,22 @@
 <html>
 <head>
     <title>FACEIT Bot Login</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #1f1f1f;
-            color: white;
-        }
-        .container {
-            text-align: center;
-            padding: 20px;
-            border-radius: 8px;
-            background-color: #2d2d2d;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-        .login-button {
-            background-color: #ff5500;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-top: 20px;
-            text-decoration: none;
-            display: inline-block;
-        }
-        .login-button:hover {
-            background-color: #ff6a1f;
-        }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>FACEIT Bot Login</h1>
-        <p>Click the button below to authenticate with FACEIT</p>
-        <a href="https://accounts.faceit.com/oauth/authorize?client_id=075a09a2-3155-47b1-8b9b-62f6de5f7bf1&response_type=code&redirect_uri=https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/auth/callback&scope=openid%20chat.messages.read%20chat.messages.write%20chat.rooms.read" class="login-button">
-            Login with FACEIT
-        </a>
-    </div>
+    <script src="https://cdn.faceit.com/widgets/sso/index.html" type="text/javascript"></script>
+    <script type="text/javascript">
+        var client_id = '30bdac0f-591c-408d-88c3-bebb897339b9';
+        var initParams = {
+            client_id: client_id,
+            response_type: 'code',
+            scope: 'openid profile email chat.messages.read chat.messages.write chat.rooms.read',
+            state: ''
+        };
+        FACEIT.init(initParams);
+    </script>
+    <div id="faceitLogin"></div>
+    <script type="text/javascript">
+        FACEIT.loginWithFaceit(document.getElementById('faceitLogin'));
+    </script>
 </body>
 </html>
