@@ -1,54 +1,44 @@
-// endpoints/championships/getChampionships.js
-
-import axios from 'axios';
-import urlConstructorUtil from '../../utils/urlConstructor.js';
-import getHeaders from '../../utils/headers.js';
-
+const axios = require("axios");
+const urlConstructorUtil = require("../../utils/urlConstructor.js");
+const getHeaders = require("../../utils/headers.js");
 /*
-    Uses URL: https://open.faceit.com/data/v4/championships
+    Uses url https://open.faceit.com/data/v4/championships
     Method: GET
-    Parameters:
-      - gameId: string (optional)
-      - type: string (optional)
-      - offset: number (default: 0)
-      - limit: number (default: 20)
-    Description: Fetches a list of championships based on provided parameters.
+    Parameters: 
+    Description: 
 */
-
-const getChampionships = async function (
+module.exports = async function getChampionships(
   gameId,
   type,
   offset = 0,
   limit = 20
 ) {
+  let apiKey = this.getApiKeyServer();
+  let headers = getHeaders(apiKey);
+
+  let baseURL = "https://open.faceit.com/data/v4/championships";
+
+  let searchOptions = {
+    offset: offset,
+    limit: limit,
+  };
+
+  //get url
+  let url = urlConstructorUtil(
+    baseURL,
+    [],
+    [],
+    ["game", "type"],
+    [gameId, type],
+    searchOptions
+  );
+
+  //try catch to make the call via axios
   try {
-    const apiKey = this.getApiKeyServer();
-    const headers = getHeaders(apiKey);
-
-    const baseURL = 'https://open.faceit.com/data/v4/championships';
-
-    const searchOptions = {
-      offset,
-      limit,
-    };
-
-    // Construct URL with query parameters
-    const url = urlConstructorUtil(
-      baseURL,
-      [],
-      [],
-      ['game', 'type'],
-      [gameId, type],
-      searchOptions
-    );
-
-    // Make the API call via axios
-    const response = await axios.get(url, headers);
+    let response = await axios.get(url, headers);
     return response.data;
   } catch (err) {
-    console.error(err.response ? err.response.data : err.message);
-    throw new Error(err.response ? err.response.data : 'Unknown error');
+    //console.error(err.response.data)
+    return new Error(err.response.data);
   }
 };
-
-export default getChampionships;
