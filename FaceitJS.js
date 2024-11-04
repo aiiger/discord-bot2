@@ -103,14 +103,6 @@ class FaceitJS {
     this.apiKeyClient = apiKeyClientSide;
   }
 
-  headers = {
-    headers: {
-      accept: 'application/json',
-      Authorization: `Bearer ${this.apiKeyServer}`,
-    },
-  };
-
-  // Getter and Setter Methods
   getApiKeyServer() {
     return this.apiKeyServer;
   }
@@ -128,7 +120,12 @@ class FaceitJS {
   }
 
   getHeader() {
-    return this.headers;
+    return {
+      headers: {
+        accept: 'application/json',
+        Authorization: `Bearer ${this.apiKeyServer}`,
+      },
+    };
   }
 }
 
@@ -141,12 +138,39 @@ FaceitJS.prototype.championships = getChampionships;
 FaceitJS.prototype.getChampionshipsById = getChampionshipsById;
 FaceitJS.prototype.championshipsById = getChampionshipsById;
 
+FaceitJS.prototype.getChampionshipsMatches = getChampionshipsMatches;
+FaceitJS.prototype.championshipsMatches = getChampionshipsMatches;
+
+FaceitJS.prototype.getChampionshipsSubscriptions = getChampionshipsSubscriptions;
+FaceitJS.prototype.championshipsSubscriptions = getChampionshipsSubscriptions;
+
+FaceitJS.prototype.getChampionshipsResults = getChampionshipsResults;
+FaceitJS.prototype.championshipsResults = getChampionshipsResults;
+
 // GAMES
 FaceitJS.prototype.getGames = getGames;
 FaceitJS.prototype.games = getGames;
 
 FaceitJS.prototype.getGamesMatchmakings = getGamesMatchmakings;
 FaceitJS.prototype.gamesMatchmakings = getGamesMatchmakings;
+
+FaceitJS.prototype.getGamesById = getGamesById;
+FaceitJS.prototype.gamesById = getGamesById;
+
+FaceitJS.prototype.getGamesParent = getGamesParent;
+FaceitJS.prototype.gamesParent = getGamesParent;
+
+FaceitJS.prototype.getGamesQueues = getGamesQueues;
+FaceitJS.prototype.gamesQueues = getGamesQueues;
+
+FaceitJS.prototype.getGamesQueuesById = getGamesQueuesById;
+FaceitJS.prototype.gamesQueuesById = getGamesQueuesById;
+
+FaceitJS.prototype.getGamesQueuesByIdBans = getGamesQueuesByIdBans;
+FaceitJS.prototype.gamesQueuesByIdBans = getGamesQueuesByIdBans;
+
+FaceitJS.prototype.getGamesQueuesByIdByRegion = getGamesQueuesByIdByRegion;
+FaceitJS.prototype.gamesQueuesByIdByRegion = getGamesQueuesByIdByRegion;
 
 // HUBS
 FaceitJS.prototype.getHubsById = getHubsById;
