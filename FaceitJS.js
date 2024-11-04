@@ -4,7 +4,6 @@
 
 // CHAMPIONSHIPS
 import getChampionships from './endpoints/championships/getChampionships.js';
-import getChampionshipsById from './endpoints/championships/getChampionshipsById.js';
 import getChampionshipsMatches from './endpoints/championships/getChampionshipsMatches.js';
 import getChampionshipsSubscriptions from './endpoints/championships/getChampionshipsSubscriptions.js';
 import getChampionshipsResults from './endpoints/championships/getChampionshipsResults.js';
