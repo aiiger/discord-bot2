@@ -2,31 +2,27 @@
 
 A bot for managing FACEIT championships and hubs, with rehost and cancel functionality.
 
+## Features
+
+- Client Credentials authentication with FACEIT
+- Championship management commands:
+  - Rehost championships
+  - Cancel championships
+- Hub information retrieval
+- Production-ready configuration
+
 ## Prerequisites
 
-1. FACEIT Account
-   - You need a FACEIT account to use this bot
-   - If you don't have one, create it at https://www.faceit.com/signup
+1. FACEIT Developer Account
+   - Go to https://developers.faceit.com/
+   - Create a new application
+   - Get your API keys and client credentials
 
-2. FACEIT Application Setup
-   1. Go to https://developers.faceit.com/
-   2. Log in with your FACEIT account
-   3. Create a new application:
-      - Go to "Applications" > "Create Application"
-      - Fill in the application details:
-        * Name: Your bot name
-        * Description: Brief description of your bot
-        * Redirect URI: Your Heroku app URL + /callback
-        * Example: https://your-app-name.herokuapp.com/callback
-      - Required OAuth2 scopes:
-        * openid
-        * email
-        * profile
-   4. After creation, you'll get:
-      - Client ID
-      - Client Secret
-      - API Key
-   5. Save these credentials for the next step
+2. Required Credentials:
+   - API Key (Server)
+   - API Key (Client)
+   - Client ID
+   - Client Secret
 
 ## Setup
 
@@ -48,55 +44,66 @@ cp .env.example .env
 
 4. Fill in your environment variables in `.env`:
 ```env
-# API Keys (from FACEIT Developer Portal)
-FACEIT_API_KEY_SERVER=your_api_key_here
-FACEIT_API_KEY_CLIENT=your_api_key_here
+# API Keys from FACEIT Developer Portal
+FACEIT_API_KEY_SERVER=your_server_api_key_here
+FACEIT_API_KEY_CLIENT=your_client_api_key_here
+
+# OAuth2 Client Credentials
 FACEIT_CLIENT_ID=your_client_id_here
 FACEIT_CLIENT_SECRET=your_client_secret_here
-
-# OAuth2 Configuration
-# Must be your Heroku app URL + /callback
-REDIRECT_URI=https://your-app-name.herokuapp.com/callback
 
 # Session Security
 SESSION_SECRET=your_random_secret_here
 
-# Environment (production for Heroku)
+# Environment
 NODE_ENV=production
 ```
 
 ## API Endpoints
 
-### Authentication
-- `GET /`: Login page
-- `GET /auth`: Initiate FACEIT OAuth2 flow
-- `GET /callback`: OAuth2 callback handler
-- `GET /dashboard`: User dashboard
-- `GET /logout`: Clear session and logout
+### Hub Management
+- `GET /api/hubs/:hubId`: Get hub information
+  - URL parameter: hubId (string)
+  - Returns hub details
 
 ### Championship Management
-- `POST /rehost`: Rehost a championship
+- `POST /api/championships/rehost`: Rehost a championship
   - Required body: `{ "gameId": "string", "eventId": "string" }`
-  - Requires authentication
   
-- `POST /cancel`: Cancel a championship
+- `POST /api/championships/cancel`: Cancel a championship
   - Required body: `{ "eventId": "string" }`
-  - Requires authentication
-
-### Hub Management
-- `GET /hub/:hubId`: Get hub information
-  - URL parameter: hubId (string)
-  - Requires authentication
-  - Returns hub details including:
-    * Name
-    * Description
-    * Game
-    * Members count
-    * Current matches
-    * Rules
 
 ### System
 - `GET /health`: Health check endpoint
+
+## Example API Usage
+
+### Get Hub Information
+```bash
+curl -X GET \
+  https://your-app-name.herokuapp.com/api/hubs/your-hub-id
+```
+
+### Rehost Championship
+```bash
+curl -X POST \
+  https://your-app-name.herokuapp.com/api/championships/rehost \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "gameId": "your-game-id",
+    "eventId": "your-event-id"
+  }'
+```
+
+### Cancel Championship
+```bash
+curl -X POST \
+  https://your-app-name.herokuapp.com/api/championships/cancel \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "eventId": "your-event-id"
+  }'
+```
 
 ## Deployment to Heroku
 
@@ -113,7 +120,6 @@ heroku config:set FACEIT_CLIENT_ID=your_client_id_here
 heroku config:set FACEIT_CLIENT_SECRET=your_client_secret_here
 heroku config:set SESSION_SECRET=your_session_secret_here
 heroku config:set NODE_ENV=production
-heroku config:set REDIRECT_URI=https://your-app-name.herokuapp.com/callback
 ```
 
 3. Deploy to Heroku:
@@ -126,80 +132,49 @@ git push heroku main
 heroku ps:scale web=1
 ```
 
-## Security Features
+## Authentication
 
-- Secure session configuration
-  - HTTP-only cookies
-  - Secure in production
-  - Custom session name
-- CSRF protection via state parameter
-- Environment variable validation
-- Production security settings
-- Graceful shutdown handling
+The bot uses FACEIT's Client Credentials flow for authentication:
 
-## Error Handling
+1. Automatic token management:
+   - Tokens are automatically obtained when needed
+   - Tokens are stored in the session
+   - Tokens are refreshed when expired
 
-The application includes comprehensive error handling:
+2. Security features:
+   - Secure session configuration
+   - HTTP-only cookies
+   - Environment variable validation
 
-- OAuth2 flow errors
-  - Missing code
-  - Invalid state (CSRF protection)
-  - Token exchange failures
-- API errors
-  - Authentication errors
-  - Championship operation errors
-  - Hub operation errors
-- System errors
-  - Missing environment variables
-  - Server errors
+## Error Responses
 
-## Production Configuration
+All API endpoints return consistent error responses:
 
-The bot is configured for production use on Heroku:
+```json
+{
+  "error": "Error Type",
+  "message": "Human readable error message"
+}
+```
+
+Common error types:
+- Authentication Error: Failed to authenticate with FACEIT
+- Bad Request: Missing required parameters
+- Internal Server Error: Server-side issues
+
+## Production Notes
 
 1. Security:
-   - Secure cookies enabled
-   - HTTPS enforced
-   - Environment variables required
-   - Session protection
+   - All cookies are secure-only in production
+   - Session data is encrypted
+   - Environment variables are validated
 
 2. Monitoring:
    - Health check endpoint
    - Error logging
-   - Graceful shutdown
+   - Graceful shutdown handling
 
-3. Authentication:
-   - OAuth2 flow with CSRF protection
-   - Session management
-   - Token handling
-
-## Example API Usage
-
-### Get Hub Information
-```bash
-curl -X GET \
-  https://your-app-name.herokuapp.com/hub/your-hub-id \
-  -H 'Authorization: Bearer your-access-token'
-```
-
-### Rehost Championship
-```bash
-curl -X POST \
-  https://your-app-name.herokuapp.com/rehost \
-  -H 'Authorization: Bearer your-access-token' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "gameId": "your-game-id",
-    "eventId": "your-event-id"
-  }'
-```
-
-### Cancel Championship
-```bash
-curl -X POST \
-  https://your-app-name.herokuapp.com/cancel \
-  -H 'Authorization: Bearer your-access-token' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "eventId": "your-event-id"
-  }'
+3. API Structure:
+   - All endpoints under /api prefix
+   - Consistent error responses
+   - JSON responses for all API calls

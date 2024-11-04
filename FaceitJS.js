@@ -1,7 +1,6 @@
 // FaceitJS.js
 
 // ***** IMPORTS ***** //
-import { AuthorizationCode } from 'simple-oauth2';
 import axios from 'axios';
 
 // CHAMPIONSHIPS
@@ -15,21 +14,6 @@ class FaceitJS {
     this.apiKeyServer = apiKeyServerSide;
     this.apiKeyClient = apiKeyClientSide;
     this.authState = null;
-    
-    // Initialize OAuth2 config
-    this.oauthConfig = {
-      client: {
-        id: process.env.FACEIT_CLIENT_ID,
-        secret: process.env.FACEIT_CLIENT_SECRET
-      },
-      auth: {
-        tokenHost: 'https://api.faceit.com',
-        tokenPath: '/auth/v1/oauth/token',
-        authorizePath: '/auth/v1/oauth/authorize'
-      }
-    };
-    
-    this.oauth2 = new AuthorizationCode(this.oauthConfig);
   }
 
   getApiKeyServer() {
@@ -57,39 +41,47 @@ class FaceitJS {
     };
   }
 
-  // OAuth2 Methods
+  // Generate authorization URL for FACEIT login
   getAuthorizationUrl() {
-    if (!process.env.REDIRECT_URI) {
-      throw new Error('REDIRECT_URI environment variable is required');
-    }
-
     const state = Math.random().toString(36).substring(7);
     this.authState = state;
 
-    const options = {
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: process.env.FACEIT_CLIENT_ID,
       redirect_uri: process.env.REDIRECT_URI,
-      scope: ['openid', 'email', 'profile'],
+      scope: 'openid profile email',
       state: state
-    };
+    });
 
-    return this.oauth2.authorizeURL(options);
+    return `https://api.faceit.com/auth/v1/oauth/authorize?${params.toString()}`;
   }
 
+  // Exchange authorization code for access token
   async getAccessTokenFromCode(code) {
-    if (!process.env.REDIRECT_URI) {
-      throw new Error('REDIRECT_URI environment variable is required');
-    }
-
-    const options = {
-      code,
-      redirect_uri: process.env.REDIRECT_URI,
-      scope: ['openid', 'email', 'profile']
-    };
-
     try {
-      return await this.oauth2.getToken(options);
+      const tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
+      
+      const credentials = Buffer.from(
+        `${process.env.FACEIT_CLIENT_ID}:${process.env.FACEIT_CLIENT_SECRET}`
+      ).toString('base64');
+
+      const data = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: process.env.REDIRECT_URI
+      });
+
+      const response = await axios.post(tokenUrl, data, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${credentials}`
+        }
+      });
+
+      return response.data;
     } catch (error) {
-      console.error('Error getting token:', error.message);
+      console.error('Error getting access token:', error.response?.data || error.message);
       throw error;
     }
   }
@@ -110,7 +102,7 @@ class FaceitJS {
       );
       return response.data;
     } catch (error) {
-      console.error('Error getting user info:', error.message);
+      console.error('Error getting user info:', error.response?.data || error.message);
       throw error;
     }
   }

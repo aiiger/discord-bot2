@@ -53,7 +53,10 @@ app.use(express.json());
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).send('Something broke!');
+    res.status(500).json({
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    });
 });
 
 // Root Endpoint - Show login page
@@ -62,17 +65,38 @@ app.get('/', (req, res) => {
         res.redirect('/dashboard');
     } else {
         res.send(`
-            <h1>FACEIT Bot</h1>
-            <p>Please log in with your FACEIT account to continue.</p>
-            <a href="/auth" style="
-                display: inline-block;
-                padding: 10px 20px;
-                background-color: #FF5500;
-                color: white;
-                text-decoration: none;
-                border-radius: 5px;
-                font-family: Arial, sans-serif;
-            ">Login with FACEIT</a>
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>FACEIT Bot</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 20px;
+                        text-align: center;
+                    }
+                    h1 {
+                        color: #FF5500;
+                    }
+                    .login-button {
+                        display: inline-block;
+                        padding: 10px 20px;
+                        background-color: #FF5500;
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>FACEIT Bot</h1>
+                <p>Please log in with your FACEIT account to continue.</p>
+                <a href="/auth" class="login-button">Login with FACEIT</a>
+            </body>
+            </html>
         `);
     }
 });
@@ -111,11 +135,11 @@ app.get('/callback', async (req, res) => {
         console.log('Access token obtained');
 
         // Use the access token to retrieve user information
-        const userInfo = await faceit.getUserInfo(token.token.access_token);
+        const userInfo = await faceit.getUserInfo(token.access_token);
         console.log('User info retrieved:', userInfo.nickname);
 
         // Store access token and user info in session
-        req.session.accessToken = token.token.access_token;
+        req.session.accessToken = token.access_token;
         req.session.user = userInfo;
 
         res.redirect('/dashboard');
@@ -136,9 +160,9 @@ app.get('/dashboard', (req, res) => {
         <p>You are now authenticated with FACEIT.</p>
         <h2>Available Commands:</h2>
         <ul>
-            <li><strong>Rehost:</strong> POST /rehost with gameId and eventId</li>
-            <li><strong>Cancel:</strong> POST /cancel with eventId</li>
-            <li><strong>Get Hub:</strong> GET /hub/:hubId</li>
+            <li><strong>Get Hub:</strong> GET /api/hubs/:hubId</li>
+            <li><strong>Rehost:</strong> POST /api/championships/rehost</li>
+            <li><strong>Cancel:</strong> POST /api/championships/cancel</li>
         </ul>
         <p><a href="/logout" style="color: #FF5500;">Logout</a></p>
     `);
@@ -150,80 +174,100 @@ app.get('/logout', (req, res) => {
     res.redirect('/?message=logged_out');
 });
 
-// Hub Route
-app.get('/hub/:hubId', async (req, res) => {
+// API Routes
+const apiRouter = express.Router();
+app.use('/api', apiRouter);
+
+// Hub Routes
+apiRouter.get('/hubs/:hubId', async (req, res) => {
     if (!req.session.accessToken) {
-        return res.status(401).send('Unauthorized');
-    }
-
-    const { hubId } = req.params;
-
-    if (!hubId) {
-        return res.status(400).send('Missing hubId');
+        return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Please log in first'
+        });
     }
 
     try {
+        const { hubId } = req.params;
         const response = await faceit.getHubsById(hubId);
         res.json(response);
     } catch (error) {
         console.error('Error getting hub:', error);
-        res.status(500).send('Failed to get hub information.');
+        res.status(500).json({
+            error: 'Hub Error',
+            message: 'Failed to get hub information'
+        });
     }
 });
 
-// Rehost Command
-app.post('/rehost', async (req, res) => {
+// Championship Routes
+apiRouter.post('/championships/rehost', async (req, res) => {
     if (!req.session.accessToken) {
-        return res.status(401).send('Unauthorized');
-    }
-
-    const { gameId, eventId } = req.body;
-
-    if (!gameId || !eventId) {
-        return res.status(400).send('Missing gameId or eventId');
+        return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Please log in first'
+        });
     }
 
     try {
-        // Example: Rehost a championship
-        const response = await faceit.getChampionshipsById(eventId);
-        // Implement your rehosting logic here using FaceitJS methods
+        const { gameId, eventId } = req.body;
 
-        // Placeholder response
-        res.status(200).send(`Rehosted event ${eventId} for game ${gameId}`);
+        if (!gameId || !eventId) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'Missing gameId or eventId'
+            });
+        }
+
+        const response = await faceit.getChampionshipsById(eventId);
+        res.json({
+            message: `Rehosted event ${eventId} for game ${gameId}`,
+            data: response
+        });
     } catch (error) {
         console.error('Error rehosting:', error);
-        res.status(500).send('Rehost failed.');
+        res.status(500).json({
+            error: 'Rehost Error',
+            message: 'Failed to rehost championship'
+        });
     }
 });
 
-// Cancel Command
-app.post('/cancel', async (req, res) => {
+apiRouter.post('/championships/cancel', async (req, res) => {
     if (!req.session.accessToken) {
-        return res.status(401).send('Unauthorized');
-    }
-
-    const { eventId } = req.body;
-
-    if (!eventId) {
-        return res.status(400).send('Missing eventId');
+        return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Please log in first'
+        });
     }
 
     try {
-        // Example: Cancel a championship
-        const response = await faceit.getChampionshipsById(eventId);
-        // Implement your cancellation logic here using FaceitJS methods
+        const { eventId } = req.body;
 
-        // Placeholder response
-        res.status(200).send(`Canceled event ${eventId}`);
+        if (!eventId) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'Missing eventId'
+            });
+        }
+
+        const response = await faceit.getChampionshipsById(eventId);
+        res.json({
+            message: `Canceled event ${eventId}`,
+            data: response
+        });
     } catch (error) {
         console.error('Error canceling:', error);
-        res.status(500).send('Cancellation failed.');
+        res.status(500).json({
+            error: 'Cancel Error',
+            message: 'Failed to cancel championship'
+        });
     }
 });
 
 // Health check endpoint for Heroku
 app.get('/health', (req, res) => {
-    res.status(200).send('OK');
+    res.status(200).json({ status: 'OK' });
 });
 
 // Start the server
