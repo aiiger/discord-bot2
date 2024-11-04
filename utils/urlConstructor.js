@@ -1,5 +1,5 @@
 //Function to make the url to be sent the request, and return the url
-module.exports = function urlConstructor(
+export default function urlConstructor(
   baseURL,
   midParametersArgs,
   midParametersValues,
@@ -81,4 +81,4 @@ module.exports = function urlConstructor(
   }
 
   return url;
-};
+}

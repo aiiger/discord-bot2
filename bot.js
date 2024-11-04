@@ -13,26 +13,60 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Verify required environment variables
+const requiredEnvVars = [
+    'FACEIT_API_KEY_SERVER',
+    'FACEIT_API_KEY_CLIENT',
+    'SESSION_SECRET',
+    'FACEIT_CLIENT_ID',
+    'FACEIT_CLIENT_SECRET',
+    'REDIRECT_URI'
+];
+
+for (const envVar of requiredEnvVars) {
+    if (!process.env[envVar]) {
+        console.error(`Missing required environment variable: ${envVar}`);
+        process.exit(1);
+    }
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize FaceitJS with your API keys
 const faceit = new FaceitJS(process.env.FACEIT_API_KEY_SERVER, process.env.FACEIT_API_KEY_CLIENT);
 
-// Session configuration without Redis
+// Session configuration
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === 'production' },
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    },
+    name: 'faceit.sid'
 }));
 
 // Middleware to parse JSON
 app.use(express.json());
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something broke!');
+});
+
 // Root Endpoint - Redirect to /auth
 app.get('/', (req, res) => {
     res.redirect('/auth');
+});
+
+// Auth Endpoint
+app.get('/auth', (req, res) => {
+    const authUrl = auth.getAuthorizationUrl();
+    res.redirect(authUrl);
 });
 
 // OAuth2 Callback Endpoint
@@ -135,7 +169,20 @@ app.post('/cancel', async (req, res) => {
     }
 });
 
+// Health check endpoint for Heroku
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
 // Start the server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+});
+
+// Handle shutdown gracefully
+process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received: closing HTTP server');
+    server.close(() => {
+        console.log('HTTP server closed');
+    });
 });
