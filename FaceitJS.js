@@ -98,38 +98,38 @@ import postRoomByIdMessage from './endpoints/rooms/postRoomByIdMessage.js';
 // ***** FACEITJS CLASS ***** //
 
 class FaceitJS {
-    constructor(apiKeyServerSide, apiKeyClientSide) {
-        this.apiKeyServer = apiKeyServerSide;
-        this.apiKeyClient = apiKeyClientSide;
-    }
+  constructor(apiKeyServerSide, apiKeyClientSide) {
+    this.apiKeyServer = apiKeyServerSide;
+    this.apiKeyClient = apiKeyClientSide;
+  }
 
-    headers = {
-        headers: {
-            accept: "application/json",
-            Authorization: `Bearer ${this.apiKeyServer}`,
-        },
-    };
+  headers = {
+    headers: {
+      accept: 'application/json',
+      Authorization: `Bearer ${this.apiKeyServer}`,
+    },
+  };
 
-    // Getter and Setter Methods
-    getApiKeyServer() {
-        return this.apiKeyServer;
-    }
+  // Getter and Setter Methods
+  getApiKeyServer() {
+    return this.apiKeyServer;
+  }
 
-    setApiKeyServer(apiKeyServerSide) {
-        this.apiKeyServer = apiKeyServerSide;
-    }
+  setApiKeyServer(apiKeyServerSide) {
+    this.apiKeyServer = apiKeyServerSide;
+  }
 
-    getApiKeyClient() {
-        return this.apiKeyClient;
-    }
+  getApiKeyClient() {
+    return this.apiKeyClient;
+  }
 
-    setApiKeyClient(apiKeyClientSide) {
-        this.apiKeyClient = apiKeyClientSide;
-    }
+  setApiKeyClient(apiKeyClientSide) {
+    this.apiKeyClient = apiKeyClientSide;
+  }
 
-    getHeader() {
-        return this.headers;
-    }
+  getHeader() {
+    return this.headers;
+  }
 }
 
 // ***** ADD PROTOTYPE METHODS ***** //
@@ -139,18 +139,7 @@ FaceitJS.prototype.getChampionships = getChampionships;
 FaceitJS.prototype.championships = getChampionships;
 
 FaceitJS.prototype.getChampionshipsById = getChampionshipsById;
-FaceitJS.prototype.getChampionshipById = getChampionshipsById;
 FaceitJS.prototype.championshipsById = getChampionshipsById;
-FaceitJS.prototype.championshipById = getChampionshipsById;
-
-FaceitJS.prototype.getChampionshipsMatches = getChampionshipsMatches;
-FaceitJS.prototype.championshipsMatches = getChampionshipsMatches;
-
-FaceitJS.prototype.getChampionshipsResults = getChampionshipsResults;
-FaceitJS.prototype.championshipsResults = getChampionshipsResults;
-
-FaceitJS.prototype.getChampionshipsSubscriptions = getChampionshipsSubscriptions;
-FaceitJS.prototype.championshipsSubscriptions = getChampionshipsSubscriptions;
 
 // GAMES
 FaceitJS.prototype.getGames = getGames;
@@ -158,27 +147,6 @@ FaceitJS.prototype.games = getGames;
 
 FaceitJS.prototype.getGamesMatchmakings = getGamesMatchmakings;
 FaceitJS.prototype.gamesMatchmakings = getGamesMatchmakings;
-
-FaceitJS.prototype.getGamesById = getGamesById;
-FaceitJS.prototype.getGameById = getGamesById;
-FaceitJS.prototype.gamesById = getGamesById;
-FaceitJS.prototype.gameById = getGamesById;
-
-FaceitJS.prototype.getGamesParent = getGamesParent;
-FaceitJS.prototype.gamesParent = getGamesParent;
-
-FaceitJS.prototype.getGamesQueues = getGamesQueues;
-FaceitJS.prototype.gamesQueues = getGamesQueues;
-
-FaceitJS.prototype.getGamesQueuesById = getGamesQueuesById;
-FaceitJS.prototype.gamesQueuesById = getGamesQueuesById;
-
-FaceitJS.prototype.getGamesQueuesByIdBans = getGamesQueuesByIdBans;
-FaceitJS.prototype.gamesQueuesByIdBans = getGamesQueuesByIdBans;
-
-FaceitJS.prototype.getGamesQueuesByIdByRegion = getGamesQueuesByIdByRegion;
-FaceitJS.prototype.gamesQueuesByIdByRegion = getGamesQueuesByIdByRegion;
-FaceitJS.prototype.gamesQueuesByRegion = getGamesQueuesByIdByRegion;
 
 // HUBS
 FaceitJS.prototype.getHubsById = getHubsById;
