@@ -29,14 +29,63 @@ npm install
 cp .env.example .env
 ```
 
-4. Fill in your environment variables in `.env`
+4. Fill in your environment variables in `.env`. Required variables:
+   - `FACEIT_API_KEY_SERVER`
+   - `FACEIT_API_KEY_CLIENT`
+   - `FACEIT_CLIENT_ID`
+   - `FACEIT_CLIENT_SECRET`
+   - `SESSION_SECRET`
+
+   Optional variables:
+   - `REDIRECT_URI` (defaults to http://localhost:3000/callback in development)
+   - `NODE_ENV` (defaults to development)
+   - `PORT` (defaults to 3000)
 
 ## Development
 
-Run the bot locally:
+1. Start the bot:
 ```bash
 npm start
 ```
+
+2. Visit http://localhost:3000 in your browser
+3. Click "Login with FACEIT" to test the OAuth flow
+4. After successful authentication, you'll be redirected to the dashboard
+
+## Testing OAuth Flow
+
+The OAuth flow can be tested locally:
+
+1. Ensure your FACEIT application is configured with:
+   - Redirect URI: http://localhost:3000/callback
+   - Required scopes: openid, email, profile
+
+2. The flow consists of:
+   - User clicks "Login with FACEIT"
+   - User is redirected to FACEIT for authentication
+   - After successful login, user is redirected back to /callback
+   - User session is created and redirected to dashboard
+
+## API Endpoints
+
+### Authentication
+- `GET /`: Login page
+- `GET /auth`: Initiate FACEIT OAuth2 flow
+- `GET /callback`: OAuth2 callback handler
+- `GET /dashboard`: User dashboard
+- `GET /logout`: Clear session and logout
+
+### Championship Management
+- `POST /rehost`: Rehost a championship
+  - Required body: `{ "gameId": "string", "eventId": "string" }`
+  - Requires authentication
+  
+- `POST /cancel`: Cancel a championship
+  - Required body: `{ "eventId": "string" }`
+  - Requires authentication
+
+### System
+- `GET /health`: Health check endpoint
 
 ## Deployment to Heroku
 
@@ -45,61 +94,69 @@ npm start
 heroku create your-app-name
 ```
 
-2. Set environment variables on Heroku:
+2. Set required environment variables:
 ```bash
 heroku config:set FACEIT_API_KEY_SERVER=your_server_api_key_here
 heroku config:set FACEIT_API_KEY_CLIENT=your_client_api_key_here
 heroku config:set FACEIT_CLIENT_ID=your_client_id_here
 heroku config:set FACEIT_CLIENT_SECRET=your_client_secret_here
-heroku config:set REDIRECT_URI=https://your-app-name.herokuapp.com/callback
 heroku config:set SESSION_SECRET=your_session_secret_here
 heroku config:set NODE_ENV=production
 ```
 
-3. Deploy to Heroku:
+3. Set the REDIRECT_URI to your Heroku app URL:
+```bash
+heroku config:set REDIRECT_URI=https://your-app-name.herokuapp.com/callback
+```
+
+4. Deploy to Heroku:
 ```bash
 git push heroku main
 ```
 
-4. Ensure at least one dyno is running:
+5. Ensure at least one dyno is running:
 ```bash
 heroku ps:scale web=1
 ```
 
-## Environment Variables
-
-- `FACEIT_API_KEY_SERVER`: Your FACEIT API server key
-- `FACEIT_API_KEY_CLIENT`: Your FACEIT API client key
-- `FACEIT_CLIENT_ID`: OAuth2 client ID from FACEIT
-- `FACEIT_CLIENT_SECRET`: OAuth2 client secret from FACEIT
-- `REDIRECT_URI`: OAuth2 callback URL (e.g., https://your-app-name.herokuapp.com/callback)
-- `SESSION_SECRET`: Secret for session encryption
-- `NODE_ENV`: Set to 'production' for deployment
-
-## API Endpoints
-
-- `GET /`: Redirects to authentication
-- `GET /auth`: Initiates FACEIT OAuth2 authentication
-- `GET /callback`: OAuth2 callback handler
-- `GET /dashboard`: User dashboard
-- `POST /rehost`: Rehost a championship
-  - Required body: `{ "gameId": "string", "eventId": "string" }`
-- `POST /cancel`: Cancel a championship
-  - Required body: `{ "eventId": "string" }`
-- `GET /health`: Health check endpoint
-
-## Error Handling
-
-The bot includes comprehensive error handling:
-- Environment variable validation
-- Authentication error handling
-- API error handling
-- Graceful shutdown handling
-
 ## Security Features
 
 - Secure session configuration
-- CSRF protection
-- HTTP-only cookies
+  - HTTP-only cookies
+  - Secure in production
+  - Custom session name
+- CSRF protection via state parameter
 - Environment variable validation
 - Production security settings
+- Graceful shutdown handling
+
+## Error Handling
+
+The application includes comprehensive error handling:
+
+- OAuth2 flow errors
+  - Missing code
+  - Invalid state (CSRF protection)
+  - Token exchange failures
+- API errors
+  - Authentication errors
+  - Championship operation errors
+- System errors
+  - Missing environment variables
+  - Server errors
+
+## Development vs Production
+
+The bot automatically adjusts its configuration based on the environment:
+
+Development (default):
+- Uses http://localhost:3000/callback as default redirect URI
+- Session cookie secure flag disabled
+- More verbose logging
+- Detailed error messages
+
+Production:
+- Requires explicit REDIRECT_URI setting
+- Session cookie secure flag enabled
+- Production-optimized error handling
+- Health check endpoint for monitoring

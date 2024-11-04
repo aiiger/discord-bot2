@@ -1,12 +1,10 @@
 // bot.js
 
 import express from 'express';
-import axios from 'axios';
 import dotenv from 'dotenv';
 import session from 'express-session';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import auth from './auth.js';
 import FaceitJS from './FaceitJS.js';
 
 dotenv.config();
@@ -20,7 +18,7 @@ const requiredEnvVars = [
     'SESSION_SECRET',
     'FACEIT_CLIENT_ID',
     'FACEIT_CLIENT_SECRET',
-    'REDIRECT_URI'
+    'REDIRECT_URI'  // Now required
 ];
 
 for (const envVar of requiredEnvVars) {
@@ -58,15 +56,37 @@ app.use((err, req, res, next) => {
     res.status(500).send('Something broke!');
 });
 
-// Root Endpoint - Redirect to /auth
+// Root Endpoint - Show login page
 app.get('/', (req, res) => {
-    res.redirect('/auth');
+    if (req.session.accessToken) {
+        res.redirect('/dashboard');
+    } else {
+        res.send(`
+            <h1>FACEIT Bot</h1>
+            <p>Please log in with your FACEIT account to continue.</p>
+            <a href="/auth" style="
+                display: inline-block;
+                padding: 10px 20px;
+                background-color: #FF5500;
+                color: white;
+                text-decoration: none;
+                border-radius: 5px;
+                font-family: Arial, sans-serif;
+            ">Login with FACEIT</a>
+        `);
+    }
 });
 
 // Auth Endpoint
 app.get('/auth', (req, res) => {
-    const authUrl = auth.getAuthorizationUrl();
-    res.redirect(authUrl);
+    try {
+        const authUrl = faceit.getAuthorizationUrl();
+        console.log('Redirecting to FACEIT auth URL:', authUrl);
+        res.redirect(authUrl);
+    } catch (error) {
+        console.error('Error generating auth URL:', error);
+        res.status(500).send('Authentication initialization failed.');
+    }
 });
 
 // OAuth2 Callback Endpoint
@@ -76,47 +96,57 @@ app.get('/callback', async (req, res) => {
         const { code, state } = req.query;
 
         if (!code) {
-            console.log('No code provided');
-            return res.status(400).send('No code provided');
+            console.log('No code provided - redirecting to login');
+            return res.redirect('/?error=no_code');
         }
 
-        // Validate state parameter if implemented
-        if (!auth.getAuthState().validate(state)) {
-            console.log('Invalid state parameter');
-            return res.status(400).send('Invalid state parameter');
+        // Validate state parameter
+        if (!faceit.validateState(state)) {
+            console.log('Invalid state parameter - possible CSRF attack');
+            return res.redirect('/?error=invalid_state');
         }
 
         // Exchange code for access token
-        const token = await auth.getAccessTokenFromCode(code);
+        const token = await faceit.getAccessTokenFromCode(code);
+        console.log('Access token obtained');
 
         // Use the access token to retrieve user information
-        const userInfoResponse = await axios.get(
-            'https://api.faceit.com/auth/v1/resources/userinfo',
-            {
-                headers: {
-                    Authorization: `Bearer ${token.token.access_token}`,
-                },
-            }
-        );
+        const userInfo = await faceit.getUserInfo(token.token.access_token);
+        console.log('User info retrieved:', userInfo.nickname);
 
         // Store access token and user info in session
         req.session.accessToken = token.token.access_token;
-        req.session.user = userInfoResponse.data;
+        req.session.user = userInfo;
 
-        console.log('User authenticated:', req.session.user);
         res.redirect('/dashboard');
     } catch (error) {
         console.error('Error during OAuth callback:', error);
-        res.status(500).send('Authentication failed.');
+        res.redirect('/?error=auth_failed');
     }
 });
 
 // Dashboard Route
 app.get('/dashboard', (req, res) => {
     if (!req.session.accessToken) {
-        return res.redirect('/auth');
+        return res.redirect('/?error=not_authenticated');
     }
-    res.send(`Welcome to your dashboard, ${req.session.user.username}!`);
+
+    res.send(`
+        <h1>Welcome, ${req.session.user.nickname}!</h1>
+        <p>You are now authenticated with FACEIT.</p>
+        <h2>Available Commands:</h2>
+        <ul>
+            <li><strong>Rehost:</strong> POST /rehost with gameId and eventId</li>
+            <li><strong>Cancel:</strong> POST /cancel with eventId</li>
+        </ul>
+        <p><a href="/logout" style="color: #FF5500;">Logout</a></p>
+    `);
+});
+
+// Logout Route
+app.get('/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/?message=logged_out');
 });
 
 // Rehost Command
@@ -177,6 +207,8 @@ app.get('/health', (req, res) => {
 // Start the server
 const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Redirect URI: ${process.env.REDIRECT_URI}`);
 });
 
 // Handle shutdown gracefully
