@@ -18,7 +18,7 @@ const requiredEnvVars = [
     'SESSION_SECRET',
     'FACEIT_CLIENT_ID',
     'FACEIT_CLIENT_SECRET',
-    'REDIRECT_URI'  // Now required
+    'REDIRECT_URI'
 ];
 
 for (const envVar of requiredEnvVars) {
@@ -138,6 +138,7 @@ app.get('/dashboard', (req, res) => {
         <ul>
             <li><strong>Rehost:</strong> POST /rehost with gameId and eventId</li>
             <li><strong>Cancel:</strong> POST /cancel with eventId</li>
+            <li><strong>Get Hub:</strong> GET /hub/:hubId</li>
         </ul>
         <p><a href="/logout" style="color: #FF5500;">Logout</a></p>
     `);
@@ -147,6 +148,27 @@ app.get('/dashboard', (req, res) => {
 app.get('/logout', (req, res) => {
     req.session.destroy();
     res.redirect('/?message=logged_out');
+});
+
+// Hub Route
+app.get('/hub/:hubId', async (req, res) => {
+    if (!req.session.accessToken) {
+        return res.status(401).send('Unauthorized');
+    }
+
+    const { hubId } = req.params;
+
+    if (!hubId) {
+        return res.status(400).send('Missing hubId');
+    }
+
+    try {
+        const response = await faceit.getHubsById(hubId);
+        res.json(response);
+    } catch (error) {
+        console.error('Error getting hub:', error);
+        res.status(500).send('Failed to get hub information.');
+    }
 });
 
 // Rehost Command

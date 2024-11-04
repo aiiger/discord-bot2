@@ -7,6 +7,9 @@ import axios from 'axios';
 // CHAMPIONSHIPS
 import getChampionshipsById from './endpoints/championships/getChampionshipsById.js';
 
+// HUBS
+import getHubsById from './endpoints/hubs/getHubsById.js';
+
 class FaceitJS {
   constructor(apiKeyServerSide, apiKeyClientSide) {
     this.apiKeyServer = apiKeyServerSide;
@@ -118,6 +121,10 @@ class FaceitJS {
 // CHAMPIONSHIPS
 FaceitJS.prototype.getChampionshipsById = getChampionshipsById;
 FaceitJS.prototype.championshipsById = getChampionshipsById;
+
+// HUBS
+FaceitJS.prototype.getHubsById = getHubsById;
+FaceitJS.prototype.hubsById = getHubsById;
 
 // ***** EXPORT THE FACEITJS CLASS ***** //
 
