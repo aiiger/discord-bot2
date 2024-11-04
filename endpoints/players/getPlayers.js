@@ -4,11 +4,12 @@ const getHeaders = require("../../utils/headers.js");
 /*
     Uses url https://open.faceit.com/data/v4/players/
     Method: GET
-    Parameters: - gameId -> A game id on FACEIT
+    Parameters: - nickname -> The nickname of the player on FACEIT
+                - gameId -> A game id on FACEIT
                 - game_player_id -> The ID of a player on game's platform
-    Description: Get the stats of a player in a game
+    Description: Get the info to a player
 */
-module.exports = async function getPlayerStats(gamePlayerId, gameId) {
+module.exports = async function getPlayer(nickname, gameId, gamePlayerId) {
   let apiKey = this.getApiKeyServer();
   let headers = getHeaders(apiKey);
 
@@ -17,10 +18,10 @@ module.exports = async function getPlayerStats(gamePlayerId, gameId) {
   //get url
   let url = urlConstructorUtil(
     baseURL,
-    [""],
-    [gamePlayerId],
-    ["gameId"],
-    [gameId],
+    [],
+    [],
+    ["nickname", "gameId", "game_player_id"],
+    [nickname, gameId, gamePlayerId],
     {}
   );
 

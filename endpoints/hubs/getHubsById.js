@@ -1,18 +1,17 @@
 const axios = require("axios");
 const urlConstructorUtil = require("../../utils/urlConstructor.js");
 const getHeaders = require("../../utils/headers.js");
-
 /*
     Uses url https://open.faceit.com/data/v4/hubs
     Method: GET
-    Parameters: -expanded {list of name to expand in the request} possible names: organizer, game.
-    Description: Gets hub information by ID
+    Parameters: -expanded {lis of name to expand in the request} possible names: organizer, game.
+    Description: 
 */
 module.exports = async function getHubsById(hubId, expanded) {
   if (!Array.isArray(expanded)) {
     return new Error("Be sure that second argument is an array.");
   }
-  let apiKey = process.env.FACEIT_API_KEY;
+  let apiKey = this.getApiKeyServer();
   let headers = getHeaders(apiKey);
 
   let baseURL = "https://open.faceit.com/data/v4/hubs";
