@@ -1,13 +1,13 @@
-const axios = require("axios");
-const urlConstructorUtil = require("../../utils/urlConstructor.js");
-const getHeaders = require("../../utils/headers.js");
+import axios from "axios";
+import urlConstructorUtil from "../../utils/urlConstructor.js";
+import getHeaders from "../../utils/headers.js";
 /*
     Uses url https://open.faceit.com/data/v4/championships
     Method: GET
     Parameters: -expanded {lis of name to expand in the request} possible names: organizer, game.
     Description: 
 */
-module.exports = async function getChampionshipsSubscriptions(
+export default async function getChampionshipsSubscriptions(
   championshipId,
   offset = 0,
   limit = 20
