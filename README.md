@@ -61,7 +61,7 @@ REDIRECT_URI=https://your-app-name.herokuapp.com/callback
 # Session Security
 SESSION_SECRET=your_random_secret_here
 
-# Environment (production for Heroku)
+# Environment
 NODE_ENV=production
 ```
 
@@ -74,26 +74,20 @@ NODE_ENV=production
 - `GET /dashboard`: User dashboard
 - `GET /logout`: Clear session and logout
 
+### Hub Management
+- `GET /api/hubs/:hubId`: Get hub information
+  - URL parameter: hubId (string)
+  - Requires authentication
+  - Returns hub details
+
 ### Championship Management
-- `POST /rehost`: Rehost a championship
+- `POST /api/championships/rehost`: Rehost a championship
   - Required body: `{ "gameId": "string", "eventId": "string" }`
   - Requires authentication
   
-- `POST /cancel`: Cancel a championship
+- `POST /api/championships/cancel`: Cancel a championship
   - Required body: `{ "eventId": "string" }`
   - Requires authentication
-
-### Hub Management
-- `GET /hub/:hubId`: Get hub information
-  - URL parameter: hubId (string)
-  - Requires authentication
-  - Returns hub details including:
-    * Name
-    * Description
-    * Game
-    * Members count
-    * Current matches
-    * Rules
 
 ### System
 - `GET /health`: Health check endpoint
@@ -130,63 +124,27 @@ heroku ps:scale web=1
 
 - Secure session configuration
   - HTTP-only cookies
-  - Secure in production
+  - Secure cookies (HTTPS only)
   - Custom session name
 - CSRF protection via state parameter
 - Environment variable validation
 - Production security settings
 - Graceful shutdown handling
 
-## Error Handling
-
-The application includes comprehensive error handling:
-
-- OAuth2 flow errors
-  - Missing code
-  - Invalid state (CSRF protection)
-  - Token exchange failures
-- API errors
-  - Authentication errors
-  - Championship operation errors
-  - Hub operation errors
-- System errors
-  - Missing environment variables
-  - Server errors
-
-## Production Configuration
-
-The bot is configured for production use on Heroku:
-
-1. Security:
-   - Secure cookies enabled
-   - HTTPS enforced
-   - Environment variables required
-   - Session protection
-
-2. Monitoring:
-   - Health check endpoint
-   - Error logging
-   - Graceful shutdown
-
-3. Authentication:
-   - OAuth2 flow with CSRF protection
-   - Session management
-   - Token handling
-
 ## Example API Usage
 
 ### Get Hub Information
 ```bash
 curl -X GET \
-  https://your-app-name.herokuapp.com/hub/your-hub-id \
-  -H 'Authorization: Bearer your-access-token'
+  https://your-app-name.herokuapp.com/api/hubs/your-hub-id \
+  -H 'Cookie: faceit.sid=your-session-cookie'
 ```
 
 ### Rehost Championship
 ```bash
 curl -X POST \
-  https://your-app-name.herokuapp.com/rehost \
-  -H 'Authorization: Bearer your-access-token' \
+  https://your-app-name.herokuapp.com/api/championships/rehost \
+  -H 'Cookie: faceit.sid=your-session-cookie' \
   -H 'Content-Type: application/json' \
   -d '{
     "gameId": "your-game-id",
@@ -197,9 +155,42 @@ curl -X POST \
 ### Cancel Championship
 ```bash
 curl -X POST \
-  https://your-app-name.herokuapp.com/cancel \
-  -H 'Authorization: Bearer your-access-token' \
+  https://your-app-name.herokuapp.com/api/championships/cancel \
+  -H 'Cookie: faceit.sid=your-session-cookie' \
   -H 'Content-Type: application/json' \
   -d '{
     "eventId": "your-event-id"
   }'
+```
+
+## Error Responses
+
+All API endpoints return consistent error responses:
+
+```json
+{
+  "error": "Error Type",
+  "message": "Human readable error message"
+}
+```
+
+Common error types:
+- Unauthorized: Not logged in
+- Bad Request: Missing required parameters
+- Internal Server Error: Server-side issues
+
+## Production Notes
+
+1. HTTPS Required
+   - All cookies are secure-only
+   - All communication must be over HTTPS
+
+2. Authentication Flow
+   - Login through FACEIT OAuth2
+   - Session cookie used for subsequent requests
+   - No localhost/development mode available
+
+3. API Structure
+   - All API endpoints under /api prefix
+   - Authentication required for all endpoints
+   - JSON responses for all API calls

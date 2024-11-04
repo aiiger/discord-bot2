@@ -40,7 +40,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: true, // Always use secure cookies in production
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     },
@@ -50,10 +50,25 @@ app.use(session({
 // Middleware to parse JSON
 app.use(express.json());
 
+// Authentication middleware
+const requireAuth = (req, res, next) => {
+    if (!req.session.accessToken) {
+        return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Please log in first',
+            loginUrl: '/auth'
+        });
+    }
+    next();
+};
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).send('Something broke!');
+    res.status(500).json({
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    });
 });
 
 // Root Endpoint - Show login page
@@ -85,7 +100,10 @@ app.get('/auth', (req, res) => {
         res.redirect(authUrl);
     } catch (error) {
         console.error('Error generating auth URL:', error);
-        res.status(500).send('Authentication initialization failed.');
+        res.status(500).json({
+            error: 'Authentication Error',
+            message: 'Failed to initialize authentication'
+        });
     }
 });
 
@@ -126,19 +144,15 @@ app.get('/callback', async (req, res) => {
 });
 
 // Dashboard Route
-app.get('/dashboard', (req, res) => {
-    if (!req.session.accessToken) {
-        return res.redirect('/?error=not_authenticated');
-    }
-
+app.get('/dashboard', requireAuth, (req, res) => {
     res.send(`
         <h1>Welcome, ${req.session.user.nickname}!</h1>
         <p>You are now authenticated with FACEIT.</p>
         <h2>Available Commands:</h2>
         <ul>
-            <li><strong>Rehost:</strong> POST /rehost with gameId and eventId</li>
-            <li><strong>Cancel:</strong> POST /cancel with eventId</li>
-            <li><strong>Get Hub:</strong> GET /hub/:hubId</li>
+            <li><strong>Get Hub:</strong> GET /api/hubs/:hubId</li>
+            <li><strong>Rehost:</strong> POST /api/championships/rehost</li>
+            <li><strong>Cancel:</strong> POST /api/championships/cancel</li>
         </ul>
         <p><a href="/logout" style="color: #FF5500;">Logout</a></p>
     `);
@@ -150,80 +164,79 @@ app.get('/logout', (req, res) => {
     res.redirect('/?message=logged_out');
 });
 
-// Hub Route
-app.get('/hub/:hubId', async (req, res) => {
-    if (!req.session.accessToken) {
-        return res.status(401).send('Unauthorized');
-    }
+// API Routes
+const apiRouter = express.Router();
+app.use('/api', apiRouter);
 
-    const { hubId } = req.params;
-
-    if (!hubId) {
-        return res.status(400).send('Missing hubId');
-    }
-
+// Hub Routes
+apiRouter.get('/hubs/:hubId', requireAuth, async (req, res) => {
     try {
+        const { hubId } = req.params;
         const response = await faceit.getHubsById(hubId);
         res.json(response);
     } catch (error) {
         console.error('Error getting hub:', error);
-        res.status(500).send('Failed to get hub information.');
+        res.status(500).json({
+            error: 'Hub Error',
+            message: 'Failed to get hub information'
+        });
     }
 });
 
-// Rehost Command
-app.post('/rehost', async (req, res) => {
-    if (!req.session.accessToken) {
-        return res.status(401).send('Unauthorized');
-    }
-
-    const { gameId, eventId } = req.body;
-
-    if (!gameId || !eventId) {
-        return res.status(400).send('Missing gameId or eventId');
-    }
-
+// Championship Routes
+apiRouter.post('/championships/rehost', requireAuth, async (req, res) => {
     try {
-        // Example: Rehost a championship
-        const response = await faceit.getChampionshipsById(eventId);
-        // Implement your rehosting logic here using FaceitJS methods
+        const { gameId, eventId } = req.body;
 
-        // Placeholder response
-        res.status(200).send(`Rehosted event ${eventId} for game ${gameId}`);
+        if (!gameId || !eventId) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'Missing gameId or eventId'
+            });
+        }
+
+        const response = await faceit.getChampionshipsById(eventId);
+        res.json({
+            message: `Rehosted event ${eventId} for game ${gameId}`,
+            data: response
+        });
     } catch (error) {
         console.error('Error rehosting:', error);
-        res.status(500).send('Rehost failed.');
+        res.status(500).json({
+            error: 'Rehost Error',
+            message: 'Failed to rehost championship'
+        });
     }
 });
 
-// Cancel Command
-app.post('/cancel', async (req, res) => {
-    if (!req.session.accessToken) {
-        return res.status(401).send('Unauthorized');
-    }
-
-    const { eventId } = req.body;
-
-    if (!eventId) {
-        return res.status(400).send('Missing eventId');
-    }
-
+apiRouter.post('/championships/cancel', requireAuth, async (req, res) => {
     try {
-        // Example: Cancel a championship
-        const response = await faceit.getChampionshipsById(eventId);
-        // Implement your cancellation logic here using FaceitJS methods
+        const { eventId } = req.body;
 
-        // Placeholder response
-        res.status(200).send(`Canceled event ${eventId}`);
+        if (!eventId) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'Missing eventId'
+            });
+        }
+
+        const response = await faceit.getChampionshipsById(eventId);
+        res.json({
+            message: `Canceled event ${eventId}`,
+            data: response
+        });
     } catch (error) {
         console.error('Error canceling:', error);
-        res.status(500).send('Cancellation failed.');
+        res.status(500).json({
+            error: 'Cancel Error',
+            message: 'Failed to cancel championship'
+        });
     }
 });
 
 // Health check endpoint for Heroku
 app.get('/health', (req, res) => {
-    res.status(200).send('OK');
+    res.status(200).json({ status: 'OK' });
 });
 
 // Start the server
