@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import FaceitJS from './FaceitJS.js';
 import RedisStore from 'connect-redis';
 import Redis from 'ioredis';
+const app = express();
 
 const redisClient = new Redis(process.env.REDIS_URL);
 
@@ -26,7 +27,7 @@ app.use(session({
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __dirname = path.dirname(__filename);
 
 // Verify required environment variables
 const requiredEnvVars = [
@@ -45,7 +46,6 @@ for (const envVar of requiredEnvVars) {
     }
 }
 
-const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize FaceitJS with your API keys
@@ -68,7 +68,7 @@ app.use(session({
 app.use(express.json());
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
     console.error(err.stack);
     res.status(500).json({
         error: 'Internal Server Error',
@@ -303,7 +303,7 @@ apiRouter.post('/championships/cancel', async (req, res) => {
 });
 
 // Health check endpoint for Heroku
-app.get('/health', (req, res) => {
+app.get('/health', (_, res) => {
     res.status(200).json({ status: 'OK' });
 });
 
