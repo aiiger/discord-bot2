@@ -6,7 +6,6 @@ import session from 'express-session';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import FaceitJS from './FaceitJS.js';
-import session from 'express-session';
 import RedisStore from 'connect-redis';
 import Redis from 'ioredis';
 
