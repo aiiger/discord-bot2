@@ -42,6 +42,9 @@ const faceit = new FaceitJS(process.env.FACEIT_API_KEY_SERVER, process.env.FACEI
 let sessionStore;
 if (process.env.NODE_ENV === 'production') {
     const redisClient = new Redis(process.env.REDIS_URL);
+    redisClient.on('error', (err) => {
+        console.error('Redis error:', err);
+    });
     sessionStore = new RedisStore({ client: redisClient });
 } else {
     const MemoryStore = require('memorystore')(session);
