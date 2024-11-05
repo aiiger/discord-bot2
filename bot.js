@@ -6,6 +6,24 @@ import session from 'express-session';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import FaceitJS from './FaceitJS.js';
+import session from 'express-session';
+import RedisStore from 'connect-redis';
+import Redis from 'ioredis';
+
+const redisClient = new Redis(process.env.REDIS_URL);
+
+app.use(session({
+  store: new RedisStore({ client: redisClient }),
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  },
+  name: 'faceit.sid',
+}));
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
