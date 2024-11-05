@@ -172,6 +172,17 @@ app.get('/dashboard', (req, res) => {
 app.get('/logout', (req, res) => {
     req.session.destroy();
     res.redirect('/?message=logged_out');
+    app.get('/auth', (req, res) => {
+        try {
+            const state = faceit.generateState(); // Ensure you have a method to generate and store state
+            const authUrl = `https://cdn.faceit.com/widgets/sso/index.html?response_type=code&client_id=${process.env.FACEIT_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&state=${state}&redirect_popup=true&redirect_fragment=true`;
+            console.log('Redirecting to FACEIT auth URL:', authUrl);
+            res.redirect(authUrl);
+        } catch (error) {
+            console.error('Error generating auth URL:', error);
+            res.status(500).send('Authentication initialization failed.');
+        }
+    });
 });
 
 // API Routes
