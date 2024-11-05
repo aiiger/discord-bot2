@@ -40,7 +40,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: true, // Always use secure cookies in production
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     },
@@ -49,18 +49,6 @@ app.use(session({
 
 // Middleware to parse JSON
 app.use(express.json());
-
-// Authentication middleware
-const requireAuth = (req, res, next) => {
-    if (!req.session.accessToken) {
-        return res.status(401).json({
-            error: 'Unauthorized',
-            message: 'Please log in first',
-            loginUrl: '/auth'
-        });
-    }
-    next();
-};
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -77,17 +65,38 @@ app.get('/', (req, res) => {
         res.redirect('/dashboard');
     } else {
         res.send(`
-            <h1>FACEIT Bot</h1>
-            <p>Please log in with your FACEIT account to continue.</p>
-            <a href="/auth" style="
-                display: inline-block;
-                padding: 10px 20px;
-                background-color: #FF5500;
-                color: white;
-                text-decoration: none;
-                border-radius: 5px;
-                font-family: Arial, sans-serif;
-            ">Login with FACEIT</a>
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>FACEIT Bot</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 20px;
+                        text-align: center;
+                    }
+                    h1 {
+                        color: #FF5500;
+                    }
+                    .login-button {
+                        display: inline-block;
+                        padding: 10px 20px;
+                        background-color: #FF5500;
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>FACEIT Bot</h1>
+                <p>Please log in with your FACEIT account to continue.</p>
+                <a href="/auth" class="login-button">Login with FACEIT</a>
+            </body>
+            </html>
         `);
     }
 });
@@ -100,10 +109,7 @@ app.get('/auth', (req, res) => {
         res.redirect(authUrl);
     } catch (error) {
         console.error('Error generating auth URL:', error);
-        res.status(500).json({
-            error: 'Authentication Error',
-            message: 'Failed to initialize authentication'
-        });
+        res.status(500).send('Authentication initialization failed.');
     }
 });
 
@@ -129,11 +135,11 @@ app.get('/callback', async (req, res) => {
         console.log('Access token obtained');
 
         // Use the access token to retrieve user information
-        const userInfo = await faceit.getUserInfo(token.token.access_token);
+        const userInfo = await faceit.getUserInfo(token.access_token);
         console.log('User info retrieved:', userInfo.nickname);
 
         // Store access token and user info in session
-        req.session.accessToken = token.token.access_token;
+        req.session.accessToken = token.access_token;
         req.session.user = userInfo;
 
         res.redirect('/dashboard');
@@ -144,7 +150,11 @@ app.get('/callback', async (req, res) => {
 });
 
 // Dashboard Route
-app.get('/dashboard', requireAuth, (req, res) => {
+app.get('/dashboard', (req, res) => {
+    if (!req.session.accessToken) {
+        return res.redirect('/?error=not_authenticated');
+    }
+
     res.send(`
         <h1>Welcome, ${req.session.user.nickname}!</h1>
         <p>You are now authenticated with FACEIT.</p>
@@ -169,7 +179,14 @@ const apiRouter = express.Router();
 app.use('/api', apiRouter);
 
 // Hub Routes
-apiRouter.get('/hubs/:hubId', requireAuth, async (req, res) => {
+apiRouter.get('/hubs/:hubId', async (req, res) => {
+    if (!req.session.accessToken) {
+        return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Please log in first'
+        });
+    }
+
     try {
         const { hubId } = req.params;
         const response = await faceit.getHubsById(hubId);
@@ -184,7 +201,14 @@ apiRouter.get('/hubs/:hubId', requireAuth, async (req, res) => {
 });
 
 // Championship Routes
-apiRouter.post('/championships/rehost', requireAuth, async (req, res) => {
+apiRouter.post('/championships/rehost', async (req, res) => {
+    if (!req.session.accessToken) {
+        return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Please log in first'
+        });
+    }
+
     try {
         const { gameId, eventId } = req.body;
 
@@ -209,7 +233,14 @@ apiRouter.post('/championships/rehost', requireAuth, async (req, res) => {
     }
 });
 
-apiRouter.post('/championships/cancel', requireAuth, async (req, res) => {
+apiRouter.post('/championships/cancel', async (req, res) => {
+    if (!req.session.accessToken) {
+        return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Please log in first'
+        });
+    }
+
     try {
         const { eventId } = req.body;
 
