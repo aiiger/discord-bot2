@@ -58,6 +58,7 @@ class FaceitJS {
   
     return `https://cdn.faceit.com/widgets/sso/index.html?${params.toString()}`;
   }
+  
 
   // Exchange authorization code for access token
   async getAccessTokenFromCode(code) {
