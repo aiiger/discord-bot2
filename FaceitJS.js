@@ -45,16 +45,18 @@ class FaceitJS {
   getAuthorizationUrl() {
     const state = Math.random().toString(36).substring(7);
     this.authState = state;
-
+  
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: process.env.FACEIT_CLIENT_ID,
       redirect_uri: process.env.REDIRECT_URI,
       scope: 'openid profile email',
-      state: state
+      state: state,
+      redirect_popup: 'true',
+      redirect_fragment: 'true',
     });
-
-    return `https://api.faceit.com/auth/v1/oauth/authorize?${params.toString()}`;
+  
+    return `https://cdn.faceit.com/widgets/sso/index.html?${params.toString()}`;
   }
 
   // Exchange authorization code for access token
