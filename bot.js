@@ -156,7 +156,7 @@ app.get('/callback', async (req, res) => {
   
 
 // Dashboard Route
-a// OAuth2 Callback Endpoint
+// OAuth2 Callback Endpoint
 app.get('/callback', async (req, res) => {
     try {
       console.log('Callback received with query:', req.query);
