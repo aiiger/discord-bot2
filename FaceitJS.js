@@ -42,10 +42,7 @@ class FaceitJS {
   }
 
   // Generate authorization URL for FACEIT login
-  getAuthorizationUrl() {
-    const state = Math.random().toString(36).substring(7);
-    this.authState = state;
-  
+  getAuthorizationUrl(state) {
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: process.env.FACEIT_CLIENT_ID,
@@ -87,10 +84,6 @@ class FaceitJS {
       console.error('Error getting access token:', error.response?.data || error.message);
       throw error;
     }
-  }
-
-  validateState(state) {
-    return state === this.authState;
   }
 
   async getUserInfo(accessToken) {
