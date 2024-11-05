@@ -8,26 +8,13 @@ import { fileURLToPath } from 'url';
 import FaceitJS from './FaceitJS.js';
 import RedisStore from 'connect-redis';
 import Redis from 'ioredis';
-const app = express();
-
-const redisClient = new Redis(process.env.REDIS_URL);
-
-app.use(session({
-  store: new RedisStore({ client: redisClient }),
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-  },
-  name: 'faceit.sid',
-}));
+import MemoryStore from 'memorystore';
 
 dotenv.config();
+
+const app = express();
 const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(__filename);
 
 // Verify required environment variables
 const requiredEnvVars = [
@@ -51,8 +38,19 @@ const PORT = process.env.PORT || 3000;
 // Initialize FaceitJS with your API keys
 const faceit = new FaceitJS(process.env.FACEIT_API_KEY_SERVER, process.env.FACEIT_API_KEY_CLIENT);
 
+// Configure session store based on environment
+let sessionStore;
+if (process.env.NODE_ENV === 'production') {
+    const redisClient = new Redis(process.env.REDIS_URL);
+    sessionStore = new RedisStore({ client: redisClient });
+} else {
+    const MemoryStore = require('memorystore')(session);
+    sessionStore = new MemoryStore({ checkPeriod: 86400000 }); // prune expired entries every 24h
+}
+
 // Session configuration
 app.use(session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -68,7 +66,7 @@ app.use(session({
 app.use(express.json());
 
 // Error handling middleware
-app.use((err, req, res) => {
+app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({
         error: 'Internal Server Error',
@@ -121,95 +119,71 @@ app.get('/', (req, res) => {
 // Auth Endpoint
 app.get('/auth', (req, res) => {
     try {
-      const state = Math.random().toString(36).substring(7);
-      req.session.authState = state; // Store state in session
-      const authUrl = faceit.getAuthorizationUrl(state);
-      console.log('Redirecting to FACEIT auth URL:', authUrl);
-      res.redirect(authUrl);
+        const state = Math.random().toString(36).substring(7);
+        req.session.authState = state; // Store state in session
+        const authUrl = faceit.getAuthorizationUrl(state);
+        console.log('Redirecting to FACEIT auth URL:', authUrl);
+        res.redirect(authUrl);
     } catch (error) {
-      console.error('Error generating auth URL:', error);
-      res.status(500).send('Authentication initialization failed.');
+        console.error('Error generating auth URL:', error);
+        res.status(500).send('Authentication initialization failed.');
     }
-  });
+});
 
-// OAuth2 Callback Endpoint
-// OAuth2 Callback Endpoint
 // OAuth2 Callback Endpoint
 app.get('/callback', async (req, res) => {
     try {
-      console.log('Callback received with query:', req.query);
-      const { code, state } = req.query;
-  
-      if (!code) {
-        console.log('No code provided - redirecting to login');
-        return res.redirect('/?error=no_code');
-      }
-  
-      // Validate state parameter
-      if (state !== req.session.authState) {
-        console.log('Invalid state parameter - possible CSRF attack');
-        return res.redirect('/?error=invalid_state');
-      }
-      delete req.session.authState; // Clean up
-  
-      // Exchange code for access token
-      const token = await faceit.getAccessTokenFromCode(code);
-      console.log('Access token obtained');
-  
-      // Use the access token to retrieve user information
-      const userInfo = await faceit.getUserInfo(token.access_token);
-      console.log('User info retrieved:', userInfo.nickname);
-  
-      // Store access token and user info in session
-      req.session.accessToken = token.access_token;
-      req.session.user = userInfo;
-  
-      res.redirect('/dashboard');
+        console.log('Callback received with query:', req.query);
+        const { code, state } = req.query;
+
+        if (!code) {
+            console.log('No code provided - redirecting to login');
+            return res.redirect('/?error=no_code');
+        }
+
+        // Validate state parameter
+        if (state !== req.session.authState) {
+            console.log('Invalid state parameter - possible CSRF attack');
+            return res.redirect('/?error=invalid_state');
+        }
+        delete req.session.authState; // Clean up
+
+        // Exchange code for access token
+        const token = await faceit.getAccessTokenFromCode(code);
+        console.log('Access token obtained');
+
+        // Use the access token to retrieve user information
+        const userInfo = await faceit.getUserInfo(token.access_token);
+        console.log('User info retrieved:', userInfo.nickname);
+
+        // Store access token and user info in session
+        req.session.accessToken = token.access_token;
+        req.session.user = userInfo;
+
+        res.redirect('/dashboard');
     } catch (error) {
-      console.error('Error during OAuth callback:', error);
-      res.redirect('/?error=auth_failed');
+        console.error('Error during OAuth callback:', error);
+        res.redirect('/?error=auth_failed');
     }
-  });
-  
+});
 
 // Dashboard Route
-// OAuth2 Callback Endpoint
-app.get('/callback', async (req, res) => {
-    try {
-      console.log('Callback received with query:', req.query);
-      const { code, state } = req.query;
-  
-      if (!code) {
-        console.log('No code provided - redirecting to login');
-        return res.redirect('/?error=no_code');
-      }
-  
-      // Validate state parameter
-      if (state !== req.session.authState) {
-        console.log('Invalid state parameter - possible CSRF attack');
-        return res.redirect('/?error=invalid_state');
-      }
-      delete req.session.authState; // Clean up
-  
-      // Exchange code for access token
-      const token = await faceit.getAccessTokenFromCode(code);
-      console.log('Access token obtained');
-  
-      // Use the access token to retrieve user information
-      const userInfo = await faceit.getUserInfo(token.access_token);
-      console.log('User info retrieved:', userInfo.nickname);
-  
-      // Store access token and user info in session
-      req.session.accessToken = token.access_token;
-      req.session.user = userInfo;
-  
-      res.redirect('/dashboard');
-    } catch (error) {
-      console.error('Error during OAuth callback:', error);
-      res.redirect('/?error=auth_failed');
+app.get('/dashboard', (req, res) => {
+    if (!req.session.accessToken) {
+        return res.redirect('/');
     }
-  });
-  
+    res.send(`
+        <h1>Welcome, ${req.session.user.nickname}!</h1>
+        <p>You are now authenticated with FACEIT.</p>
+        <h2>Available Commands:</h2>
+        <ul>
+            <li><strong>Get Hub:</strong> GET /api/hubs/:hubId</li>
+            <li><strong>Rehost:</strong> POST /api/championships/rehost</li>
+            <li><strong>Cancel:</strong> POST /api/championships/cancel</li>
+        </ul>
+        <p><a href="/logout" style="color: #FF5500;">Logout</a></p>
+    `);
+});
 
 // API Routes
 const apiRouter = express.Router();
@@ -321,8 +295,8 @@ process.on('SIGTERM', () => {
         console.log('HTTP server closed');
     });
 });
+
 app.get('/logout', (req, res) => {
     req.session.destroy();
     res.redirect('/?message=logged_out');
-  });
-  
+});
