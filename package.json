@@ -19,7 +19,8 @@
     "helmet": "^6.2.0",
     "ioredis": "^5.4.1",
     "memorystore": "^1.6.7",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "winston": "^3.16.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
