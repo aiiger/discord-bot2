@@ -162,11 +162,12 @@ app.get('/auth', async (req, res) => {
 });
 
 // OAuth2 Callback Endpoint
-app.get('/callback', async (req, res) => {
+app.get('/callback', (req, res) => {
     const logger = require('./logger.js');
-    const { code, state, error, error_description } = req.query;
-  
     logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
+    logger.info(`Full URL: ${req.protocol}://${req.get('host')}${req.originalUrl}`);
+  
+    const { code, state, error, error_description } = req.query;
   
     if (error) {
       logger.error(`FACEIT returned an error: ${error_description || error}`);
