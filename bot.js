@@ -14,6 +14,7 @@ import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import createMemoryStore from 'memorystore';
 import { cleanEnv, str, url as envUrl } from 'envalid';
+import logger from './logger.js'; // Import the Winston logger
 
 // ***** ENVIRONMENT VARIABLES ***** //
 dotenv.config();
@@ -47,26 +48,27 @@ const faceit = new FaceitJS(env.FACEIT_API_KEY_SERVER, env.FACEIT_API_KEY_CLIENT
 let sessionStore;
 if (env.NODE_ENV === 'production') {
     if (!env.REDIS_URL) {
-        console.error('REDIS_URL is required in production');
+        logger.error('REDIS_URL is required in production');
         process.exit(1);
     }
     const RedisStore = connectRedis(session);
     const redisClient = new Redis(env.REDIS_URL);
 
     redisClient.on('error', (err) => {
-        console.error('Redis error:', err);
+        logger.error(`Redis error: ${err.message}`);
     });
 
     redisClient.on('connect', () => {
-        console.log('Connected to Redis successfully');
+        logger.info('Connected to Redis successfully');
     });
 
     sessionStore = new RedisStore({ client: redisClient });
 } else {
     const MemoryStore = createMemoryStore(session);
     sessionStore = new MemoryStore({
-        checkPeriod: 86400000, // prune expired entries every 24h
+        checkPeriod: 86400000, // Prune expired entries every 24h
     });
+    logger.info('Using in-memory session store');
 }
 
 // ***** SECURITY MIDDLEWARE ***** //
@@ -91,7 +93,7 @@ app.use(
 // ***** RATE LIMITING ***** //
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    max: 100, // Limit each IP to 100 requests per windowMs
     standardHeaders: true,
     legacyHeaders: false,
     message: 'Too many requests from this IP, please try again later.',
@@ -99,7 +101,14 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // ***** LOGGER ***** //
-app.use(morgan('combined'));
+// Use morgan for HTTP request logging, integrated with Winston
+app.use(
+    morgan('combined', {
+        stream: {
+            write: (message) => logger.info(message.trim()),
+        },
+    })
+);
 
 // ***** SESSION CONFIGURATION ***** //
 app.use(
@@ -123,7 +132,7 @@ app.use(express.json());
 
 // ***** ERROR HANDLING MIDDLEWARE ***** //
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    logger.error(`Unhandled error: ${err.stack}`);
     res.status(500).json({
         error: 'Internal Server Error',
         message: env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
@@ -180,10 +189,10 @@ app.get('/auth', (req, res) => {
         const state = Math.random().toString(36).substring(2, 15);
         req.session.authState = state; // Store state in session
         const authUrl = faceit.getAuthorizationUrl(state);
-        console.log('Redirecting to FACEIT auth URL:', authUrl);
+        logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
         res.redirect(authUrl);
     } catch (error) {
-        console.error('Error generating auth URL:', error);
+        logger.error(`Error generating auth URL: ${error.message}`);
         res.status(500).send('Authentication initialization failed.');
     }
 });
@@ -191,36 +200,42 @@ app.get('/auth', (req, res) => {
 // OAuth2 Callback Endpoint
 app.get('/callback', async (req, res) => {
     try {
-        console.log('Callback received with query:', req.query);
+        logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
         const { code, state } = req.query;
 
         if (!code) {
-            console.log('No code provided - redirecting to login');
+            logger.warn('No code provided - redirecting to login');
             return res.redirect('/?error=no_code');
         }
 
         // Validate state parameter
         if (state !== req.session.authState) {
-            console.log('Invalid state parameter - possible CSRF attack');
+            logger.warn('Invalid state parameter - possible CSRF attack');
             return res.redirect('/?error=invalid_state');
         }
         delete req.session.authState; // Clean up
 
         // Exchange code for access token
         const token = await faceit.getAccessTokenFromCode(code);
-        console.log('Access token obtained:', token.access_token);
+        logger.info(`Access token obtained: ${token.access_token}`);
 
         // Use the access token to retrieve user information
         const userInfo = await faceit.getUserInfo(token.access_token);
-        console.log('User info retrieved:', userInfo.nickname);
+        logger.info(`User info retrieved: ${userInfo.nickname}`);
 
         // Store access token and user info in session
         req.session.accessToken = token.access_token;
         req.session.user = userInfo;
 
+        // Optionally store refresh token if provided
+        if (token.refresh_token) {
+            req.session.refreshToken = token.refresh_token;
+            logger.info('Refresh token stored in session');
+        }
+
         res.redirect('/dashboard');
     } catch (error) {
-        console.error('Error during OAuth callback:', error);
+        logger.error(`Error during OAuth callback: ${error.message}`);
         res.redirect('/?error=auth_failed');
     }
 });
@@ -262,6 +277,16 @@ const isAuthenticated = (req, res, next) => {
 // Apply authentication middleware to all API routes
 apiRouter.use(isAuthenticated);
 
+// Middleware to ensure access token is valid or refreshed
+const ensureAccessToken = async (req, res, next) => {
+    // Implement token refresh logic here if needed
+    // For simplicity, this example assumes access tokens are valid
+    // You can enhance this with actual token validation and refresh
+    next();
+};
+
+apiRouter.use(ensureAccessToken);
+
 // Hub Routes
 apiRouter.get('/hubs/:hubId', async (req, res) => {
     try {
@@ -269,7 +294,7 @@ apiRouter.get('/hubs/:hubId', async (req, res) => {
         const response = await faceit.getHubsById(hubId);
         res.json(response);
     } catch (error) {
-        console.error('Error getting hub:', error);
+        logger.error(`Error getting hub: ${error.message}`);
         res.status(500).json({
             error: 'Hub Error',
             message: 'Failed to get hub information',
@@ -295,7 +320,7 @@ apiRouter.post('/championships/rehost', async (req, res) => {
             data: response,
         });
     } catch (error) {
-        console.error('Error rehosting:', error);
+        logger.error(`Error rehosting championship: ${error.message}`);
         res.status(500).json({
             error: 'Rehost Error',
             message: 'Failed to rehost championship',
@@ -320,7 +345,7 @@ apiRouter.post('/championships/cancel', async (req, res) => {
             data: response,
         });
     } catch (error) {
-        console.error('Error canceling:', error);
+        logger.error(`Error canceling championship: ${error.message}`);
         res.status(500).json({
             error: 'Cancel Error',
             message: 'Failed to cancel championship',
@@ -337,7 +362,7 @@ app.get('/health', (_, res) => {
 app.get('/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
-            console.error('Error destroying session:', err);
+            logger.error(`Error destroying session: ${err.message}`);
             return res.status(500).send('Failed to logout.');
         }
         res.clearCookie('faceit.sid');
@@ -348,20 +373,20 @@ app.get('/logout', (req, res) => {
 // Start the server
 const PORT = env.PORT || 3000;
 const server = app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Environment: ${env.NODE_ENV}`);
-    console.log(`Redirect URI: ${env.REDIRECT_URI}`);
+    logger.info(`Server running on port ${PORT}`);
+    logger.info(`Environment: ${env.NODE_ENV}`);
+    logger.info(`Redirect URI: ${env.REDIRECT_URI}`);
 });
 
 // Handle shutdown gracefully
 process.on('SIGTERM', () => {
-    console.log('SIGTERM signal received: closing HTTP server');
+    logger.info('SIGTERM signal received: closing HTTP server');
     server.close(() => {
-        console.log('HTTP server closed');
+        logger.info('HTTP server closed');
         // Close Redis connection if in production
         if (env.NODE_ENV === 'production' && sessionStore.client) {
             sessionStore.client.quit(() => {
-                console.log('Redis client disconnected');
+                logger.info('Redis client disconnected');
                 process.exit(0);
             });
         } else {
