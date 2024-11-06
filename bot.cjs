@@ -2,7 +2,6 @@
 
 // ***** IMPORTS ***** //
 const path = require('path');
-const { fileURLToPath } = require('url');
 const connectRedis = require('connect-redis');
 const Redis = require('ioredis');
 const helmet = require('helmet');
@@ -35,11 +34,9 @@ const env = cleanEnv(process.env, {
 
 // Initialize Express app
 const app = express();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // ***** SET TRUST PROXY ***** //
-app.set('trust proxy', 1); // Trust first proxy (Heroku)
+app.set('trust proxy', 1); // Trust first proxy (e.g., Heroku)
 
 // ***** INITIALIZE FACEITJS ***** //
 const faceit = new FaceitJS(env.FACEIT_API_KEY_SERVER, env.FACEIT_API_KEY_CLIENT);
@@ -342,7 +339,7 @@ apiRouter.post('/championships/cancel', async (req, res) => {
     }
 });
 
-// Health check endpoint for Heroku
+// Health check endpoint
 app.get('/health', (_, res) => {
     res.status(200).json({ status: 'OK' });
 });
