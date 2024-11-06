@@ -29,15 +29,16 @@ module.exports = FaceitJS;
 
 // ***** ADDITIONAL EXPORTS ***** //
 module.exports.getAuthorizationUrl = function(state) {
-    const params = new URLSearchParams({
-        response_type: 'code',
-        client_id: process.env.FACEIT_CLIENT_ID,
-        redirect_uri: process.env.REDIRECT_URI,
-        scope: 'openid profile email',
-        state: state,
-    });
-    return `https://www.faceit.com/oauth/authorize?${params.toString()}`;
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: process.env.FACEIT_CLIENT_ID,
+    redirect_uri: process.env.REDIRECT_URI,
+    scope: 'openid profile email',
+    state: state,
+  });
+  return `https://cdn.faceit.com/widgets/sso/index.html?${params.toString()}`;
 };
+
 
 module.exports.getAccessTokenFromCode = async function(code) {
   const tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
