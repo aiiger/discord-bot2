@@ -25,7 +25,7 @@ const env = cleanEnv(process.env, {
     FACEIT_API_KEY_SERVER: str(),
     FACEIT_API_KEY_CLIENT: str(),
     SESSION_SECRET: str(),
-    REDIS_URL: envUrl(),
+    REDIS_URL: envUrl(), // Ensure this line is present
 });
 
 // Initialize Express app
