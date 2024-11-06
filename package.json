@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "FACEIT Discord Bot",
   "main": "bot.cjs",
+  "type": "module",
   "scripts": {
     "start": "node bot.cjs",
     "dev": "nodemon bot.cjs"
