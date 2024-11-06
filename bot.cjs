@@ -13,6 +13,8 @@ const { cleanEnv, str, url: envUrl } = require('envalid');
 const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
+const logger = require('./logger.js'); // Use require
+const FaceitJS = require('./FaceitJS.js'); // Use require
 
 // ***** ENVIRONMENT VARIABLES ***** //
 dotenv.config();
@@ -28,11 +30,19 @@ const env = cleanEnv(process.env, {
     NODE_ENV: str({ choices: ['development', 'production'] }),
     FACEIT_HUB_ID: str(),
     PORT: str({ default: '3000' }),
-    REDIS_URL: envUrl(), // Ensure this line is present
+    REDIS_URL: str({ default: '' }), // Optional, only for production
 });
 
 // Initialize Express app
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ***** SET TRUST PROXY ***** //
+app.set('trust proxy', 1); // Trust first proxy (Heroku)
+
+// ***** INITIALIZE FACEITJS ***** //
+const faceit = new FaceitJS(env.FACEIT_API_KEY_SERVER, env.FACEIT_API_KEY_CLIENT);
 
 // ***** SECURITY MIDDLEWARE ***** //
 app.use(helmet());
@@ -68,10 +78,7 @@ app.use(limiter);
 app.use(
     morgan('combined', {
         stream: {
-            write: async (message) => {
-                const { default: logger } = await import('./logger.js');
-                logger.info(message.trim());
-            },
+            write: (message) => logger.info(message.trim()),
         },
     })
 );
@@ -123,8 +130,7 @@ app.use(
 app.use(express.json());
 
 // ***** ERROR HANDLING MIDDLEWARE ***** //
-app.use(async function (err, req, res, next) {
-    const { default: logger } = await import('./logger.js');
+app.use(function (err, req, res, next) {
     logger.error(`Unhandled error: ${err.stack}`);
     res.status(500).json({
         error: 'Internal Server Error',
@@ -133,10 +139,6 @@ app.use(async function (err, req, res, next) {
 });
 
 // ***** ROUTES ***** //
-
-// Import FaceitJS class
-const FaceitJS = require('./FaceitJS.js'); // Ensure FaceitJS.js is using CommonJS (module.exports)
-const faceit = new FaceitJS(env.FACEIT_API_KEY_SERVER, env.FACEIT_API_KEY_CLIENT);
 
 // Root Endpoint - Show login page
 app.get('/', (req, res) => {
@@ -181,17 +183,14 @@ app.get('/', (req, res) => {
 });
 
 // Auth Endpoint
-app.get('/auth', async (req, res) => {
+app.get('/auth', (req, res) => {
     try {
         const state = Math.random().toString(36).substring(2, 15);
         req.session.authState = state; // Store state in session
-        const { getAuthorizationUrl } = await import('./FaceitJS.js');
-        const authUrl = getAuthorizationUrl(state);
-        const { default: logger } = await import('./logger.js');
+        const authUrl = faceit.getAuthorizationUrl(state);
         logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
         res.redirect(authUrl);
     } catch (error) {
-        const { default: logger } = await import('./logger.js');
         logger.error(`Error generating auth URL: ${error.message}`);
         res.status(500).send('Authentication initialization failed.');
     }
@@ -200,7 +199,6 @@ app.get('/auth', async (req, res) => {
 // OAuth2 Callback Endpoint
 app.get('/callback', async (req, res) => {
     try {
-        const { default: logger } = await import('./logger.js');
         logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
         const { code, state } = req.query;
 
@@ -236,7 +234,6 @@ app.get('/callback', async (req, res) => {
 
         res.redirect('/dashboard');
     } catch (error) {
-        const { default: logger } = await import('./logger.js');
         logger.error(`Error during OAuth callback: ${error.message}`);
         res.redirect('/?error=auth_failed');
     }
@@ -286,7 +283,6 @@ apiRouter.get('/hubs/:hubId', async (req, res) => {
         const response = await faceit.getHubsById(hubId);
         res.json(response);
     } catch (error) {
-        const { default: logger } = await import('./logger.js');
         logger.error(`Error getting hub: ${error.message}`);
         res.status(500).json({
             error: 'Hub Error',
@@ -307,14 +303,12 @@ apiRouter.post('/championships/rehost', async (req, res) => {
             });
         }
 
-        const { rehostChampionship } = await import('./FaceitJS.js');
-        const response = await rehostChampionship(eventId, gameId);
+        const response = await faceit.rehostChampionship(eventId, gameId);
         res.json({
             message: `Rehosted event ${eventId} for game ${gameId}`,
             data: response,
         });
     } catch (error) {
-        const { default: logger } = await import('./logger.js');
         logger.error(`Error rehosting championship: ${error.message}`);
         res.status(500).json({
             error: 'Rehost Error',
@@ -334,14 +328,12 @@ apiRouter.post('/championships/cancel', async (req, res) => {
             });
         }
 
-        const { cancelChampionship } = await import('./FaceitJS.js');
-        const response = await cancelChampionship(eventId);
+        const response = await faceit.cancelChampionship(eventId);
         res.json({
             message: `Canceled event ${eventId}`,
             data: response,
         });
     } catch (error) {
-        const { default: logger } = await import('./logger.js');
         logger.error(`Error canceling championship: ${error.message}`);
         res.status(500).json({
             error: 'Cancel Error',
@@ -356,8 +348,7 @@ app.get('/health', (_, res) => {
 });
 
 // Logout Route
-app.get('/logout', async (req, res) => {
-    const { default: logger } = await import('./logger.js');
+app.get('/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
             logger.error(`Error destroying session: ${err.message}`);
@@ -370,16 +361,14 @@ app.get('/logout', async (req, res) => {
 
 // Start the server
 const PORT = env.PORT || 3000;
-const server = app.listen(PORT, async () => {
-    const { default: logger } = await import('./logger.js');
+const server = app.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
     logger.info(`Environment: ${env.NODE_ENV}`);
     logger.info(`Redirect URI: ${env.REDIRECT_URI}`);
 });
 
 // Handle shutdown gracefully
-process.on('SIGTERM', async () => {
-    const { default: logger } = await import('./logger.js');
+process.on('SIGTERM', () => {
     logger.info('SIGTERM signal received: closing HTTP server');
     server.close(() => {
         logger.info('HTTP server closed');

@@ -2,7 +2,7 @@
 
 // ***** IMPORTS ***** //
 import axios from 'axios';
-import logger from './logger.js'; // Import the Winston logger
+import logger from './logger.cjs'; // Import the Winston logger
 
 // CHAMPIONSHIPS
 import getChampionshipsById from './endpoints/championships/getChampionshipsById.js';
