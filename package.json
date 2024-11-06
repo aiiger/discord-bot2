@@ -1,1 +1,26 @@
-web: node bot.cjs
+{
+  "name": "discord-bot2",
+  "version": "1.0.0",
+  "description": "FACEIT Discord Bot",
+  "main": "bot.cjs",
+  "type": "module",
+  "scripts": {
+    "start": "node bot.cjs",
+    "dev": "nodemon bot.cjs"
+  },
+  "dependencies": {
+    "@sentry/node": "^8.37.1",
+    "axios": "^1.7.7",
+    "connect-redis": "^6.1.3",
+    "dotenv": "^16.4.5",
+    "envalid": "^7.3.1",
+    "express": "^4.21.1",
+    "express-rate-limit": "^6.11.2",
+    "express-session": "^1.18.1",
+    "helmet": "^6.2.0",
+    "ioredis": "^5.4.1",
+    "memorystore": "^1.6.7",
+    "morgan": "^1.10.0",
+    "winston": "^3.16.0"
+  }
+}
