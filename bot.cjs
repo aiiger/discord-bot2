@@ -375,3 +375,8 @@ process.on('SIGTERM', async () => {
         }
     });
 });
+
+// Catch-all route for undefined paths
+app.use((req, res) => {
+    res.status(404).send('Not Found');
+});
