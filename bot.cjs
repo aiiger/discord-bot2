@@ -103,16 +103,6 @@ app.use(
 // ***** MIDDLEWARE TO PARSE JSON ***** //
 app.use(express.json());
 
-// ***** ERROR HANDLING MIDDLEWARE ***** //
-app.use(async function (err, _req, res, _next) {
-    const { default: logger } = await import('./logger.js');
-    logger.error(`Unhandled error: ${err.stack}`);
-    res.status(500).json({
-        error: 'Internal Server Error',
-        message: env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
-    });
-});
-
 // Root Endpoint - Show login page
 app.get('/', (req, res) => {
     if (req.session.accessToken) {
@@ -190,9 +180,6 @@ app.get('/callback', async (req, res) => {
         }
         delete req.session.authState; // Clean up
 
-        // Dynamically import FaceitJS module
-        const { getAccessTokenFromCode, getUserInfo } = await import('./FaceitJS.js');
-
         // Exchange code for access token
         const token = await getAccessTokenFromCode(code);
         logger.info(`Access token obtained: ${token.access_token}`);
@@ -260,8 +247,7 @@ apiRouter.use(isAuthenticated);
 apiRouter.get('/hubs/:hubId', async (req, res) => {
     try {
         const { hubId } = req.params;
-        const { getHubsById } = await import('./FaceitJS.js');
-        const response = await getHubsById(hubId);
+        const response = await FaceitJS.getHubsById(hubId);
         res.json(response);
     } catch (error) {
         const { default: logger } = await import('./logger.js');
@@ -285,8 +271,7 @@ apiRouter.post('/championships/rehost', async (req, res) => {
             });
         }
 
-        const { rehostChampionship } = await import('./FaceitJS.js');
-        const response = await rehostChampionship(eventId, gameId);
+        const response = await FaceitJS.rehostChampionship(eventId, gameId);
         res.json({
             message: `Rehosted event ${eventId} for game ${gameId}`,
             data: response,
@@ -312,8 +297,7 @@ apiRouter.post('/championships/cancel', async (req, res) => {
             });
         }
 
-        const { cancelChampionship } = await import('./FaceitJS.js');
-        const response = await cancelChampionship(eventId);
+        const response = await FaceitJS.cancelChampionship(eventId);
         res.json({
             message: `Canceled event ${eventId}`,
             data: response,
