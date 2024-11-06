@@ -161,5 +161,4 @@ FaceitJS.prototype.getHubsById = getHubsById;
 FaceitJS.prototype.hubsById = getHubsById;
 
 // ***** EXPORT THE FACEITJS CLASS ***** //
-
 export default FaceitJS;
