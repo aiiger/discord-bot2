@@ -10,7 +10,6 @@ const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const createMemoryStore = require('memorystore');
 const { cleanEnv, str, url: envUrl } = require('envalid');
-const logger = require('./logger.js'); // Import the Winston logger
 const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
@@ -333,14 +332,16 @@ app.get('/logout', (req, res) => {
 
 // Start the server
 const PORT = env.PORT || 3000;
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
+    const { default: logger } = await import('./logger.js');
     logger.info(`Server running on port ${PORT}`);
     logger.info(`Environment: ${env.NODE_ENV}`);
     logger.info(`Redirect URI: ${env.REDIRECT_URI}`);
 });
 
 // Handle shutdown gracefully
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
+    const { default: logger } = await import('./logger.js');
     logger.info('SIGTERM signal received: closing HTTP server');
     server.close(() => {
         logger.info('HTTP server closed');
