@@ -162,8 +162,8 @@ app.get('/auth', async (req, res) => {
 });
 
 // OAuth2 Callback Endpoint
-app.get('/callback', (req, res) => {
-    const logger = require('./logger.js');
+app.get('/callback', async (req, res) => {
+    const { default: logger } = await import('./logger.js');
     logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
     logger.info(`Full URL: ${req.protocol}://${req.get('host')}${req.originalUrl}`);
   
