@@ -72,6 +72,22 @@ if (env.NODE_ENV === 'production') {
 // ***** SECURITY MIDDLEWARE ***** //
 app.use(helmet());
 
+// ***** CONTENT SECURITY POLICY ***** //
+app.use(
+    helmet.contentSecurityPolicy({
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", 'https://api.faceit.com'],
+            styleSrc: ["'self'", 'https://fonts.googleapis.com'],
+            imgSrc: ["'self'", 'data:', 'https://api.faceit.com'],
+            connectSrc: ["'self'", 'https://api.faceit.com'],
+            fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: [],
+        },
+    })
+);
+
 // ***** RATE LIMITING ***** //
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
