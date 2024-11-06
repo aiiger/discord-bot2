@@ -2,10 +2,10 @@
   "name": "discord-bot2",
   "version": "1.0.0",
   "description": "FACEIT Discord Bot",
-  "main": "bot.js",
+  "main": "bot.cjs",
   "scripts": {
-    "start": "node bot.js",
-    "dev": "nodemon bot.js"
+    "start": "node bot.cjs",
+    "dev": "nodemon bot.cjs"
   },
   "dependencies": {
     "axios": "^1.7.7",
