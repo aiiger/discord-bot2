@@ -1,1 +1,3 @@
-web: node bot.cjs
+{
+  "web": "node bot.cjs"
+}
