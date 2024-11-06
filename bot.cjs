@@ -26,8 +26,8 @@ const env = cleanEnv(process.env, {
     FACEIT_API_KEY_CLIENT: str(),
     SESSION_SECRET: str(),
     REDIS_URL: envUrl(),
-    NODE_ENV: str({ choices: ['development', 'production', 'test'] }), // Add this line
-    PORT: port(), // Add this line
+    NODE_ENV: str({ choices: ['development', 'production', 'test'] }),
+    PORT: port(),
 });
 
 // Initialize Express app
@@ -77,7 +77,11 @@ app.use(
 
 // ***** SESSION CONFIGURATION ***** //
 const RedisStore = connectRedis(session);
-const redisClient = new Redis(env.REDIS_URL); // Create Redis client instance
+const redisClient = new Redis(env.REDIS_URL, {
+    tls: {
+        rejectUnauthorized: false, // Accept self-signed certificates
+    },
+}); // Create Redis client instance
 const sessionStore = new RedisStore({ client: redisClient }); // Pass Redis client to RedisStore
 
 app.use(
