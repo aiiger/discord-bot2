@@ -9,7 +9,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const createMemoryStore = require('memorystore');
-const { cleanEnv, str, url: envUrl, makeValidator } = require('envalid');
+const { cleanEnv, str, url: envUrl, port } = require('envalid');
 const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
@@ -27,6 +27,7 @@ const env = cleanEnv(process.env, {
     SESSION_SECRET: str(),
     REDIS_URL: envUrl(),
     NODE_ENV: str({ choices: ['development', 'production', 'test'] }), // Add this line
+    PORT: port(), // Add this line
 });
 
 // Initialize Express app
