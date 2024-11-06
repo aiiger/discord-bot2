@@ -11,7 +11,8 @@ const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
 const FaceitJS = require('./FaceitJS');
-const { getAuthorizationUrl, getAccessTokenFromCode, getUserInfo } = require('./FaceitJS');
+const { getAuthorizationUrl, getAccessTokenFromCode, getUserInfo } = FaceitJS;
+
 
 // ***** ENVIRONMENT VARIABLES ***** //
 dotenv.config();
