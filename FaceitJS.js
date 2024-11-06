@@ -29,35 +29,33 @@ module.exports = FaceitJS;
 
 // ***** ADDITIONAL EXPORTS ***** //
 module.exports.getAuthorizationUrl = function(state) {
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: process.env.FACEIT_CLIENT_ID,
-    redirect_uri: process.env.REDIRECT_URI,
-    scope: 'openid profile email',
-    state: state,
-  });
-  return `https://cdn.faceit.com/widgets/sso/index.html?${params.toString()}`;
+    const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: process.env.FACEIT_CLIENT_ID,
+        redirect_uri: process.env.REDIRECT_URI,
+        scope: 'openid profile email',
+        state: state,
+    });
+    return `https://www.faceit.com/oauth/authorize?${params.toString()}`;
 };
 
-
 module.exports.getAccessTokenFromCode = async function(code) {
-  const tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
-  const data = {
-    grant_type: 'authorization_code',
-    code: code,
-    redirect_uri: process.env.REDIRECT_URI,
-    client_id: process.env.FACEIT_CLIENT_ID,
-    client_secret: process.env.FACEIT_CLIENT_SECRET,
-  };
-
-  try {
-    const response = await axios.post(tokenUrl, data, {
-      headers: { 'Content-Type': 'application/json' },
+    const tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
+    const params = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: process.env.REDIRECT_URI,
+        client_id: process.env.FACEIT_CLIENT_ID,
+        client_secret: process.env.FACEIT_CLIENT_SECRET,
     });
+
+    const response = await axios.post(tokenUrl, params.toString(), {
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+    });
+
     return response.data;
-  } catch (error) {
-    throw new Error(`Failed to get access token: ${error.response?.data?.error_description || error.message}`);
-  }
 };
 
 module.exports.getUserInfo = async function(accessToken) {
