@@ -1,18 +1,20 @@
 // bot.js
 
 // ***** IMPORTS ***** //
-import path from 'path';
-import { fileURLToPath } from 'url';
-import FaceitJS from './FaceitJS.js';
-import connectRedis from 'connect-redis';
-import Redis from 'ioredis';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import morgan from 'morgan';
-import createMemoryStore from 'memorystore';
-import { cleanEnv, str, url as envUrl } from 'envalid';
-import logger from './logger.js'; // Import the Winston logger
-import dotenv from 'dotenv';
+const path = require('path');
+const { fileURLToPath } = require('url');
+const FaceitJS = require('./FaceitJS.js');
+const connectRedis = require('connect-redis');
+const Redis = require('ioredis');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
+const createMemoryStore = require('memorystore');
+const { cleanEnv, str, url: envUrl } = require('envalid');
+const logger = require('./logger.js'); // Import the Winston logger
+const dotenv = require('dotenv');
+const express = require('express');
+const session = require('express-session');
 
 // ***** ENVIRONMENT VARIABLES ***** //
 dotenv.config();
@@ -25,42 +27,11 @@ const env = cleanEnv(process.env, {
     FACEIT_API_KEY_SERVER: str(),
     FACEIT_API_KEY_CLIENT: str(),
     SESSION_SECRET: str(),
-    REDIS_URL: envUrl(), // Add this line
+    REDIS_URL: envUrl(),
 });
 
-// Initialize Redis client with TLS options to accept self-signed certificates
-const redisClient = new Redis(process.env.REDIS_URL, {
-    tls: {
-        rejectUnauthorized: false
-    }
-});
-
-// Handle Redis connection errors
-redisClient.on('error', (err) => {
-    logger.error(`Redis error: ${err.message}`);
-});
-
-// Your existing code here...
-
-// Start the server
-// Removed duplicate declarations
-
-// Handle shutdown gracefully
-process.on('SIGTERM', () => {
-    logger.info('SIGTERM signal received: closing HTTP server');
-    server.close(() => {
-        logger.info('HTTP server closed');
-        // Close Redis connection if in production
-        if (env.NODE_ENV === 'production' && redisClient) {
-            redisClient.quit(() => {
-                logger.info('Redis client disconnected');
-                process.exit(0);
-            });
-        } else {
-            process.exit(0);
-        }
-    });
-});
+// Initialize Express app
+const app = express();
 
 // ***** SECURITY MIDDLEWARE ***** //
 app.use(helmet());
@@ -102,6 +73,9 @@ app.use(
 );
 
 // ***** SESSION CONFIGURATION ***** //
+const RedisStore = connectRedis(session);
+const sessionStore = new RedisStore({ url: env.REDIS_URL });
+
 app.use(
     session({
         store: sessionStore,
@@ -122,12 +96,12 @@ app.use(
 app.use(express.json());
 
 // ***** ERROR HANDLING MIDDLEWARE ***** //
-app.use((err, req, res) => {
+app.use(function (err, req, res, next) {
     logger.error(`Unhandled error: ${err.stack}`);
     res.status(500).json({
         error: 'Internal Server Error',
         message: env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
-app.use((err, req, res, next) => {
+    });
 });
 
 // ***** ROUTES ***** //
@@ -267,16 +241,6 @@ const isAuthenticated = (req, res, next) => {
 
 // Apply authentication middleware to all API routes
 apiRouter.use(isAuthenticated);
-
-// Middleware to ensure access token is valid or refreshed
-const ensureAccessToken = async (req, res) => {
-    // Implement token refresh logic here if needed
-    // For simplicity, this example assumes access tokens are valid
-    // You can enhance this with actual token validation and refresh
-    next();
-const ensureAccessToken = async (req, res, next) => {
-
-apiRouter.use(ensureAccessToken);
 
 // Hub Routes
 apiRouter.get('/hubs/:hubId', async (req, res) => {
