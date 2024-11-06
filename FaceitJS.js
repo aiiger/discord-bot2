@@ -2,6 +2,7 @@
 
 // ***** IMPORTS ***** //
 import axios from 'axios';
+import logger from './logger.js'; // Import the Winston logger
 
 // CHAMPIONSHIPS
 import getChampionshipsById from './endpoints/championships/getChampionshipsById.js';
@@ -86,7 +87,7 @@ class FaceitJS {
 
             return response.data;
         } catch (error) {
-            console.error('Error getting access token:', error.response?.data || error.message);
+            logger.error(`Error getting access token: ${error.response?.data || error.message}`);
             throw error;
         }
     }
@@ -105,7 +106,7 @@ class FaceitJS {
 
             return response.data;
         } catch (error) {
-            console.error('Error getting user info:', error.response?.data || error.message);
+            logger.error(`Error getting user info: ${error.response?.data || error.message}`);
             throw error;
         }
     }
@@ -126,7 +127,7 @@ class FaceitJS {
             const response = await axios.post(url, data, headers);
             return response.data;
         } catch (error) {
-            console.error('Error rehosting championship:', error.response?.data || error.message);
+            logger.error(`Error rehosting championship: ${error.response?.data || error.message}`);
             throw error;
         }
     }
@@ -143,7 +144,7 @@ class FaceitJS {
             const response = await axios.post(url, {}, headers);
             return response.data;
         } catch (error) {
-            console.error('Error canceling championship:', error.response?.data || error.message);
+            logger.error(`Error canceling championship: ${error.response?.data || error.message}`);
             throw error;
         }
     }
