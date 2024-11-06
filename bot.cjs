@@ -11,7 +11,7 @@ const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
 const FaceitJS = require('./FaceitJS');
-const { getAuthorizationUrl, getAccessTokenFromCode, getUserInfo } = FaceitJS;
+const { getAuthorizationUrl, getAccessTokenFromCode, getUserInfo } = new FaceitJS();
 const logger = require('./logger');
 
 // ***** ENVIRONMENT VARIABLES ***** //
@@ -160,53 +160,47 @@ app.get('/auth', async (req, res) => {
 });
 
 // OAuth2 Callback Endpoint
-// bot.cjs
-
 app.get('/callback', async (req, res) => {
-    const logger = require('./logger.js');
-    logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
-    logger.info(`Full URL: ${req.protocol}://${req.get('host')}${req.originalUrl}`);
-  
-    const { code, state, error, error_description } = req.query;
-  
-    if (error) {
-      logger.error(`FACEIT returned an error: ${error_description || error}`);
-      return res.redirect(`/?error=${encodeURIComponent(error_description || error)}`);
-    }
-  
-    if (!code) {
-      logger.warn('No code provided - redirecting to login');
-      return res.redirect('/?error=no_code');
-    }
-  
-    // Validate the state parameter
-    if (state !== req.session.authState) {
-      logger.warn('Invalid state parameter - possible CSRF attack');
-      return res.redirect('/?error=invalid_state');
-    }
-  
-    delete req.session.authState; // Clean up
-  
     try {
-      // Exchange the code for an access token
-      const token = await getAccessTokenFromCode(code);
-      logger.info(`Access token obtained: ${token.access_token}`);
-  
-      // Retrieve user info
-      const userInfo = await getUserInfo(token.access_token);
-      logger.info(`User info retrieved: ${userInfo.nickname}`);
-  
-      // Store data in session
-      req.session.accessToken = token.access_token;
-      req.session.user = userInfo;
-  
-      res.redirect('/dashboard');
-    } catch (err) {
-      logger.error(`Error during OAuth callback: ${err.message}`);
-      res.redirect('/?error=auth_failed');
+        logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
+        const { code, state } = req.query;
+
+        if (!code) {
+            logger.warn('No code provided - redirecting to login');
+            return res.redirect('/?error=no_code');
+        }
+
+        // Validate state parameter
+        if (state !== req.session.authState) {
+            logger.warn('Invalid state parameter - possible CSRF attack');
+            return res.redirect('/?error=invalid_state');
+        }
+        delete req.session.authState; // Clean up
+
+        // Exchange code for access token
+        const token = await getAccessTokenFromCode(code);
+        logger.info(`Access token obtained: ${token.access_token}`);
+
+        // Use the access token to retrieve user information
+        const userInfo = await getUserInfo(token.access_token);
+        logger.info(`User info retrieved: ${userInfo.nickname}`);
+
+        // Store access token and user info in session
+        req.session.accessToken = token.access_token;
+        req.session.user = userInfo;
+
+        // Optionally store refresh token if provided
+        if (token.refresh_token) {
+            req.session.refreshToken = token.refresh_token;
+            logger.info('Refresh token stored in session');
+        }
+
+        res.redirect('/dashboard');
+    } catch (error) {
+        logger.error(`Error during OAuth callback: ${error.message}`);
+        res.redirect('/?error=auth_failed');
     }
-  });
-  
+});
 
 // Dashboard Route
 app.get('/dashboard', (req, res) => {
