@@ -162,3 +162,10 @@ FaceitJS.prototype.hubsById = getHubsById;
 
 // ***** EXPORT THE FACEITJS CLASS ***** //
 export default FaceitJS;
+
+// ***** ADDITIONAL EXPORTS ***** //
+export function getAuthorizationUrl(state) {
+    // Your implementation here
+}
+
+// Other exports...
