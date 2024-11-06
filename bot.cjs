@@ -9,7 +9,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const createMemoryStore = require('memorystore');
-const { cleanEnv, str, url: envUrl } = require('envalid');
+const { cleanEnv, str, url: envUrl, makeValidator } = require('envalid');
 const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
@@ -17,7 +17,7 @@ const session = require('express-session');
 // ***** ENVIRONMENT VARIABLES ***** //
 dotenv.config();
 
-// ***** ENVIRONMENT VALIDATION ***** //
+// Custom validator for NODE_ENV
 const env = cleanEnv(process.env, {
     FACEIT_CLIENT_ID: str(),
     FACEIT_CLIENT_SECRET: str(),
@@ -25,7 +25,8 @@ const env = cleanEnv(process.env, {
     FACEIT_API_KEY_SERVER: str(),
     FACEIT_API_KEY_CLIENT: str(),
     SESSION_SECRET: str(),
-    REDIS_URL: envUrl(), // Ensure this line is present
+    REDIS_URL: envUrl(),
+    NODE_ENV: str({ choices: ['development', 'production', 'test'] }), // Add this line
 });
 
 // Initialize Express app
