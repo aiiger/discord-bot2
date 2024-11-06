@@ -7,9 +7,14 @@ const { URLSearchParams } = require('url');
 class FaceitJS {
     constructor() {
         this.baseUrl = 'https://api.faceit.com';
-        this.authUrl = 'https://api.faceit.com/auth/v1/oauth/authorize';
+        this.authUrl = 'https://www.faceit.com/oauth/authorize';
         this.tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
         this.userInfoUrl = 'https://api.faceit.com/core/v1/users/me'; // Updated endpoint
+
+        // Bind methods to the instance
+        this.getAuthorizationUrl = this.getAuthorizationUrl.bind(this);
+        this.getAccessTokenFromCode = this.getAccessTokenFromCode.bind(this);
+        this.getUserInfo = this.getUserInfo.bind(this);
     }
 
     /**
@@ -81,99 +86,7 @@ class FaceitJS {
             }
         }
     }
-
-    /**
-     * Retrieves championships by ID.
-     * @param {string} id - The championship ID.
-     * @returns {Object} - The championship data.
-     */
-    async getChampionshipsById(id) {
-        try {
-            const response = await axios.get(`${this.baseUrl}/championships/${id}`, {
-                headers: {
-                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Assuming server-side API key
-                },
-            });
-            return response.data;
-        } catch (error) {
-            if (error.response) {
-                throw new Error(`Get Championships Failed: ${error.response.data.error_description || error.response.data.error}`);
-            } else {
-                throw new Error(`Get Championships Failed: ${error.message}`);
-            }
-        }
-    }
-
-    /**
-     * Retrieves hubs by ID.
-     * @param {string} id - The hub ID.
-     * @returns {Object} - The hub data.
-     */
-    async getHubsById(id) {
-        try {
-            const response = await axios.get(`${this.baseUrl}/hubs/${id}`, {
-                headers: {
-                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Assuming server-side API key
-                },
-            });
-            return response.data;
-        } catch (error) {
-            if (error.response) {
-                throw new Error(`Get Hubs Failed: ${error.response.data.error_description || error.response.data.error}`);
-            } else {
-                throw new Error(`Get Hubs Failed: ${error.message}`);
-            }
-        }
-    }
-
-    /**
-     * Rehosts a championship.
-     * @param {string} eventId - The event ID.
-     * @param {string} gameId - The game ID.
-     * @returns {Object} - The rehost response data.
-     */
-    async rehostChampionship(eventId, gameId) {
-        try {
-            const response = await axios.post(`${this.baseUrl}/championships/${eventId}/rehost`, { game_id: gameId }, {
-                headers: {
-                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Assuming server-side API key
-                    'Content-Type': 'application/json',
-                },
-            });
-            return response.data;
-        } catch (error) {
-            if (error.response) {
-                throw new Error(`Rehost Championship Failed: ${error.response.data.error_description || error.response.data.error}`);
-            } else {
-                throw new Error(`Rehost Championship Failed: ${error.message}`);
-            }
-        }
-    }
-
-    /**
-     * Cancels a championship.
-     * @param {string} eventId - The event ID.
-     * @returns {Object} - The cancellation response data.
-     */
-    async cancelChampionship(eventId) {
-        try {
-            const response = await axios.post(`${this.baseUrl}/championships/${eventId}/cancel`, {}, {
-                headers: {
-                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Assuming server-side API key
-                    'Content-Type': 'application/json',
-                },
-            });
-            return response.data;
-        } catch (error) {
-            if (error.response) {
-                throw new Error(`Cancel Championship Failed: ${error.response.data.error_description || error.response.data.error}`);
-            } else {
-                throw new Error(`Cancel Championship Failed: ${error.message}`);
-            }
-        }
-    }
 }
 
-// ***** EXPORT AN INSTANCE OF FACEITJS ***** //
-const faceit = new FaceitJS();
-module.exports = faceit;
+// ***** EXPORT THE FACEITJS CLASS ***** //
+module.exports = FaceitJS;
