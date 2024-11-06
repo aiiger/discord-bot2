@@ -1,9 +1,8 @@
-// bot.js
+// bot.cjs
 
 // ***** IMPORTS ***** //
 const path = require('path');
 const { fileURLToPath } = require('url');
-const FaceitJS = require('./FaceitJS.js');
 const connectRedis = require('connect-redis');
 const Redis = require('ioredis');
 const helmet = require('helmet');
@@ -149,11 +148,12 @@ app.get('/', (req, res) => {
 });
 
 // Auth Endpoint
-app.get('/auth', (req, res) => {
+app.get('/auth', async (req, res) => {
     try {
         const state = Math.random().toString(36).substring(2, 15);
         req.session.authState = state; // Store state in session
-        const authUrl = faceit.getAuthorizationUrl(state);
+        const { getAuthorizationUrl } = await import('./FaceitJS.js');
+        const authUrl = getAuthorizationUrl(state);
         logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
         res.redirect(authUrl);
     } catch (error) {
@@ -180,12 +180,15 @@ app.get('/callback', async (req, res) => {
         }
         delete req.session.authState; // Clean up
 
+        // Dynamically import FaceitJS module
+        const { getAccessTokenFromCode, getUserInfo } = await import('./FaceitJS.js');
+
         // Exchange code for access token
-        const token = await faceit.getAccessTokenFromCode(code);
+        const token = await getAccessTokenFromCode(code);
         logger.info(`Access token obtained: ${token.access_token}`);
 
         // Use the access token to retrieve user information
-        const userInfo = await faceit.getUserInfo(token.access_token);
+        const userInfo = await getUserInfo(token.access_token);
         logger.info(`User info retrieved: ${userInfo.nickname}`);
 
         // Store access token and user info in session
@@ -246,7 +249,8 @@ apiRouter.use(isAuthenticated);
 apiRouter.get('/hubs/:hubId', async (req, res) => {
     try {
         const { hubId } = req.params;
-        const response = await faceit.getHubsById(hubId);
+        const { getHubsById } = await import('./FaceitJS.js');
+        const response = await getHubsById(hubId);
         res.json(response);
     } catch (error) {
         logger.error(`Error getting hub: ${error.message}`);
@@ -269,7 +273,8 @@ apiRouter.post('/championships/rehost', async (req, res) => {
             });
         }
 
-        const response = await faceit.rehostChampionship(eventId, gameId);
+        const { rehostChampionship } = await import('./FaceitJS.js');
+        const response = await rehostChampionship(eventId, gameId);
         res.json({
             message: `Rehosted event ${eventId} for game ${gameId}`,
             data: response,
@@ -294,7 +299,8 @@ apiRouter.post('/championships/cancel', async (req, res) => {
             });
         }
 
-        const response = await faceit.cancelChampionship(eventId);
+        const { cancelChampionship } = await import('./FaceitJS.js');
+        const response = await cancelChampionship(eventId);
         res.json({
             message: `Canceled event ${eventId}`,
             data: response,
