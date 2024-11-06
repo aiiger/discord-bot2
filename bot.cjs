@@ -12,6 +12,7 @@ const express = require('express');
 const session = require('express-session');
 const FaceitJS = require('./FaceitJS');
 const { getAuthorizationUrl, getAccessTokenFromCode, getUserInfo } = FaceitJS;
+const logger = require('./logger');
 
 // ***** ENVIRONMENT VARIABLES ***** //
 dotenv.config();
@@ -67,8 +68,7 @@ app.use(limiter);
 app.use(
     morgan('combined', {
         stream: {
-            write: async (message) => {
-                const { default: logger } = await import('./logger.js');
+            write: (message) => {
                 logger.info(message.trim());
             },
         },
@@ -151,11 +151,9 @@ app.get('/auth', async (req, res) => {
         const state = Math.random().toString(36).substring(2, 15);
         req.session.authState = state; // Store state in session
         const authUrl = getAuthorizationUrl(state);
-        const { default: logger } = await import('./logger.js');
         logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
         res.redirect(authUrl);
     } catch (error) {
-        const { default: logger } = await import('./logger.js');
         logger.error(`Error generating auth URL: ${error.message}`);
         res.status(500).send('Authentication initialization failed.');
     }
@@ -163,49 +161,46 @@ app.get('/auth', async (req, res) => {
 
 // OAuth2 Callback Endpoint
 app.get('/callback', async (req, res) => {
-    const logger = require('./logger.js');
-    logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
-  
-    const { code, state, error, error_description } = req.query;
-  
-    if (error) {
-      logger.error(`FACEIT returned an error: ${error_description || error}`);
-      return res.redirect(`/?error=${encodeURIComponent(error_description || error)}`);
-    }
-  
-    if (!code) {
-      logger.warn('No code provided - redirecting to login');
-      return res.redirect('/?error=no_code');
-    }
-  
-    // Validate the state parameter
-    if (state !== req.session.authState) {
-      logger.warn('Invalid state parameter - possible CSRF attack');
-      return res.redirect('/?error=invalid_state');
-    }
-  
-    delete req.session.authState; // Clean up
-  
     try {
-      // Exchange the code for an access token
-      const token = await getAccessTokenFromCode(code);
-      logger.info(`Access token obtained: ${token.access_token}`);
-  
-      // Retrieve user info
-      const userInfo = await getUserInfo(token.access_token);
-      logger.info(`User info retrieved: ${userInfo.nickname}`);
-  
-      // Store data in session
-      req.session.accessToken = token.access_token;
-      req.session.user = userInfo;
-  
-      res.redirect('/dashboard');
-    } catch (err) {
-      logger.error(`Error during OAuth callback: ${err.message}`);
-      res.redirect('/?error=auth_failed');
+        logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
+        const { code, state } = req.query;
+
+        if (!code) {
+            logger.warn('No code provided - redirecting to login');
+            return res.redirect('/?error=no_code');
+        }
+
+        // Validate state parameter
+        if (state !== req.session.authState) {
+            logger.warn('Invalid state parameter - possible CSRF attack');
+            return res.redirect('/?error=invalid_state');
+        }
+        delete req.session.authState; // Clean up
+
+        // Exchange code for access token
+        const token = await getAccessTokenFromCode(code);
+        logger.info(`Access token obtained: ${token.access_token}`);
+
+        // Use the access token to retrieve user information
+        const userInfo = await getUserInfo(token.access_token);
+        logger.info(`User info retrieved: ${userInfo.nickname}`);
+
+        // Store access token and user info in session
+        req.session.accessToken = token.access_token;
+        req.session.user = userInfo;
+
+        // Optionally store refresh token if provided
+        if (token.refresh_token) {
+            req.session.refreshToken = token.refresh_token;
+            logger.info('Refresh token stored in session');
+        }
+
+        res.redirect('/dashboard');
+    } catch (error) {
+        logger.error(`Error during OAuth callback: ${error.message}`);
+        res.redirect('/?error=auth_failed');
     }
-  });
-  
+});
 
 // Dashboard Route
 app.get('/dashboard', (req, res) => {
@@ -251,7 +246,6 @@ apiRouter.get('/hubs/:hubId', async (req, res) => {
         const response = await FaceitJS.getHubsById(hubId);
         res.json(response);
     } catch (error) {
-        const { default: logger } = await import('./logger.js');
         logger.error(`Error getting hub: ${error.message}`);
         res.status(500).json({
             error: 'Hub Error',
@@ -278,7 +272,6 @@ apiRouter.post('/championships/rehost', async (req, res) => {
             data: response,
         });
     } catch (error) {
-        const { default: logger } = await import('./logger.js');
         logger.error(`Error rehosting championship: ${error.message}`);
         res.status(500).json({
             error: 'Rehost Error',
@@ -304,7 +297,6 @@ apiRouter.post('/championships/cancel', async (req, res) => {
             data: response,
         });
     } catch (error) {
-        const { default: logger } = await import('./logger.js');
         logger.error(`Error canceling championship: ${error.message}`);
         res.status(500).json({
             error: 'Cancel Error',
@@ -320,7 +312,7 @@ app.get('/health', (_, res) => {
 
 // Logout Route
 app.get('/logout', async (req, res) => {
-    const { default: logger } = await import('./logger.js');
+    logger.info('Logging out');
     req.session.destroy((err) => {
         if (err) {
             logger.error(`Error destroying session: ${err.message}`);
@@ -333,21 +325,14 @@ app.get('/logout', async (req, res) => {
 
 // Start the server
 const PORT = env.PORT || 3000;
-const server = app.listen(PORT, async () => {
-    const { default: logger } = await import('./logger.js');
+const server = app.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
     logger.info(`Environment: ${env.NODE_ENV}`);
     logger.info(`Redirect URI: ${env.REDIRECT_URI}`);
 });
 
-// Catch-all route for undefined paths
-app.use((_req, res) => {
-    res.status(404).send('Not Found');
-});
-
 // Handle shutdown gracefully
-process.on('SIGTERM', async () => {
-    const { default: logger } = await import('./logger.js');
+process.on('SIGTERM', () => {
     logger.info('SIGTERM signal received: closing HTTP server');
     server.close(() => {
         logger.info('HTTP server closed');
@@ -361,4 +346,9 @@ process.on('SIGTERM', async () => {
             process.exit(0);
         }
     });
+});
+
+// Catch-all route for undefined paths
+app.use((_req, res) => {
+    res.status(404).send('Not Found');
 });
