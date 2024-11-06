@@ -102,10 +102,7 @@ app.use(
 app.use(express.json());
 
 // ***** ERROR HANDLING MIDDLEWARE ***** //
-app.use(async function (err, req, res, next) {
-    const { default: logger } = await import('./logger.js');
-    logger.error(`Unhandled error: ${err.stack}`);
-app.use(async function (err, res) {
+app.use(async function (err, _req, res, _next) {
     const { default: logger } = await import('./logger.js');
     logger.error(`Unhandled error: ${err.stack}`);
     res.status(500).json({
@@ -113,6 +110,7 @@ app.use(async function (err, res) {
         message: env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
     });
 });
+
 // Root Endpoint - Show login page
 app.get('/', (req, res) => {
     if (req.session.accessToken) {
@@ -375,9 +373,6 @@ process.on('SIGTERM', async () => {
 });
 
 // Catch-all route for undefined paths
-app.use((req, res) => {
-    res.status(404).send('Not Found');
-// Catch-all route for undefined paths
-app.use((_, res) => {
+app.use((_req, res) => {
     res.status(404).send('Not Found');
 });
