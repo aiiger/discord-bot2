@@ -53,7 +53,7 @@ class FaceitJS {
             state: state,
         });
 
-        // Updated to use the correct OAuth2 authorization endpoint
+        // Use the correct OAuth2 authorization endpoint
         return `https://api.faceit.com/auth/v1/oauth/authorize?${params.toString()}`;
     }
 
