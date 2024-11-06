@@ -169,3 +169,4 @@ export function getAuthorizationUrl(state) {
 }
 
 // Other exports...
+module.exports = FaceitJS;
