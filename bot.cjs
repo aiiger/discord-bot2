@@ -11,7 +11,7 @@ const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
 const FaceitJS = require('./FaceitJS');
-const { getAuthorizationUrl, getAccessTokenFromCode, getUserInfo, getHubMatches, getMatchesInConfigurationMode } = new FaceitJS();
+const { getAuthorizationUrl, getAccessTokenFromCode, getUserInfo } = new FaceitJS();
 const logger = require('./logger');
 
 // ***** ENVIRONMENT VARIABLES ***** //
@@ -104,44 +104,17 @@ app.use(
 app.use(express.json());
 
 // Root Endpoint - Show login page
+const ejs = require('ejs');
+const fs = require('fs');
+const path = require('path');
+
+const loginPageTemplate = fs.readFileSync(path.join(__dirname, 'views', 'login.ejs'), 'utf-8');
+
 app.get('/', (req, res) => {
     if (req.session.accessToken) {
         res.redirect('/dashboard');
     } else {
-        res.send(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>FACEIT Bot</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                        text-align: center;
-                    }
-                    h1 {
-                        color: #FF5500;
-                    }
-                    .login-button {
-                        display: inline-block;
-                        padding: 10px 20px;
-                        background-color: #FF5500;
-                        color: white;
-                        text-decoration: none;
-                        border-radius: 5px;
-                        margin-top: 20px;
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>FACEIT Bot</h1>
-                <p>Please log in with your FACEIT account to continue.</p>
-                <a href="/auth" class="login-button">Login with FACEIT</a>
-            </body>
-            </html>
-        `);
+        res.send(ejs.render(loginPageTemplate));
     }
 });
 
@@ -321,27 +294,6 @@ apiRouter.get('/hubs/:hubId/matches/:matchId', async (req, res) => {
 });
 
 // ELO Configuration Endpoint
-apiRouter.post('/elo/config', async (req, res) => {
-    try {
-        const { hubId, eloConfig } = req.body;
-
-        if (!hubId || !eloConfig) {
-            return res.status(400).json({
-                error: 'Bad Request',
-                message: 'Missing hubId or eloConfig',
-            });
-        }
-
-        // Implement your logic to update ELO configuration here
-        // For example, you can call a FACEIT API endpoint to update the ELO configuration
-
-        res.json({
-            message: `ELO configuration updated for hub ${hubId}`,
-            data: eloConfig,
-        });
-    } catch (error) {
-        logger.error(`Error// bot.cjs
-
 apiRouter.post('/elo/config', async (req, res) => {
     try {
         const { hubId, eloConfig } = req.body;
