@@ -1,8 +1,5 @@
-// FaceitJS.js
-
 const axios = require('axios');
 
-// Define the FaceitJS class and its methods
 function FaceitJS() {
     this.baseUrl = 'https://api.faceit.com';
 }
@@ -18,7 +15,7 @@ FaceitJS.prototype.getHubsById = async function(id) {
 };
 
 FaceitJS.prototype.rehostChampionship = async function(eventId, gameId) {
-    const response = await axios.post(`${this.baseUrl}/championships/${eventId}/rehost`, { gameId });
+    const response = await axios.post(`${this.baseUrl}/championships/${eventId}/rehost`, { game_id: gameId });
     return response.data;
 };
 
