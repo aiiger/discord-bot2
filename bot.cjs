@@ -1,14 +1,11 @@
 // bot.cjs
 
 // ***** IMPORTS ***** //
-const path = require('path');
-const { fileURLToPath } = require('url');
 const connectRedis = require('connect-redis');
 const Redis = require('ioredis');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
-const createMemoryStore = require('memorystore');
 const { cleanEnv, str, url: envUrl, port } = require('envalid');
 const dotenv = require('dotenv');
 const express = require('express');
@@ -108,14 +105,14 @@ app.use(express.json());
 app.use(async function (err, req, res, next) {
     const { default: logger } = await import('./logger.js');
     logger.error(`Unhandled error: ${err.stack}`);
+app.use(async function (err, res) {
+    const { default: logger } = await import('./logger.js');
+    logger.error(`Unhandled error: ${err.stack}`);
     res.status(500).json({
         error: 'Internal Server Error',
         message: env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
     });
 });
-
-// ***** ROUTES ***** //
-
 // Root Endpoint - Show login page
 app.get('/', (req, res) => {
     if (req.session.accessToken) {
@@ -379,5 +376,8 @@ process.on('SIGTERM', async () => {
 
 // Catch-all route for undefined paths
 app.use((req, res) => {
+    res.status(404).send('Not Found');
+// Catch-all route for undefined paths
+app.use((_, res) => {
     res.status(404).send('Not Found');
 });
