@@ -10,7 +10,6 @@ const { cleanEnv, str, url: envUrl, port } = require('envalid');
 const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
-const FaceitJS = require('./FaceitJS');
 const { getAuthorizationUrl } = require('./FaceitJS');
 
 // ***** ENVIRONMENT VARIABLES ***** //
