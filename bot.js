@@ -1,81 +1,120 @@
 // bot.js
 
+// ***** IMPORTS ***** //
 import express from 'express';
 import dotenv from 'dotenv';
 import session from 'express-session';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import FaceitJS from './FaceitJS.js';
-import RedisStore from 'connect-redis';
+import connectRedis from 'connect-redis';
 import Redis from 'ioredis';
-import MemoryStore from 'memorystore';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import morgan from 'morgan';
+import createMemoryStore from 'memorystore';
+import { cleanEnv, str, url as envUrl } from 'envalid';
 
+// ***** ENVIRONMENT VARIABLES ***** //
 dotenv.config();
 
+// ***** ENVIRONMENT VALIDATION ***** //
+const env = cleanEnv(process.env, {
+    FACEIT_CLIENT_ID: str(),
+    FACEIT_CLIENT_SECRET: str(),
+    REDIRECT_URI: envUrl(),
+    FACEIT_API_KEY_SERVER: str(),
+    FACEIT_API_KEY_CLIENT: str(),
+    SESSION_SECRET: str(),
+    NODE_ENV: str({ choices: ['development', 'production'] }),
+    FACEIT_HUB_ID: str(),
+    REDIS_URL: str({ default: '' }), // Optional, only for production
+    PORT: str({ default: '3000' }),
+});
+
+// ***** INITIALIZE EXPRESS APP ***** //
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Verify required environment variables
-const requiredEnvVars = [
-    'FACEIT_API_KEY_SERVER',
-    'FACEIT_API_KEY_CLIENT',
-    'SESSION_SECRET',
-    'FACEIT_CLIENT_ID',
-    'FACEIT_CLIENT_SECRET',
-    'REDIRECT_URI'
-];
+// ***** SET TRUST PROXY ***** //
+app.set('trust proxy', 1); // Trust first proxy (Heroku)
 
-for (const envVar of requiredEnvVars) {
-    if (!process.env[envVar]) {
-        console.error(`Missing required environment variable: ${envVar}`);
+// ***** INITIALIZE FACEITJS ***** //
+const faceit = new FaceitJS(env.FACEIT_API_KEY_SERVER, env.FACEIT_API_KEY_CLIENT);
+
+// ***** CONFIGURE SESSION STORE ***** //
+let sessionStore;
+if (env.NODE_ENV === 'production') {
+    if (!env.REDIS_URL) {
+        console.error('REDIS_URL is required in production');
         process.exit(1);
     }
-}
+    const RedisStore = connectRedis(session);
+    const redisClient = new Redis(env.REDIS_URL);
 
-const PORT = process.env.PORT || 3000;
-
-// Initialize FaceitJS with your API keys
-const faceit = new FaceitJS(process.env.FACEIT_API_KEY_SERVER, process.env.FACEIT_API_KEY_CLIENT);
-
-// Configure session store based on environment
-let sessionStore;
-if (process.env.NODE_ENV === 'production') {
-    const redisClient = new Redis(process.env.REDIS_URL);
     redisClient.on('error', (err) => {
         console.error('Redis error:', err);
     });
+
+    redisClient.on('connect', () => {
+        console.log('Connected to Redis successfully');
+    });
+
     sessionStore = new RedisStore({ client: redisClient });
 } else {
-    const MemoryStore = require('memorystore')(session);
-    sessionStore = new MemoryStore({ checkPeriod: 86400000 }); // prune expired entries every 24h
+    const MemoryStore = createMemoryStore(session);
+    sessionStore = new MemoryStore({
+        checkPeriod: 86400000, // prune expired entries every 24h
+    });
 }
 
-// Session configuration
-app.use(session({
-    store: sessionStore,
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    },
-    name: 'faceit.sid'
-}));
+// ***** SECURITY MIDDLEWARE ***** //
+app.use(helmet());
 
-// Middleware to parse JSON
+// ***** RATE LIMITING ***** //
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Too many requests from this IP, please try again later.',
+});
+app.use(limiter);
+
+// ***** LOGGER ***** //
+app.use(morgan('combined'));
+
+// ***** SESSION CONFIGURATION ***** //
+app.use(
+    session({
+        store: sessionStore,
+        secret: env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            secure: env.NODE_ENV === 'production', // Ensure HTTPS in production
+            httpOnly: true,
+            sameSite: 'lax', // Adjust based on your requirements
+            maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        },
+        name: 'faceit.sid',
+    })
+);
+
+// ***** MIDDLEWARE TO PARSE JSON ***** //
 app.use(express.json());
 
-// Error handling middleware
+// ***** ERROR HANDLING MIDDLEWARE ***** //
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({
         error: 'Internal Server Error',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+        message: env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
     });
 });
+
+// ***** ROUTES ***** //
 
 // Root Endpoint - Show login page
 app.get('/', (req, res) => {
@@ -122,7 +161,7 @@ app.get('/', (req, res) => {
 // Auth Endpoint
 app.get('/auth', (req, res) => {
     try {
-        const state = Math.random().toString(36).substring(7);
+        const state = Math.random().toString(36).substring(2, 15);
         req.session.authState = state; // Store state in session
         const authUrl = faceit.getAuthorizationUrl(state);
         console.log('Redirecting to FACEIT auth URL:', authUrl);
@@ -153,7 +192,7 @@ app.get('/callback', async (req, res) => {
 
         // Exchange code for access token
         const token = await faceit.getAccessTokenFromCode(code);
-        console.log('Access token obtained');
+        console.log('Access token obtained:', token.access_token);
 
         // Use the access token to retrieve user information
         const userInfo = await faceit.getUserInfo(token.access_token);
@@ -192,15 +231,23 @@ app.get('/dashboard', (req, res) => {
 const apiRouter = express.Router();
 app.use('/api', apiRouter);
 
-// Hub Routes
-apiRouter.get('/hubs/:hubId', async (req, res) => {
-    if (!req.session.accessToken) {
-        return res.status(401).json({
+// Middleware to check authentication
+const isAuthenticated = (req, res, next) => {
+    if (req.session.accessToken) {
+        next();
+    } else {
+        res.status(401).json({
             error: 'Unauthorized',
-            message: 'Please log in first'
+            message: 'Please log in first',
         });
     }
+};
 
+// Apply authentication middleware to all API routes
+apiRouter.use(isAuthenticated);
+
+// Hub Routes
+apiRouter.get('/hubs/:hubId', async (req, res) => {
     try {
         const { hubId } = req.params;
         const response = await faceit.getHubsById(hubId);
@@ -209,72 +256,58 @@ apiRouter.get('/hubs/:hubId', async (req, res) => {
         console.error('Error getting hub:', error);
         res.status(500).json({
             error: 'Hub Error',
-            message: 'Failed to get hub information'
+            message: 'Failed to get hub information',
         });
     }
 });
 
 // Championship Routes
 apiRouter.post('/championships/rehost', async (req, res) => {
-    if (!req.session.accessToken) {
-        return res.status(401).json({
-            error: 'Unauthorized',
-            message: 'Please log in first'
-        });
-    }
-
     try {
         const { gameId, eventId } = req.body;
 
         if (!gameId || !eventId) {
             return res.status(400).json({
                 error: 'Bad Request',
-                message: 'Missing gameId or eventId'
+                message: 'Missing gameId or eventId',
             });
         }
 
-        const response = await faceit.getChampionshipsById(eventId);
+        const response = await faceit.rehostChampionship(eventId, gameId);
         res.json({
             message: `Rehosted event ${eventId} for game ${gameId}`,
-            data: response
+            data: response,
         });
     } catch (error) {
         console.error('Error rehosting:', error);
         res.status(500).json({
             error: 'Rehost Error',
-            message: 'Failed to rehost championship'
+            message: 'Failed to rehost championship',
         });
     }
 });
 
 apiRouter.post('/championships/cancel', async (req, res) => {
-    if (!req.session.accessToken) {
-        return res.status(401).json({
-            error: 'Unauthorized',
-            message: 'Please log in first'
-        });
-    }
-
     try {
         const { eventId } = req.body;
 
         if (!eventId) {
             return res.status(400).json({
                 error: 'Bad Request',
-                message: 'Missing eventId'
+                message: 'Missing eventId',
             });
         }
 
-        const response = await faceit.getChampionshipsById(eventId);
+        const response = await faceit.cancelChampionship(eventId);
         res.json({
             message: `Canceled event ${eventId}`,
-            data: response
+            data: response,
         });
     } catch (error) {
         console.error('Error canceling:', error);
         res.status(500).json({
             error: 'Cancel Error',
-            message: 'Failed to cancel championship'
+            message: 'Failed to cancel championship',
         });
     }
 });
@@ -284,11 +317,24 @@ app.get('/health', (_, res) => {
     res.status(200).json({ status: 'OK' });
 });
 
+// Logout Route
+app.get('/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Error destroying session:', err);
+            return res.status(500).send('Failed to logout.');
+        }
+        res.clearCookie('faceit.sid');
+        res.redirect('/?message=logged_out');
+    });
+});
+
 // Start the server
+const PORT = env.PORT || 3000;
 const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Redirect URI: ${process.env.REDIRECT_URI}`);
+    console.log(`Environment: ${env.NODE_ENV}`);
+    console.log(`Redirect URI: ${env.REDIRECT_URI}`);
 });
 
 // Handle shutdown gracefully
@@ -296,10 +342,14 @@ process.on('SIGTERM', () => {
     console.log('SIGTERM signal received: closing HTTP server');
     server.close(() => {
         console.log('HTTP server closed');
+        // Close Redis connection if in production
+        if (env.NODE_ENV === 'production' && sessionStore.client) {
+            sessionStore.client.quit(() => {
+                console.log('Redis client disconnected');
+                process.exit(0);
+            });
+        } else {
+            process.exit(0);
+        }
     });
-});
-
-app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/?message=logged_out');
 });
