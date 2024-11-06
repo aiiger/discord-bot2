@@ -1,11 +1,17 @@
-const logger = require('./logger.js');
+const { createLogger, format, transports } = require('winston');
 
-app.get('/callback', async (req, res) => {
-  try {
-    logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
-    // ... rest of your code
-  } catch (error) {
-    logger.error(`Error during OAuth callback: ${error.message}`);
-    res.redirect('/?error=auth_failed');
-  }
+const logger = createLogger({
+    level: 'info',
+    format: format.combine(
+        format.timestamp({
+            format: 'YYYY-MM-DD HH:mm:ss'
+        }),
+        format.printf(info => `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`)
+    ),
+    transports: [
+        new transports.Console(),
+        // Add other transports like file if needed
+    ],
 });
+
+module.exports = logger;
