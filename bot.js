@@ -1,9 +1,6 @@
 // bot.js
 
 // ***** IMPORTS ***** //
-import express from 'express';
-import dotenv from 'dotenv';
-import session from 'express-session';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import FaceitJS from './FaceitJS.js';
@@ -15,6 +12,7 @@ import morgan from 'morgan';
 import createMemoryStore from 'memorystore';
 import { cleanEnv, str, url as envUrl } from 'envalid';
 import logger from './logger.js'; // Import the Winston logger
+import dotenv from 'dotenv';
 
 // ***** ENVIRONMENT VARIABLES ***** //
 dotenv.config();
@@ -27,49 +25,42 @@ const env = cleanEnv(process.env, {
     FACEIT_API_KEY_SERVER: str(),
     FACEIT_API_KEY_CLIENT: str(),
     SESSION_SECRET: str(),
-    NODE_ENV: str({ choices: ['development', 'production'] }),
-    FACEIT_HUB_ID: str(),
-    REDIS_URL: str({ default: '' }), // Optional, only for production
-    PORT: str({ default: '3000' }),
+    REDIS_URL: envUrl(), // Add this line
 });
 
-// ***** INITIALIZE EXPRESS APP ***** //
-const app = express();
-const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-
-// ***** SET TRUST PROXY ***** //
-app.set('trust proxy', 1); // Trust first proxy (Heroku)
-
-// ***** INITIALIZE FACEITJS ***** //
-const faceit = new FaceitJS(env.FACEIT_API_KEY_SERVER, env.FACEIT_API_KEY_CLIENT);
-
-// ***** CONFIGURE SESSION STORE ***** //
-let sessionStore;
-if (env.NODE_ENV === 'production') {
-    if (!env.REDIS_URL) {
-        logger.error('REDIS_URL is required in production');
-        process.exit(1);
+// Initialize Redis client with TLS options to accept self-signed certificates
+const redisClient = new Redis(process.env.REDIS_URL, {
+    tls: {
+        rejectUnauthorized: false
     }
-    const RedisStore = connectRedis(session);
-    const redisClient = new Redis(env.REDIS_URL);
+});
 
-    redisClient.on('error', (err) => {
-        logger.error(`Redis error: ${err.message}`);
-    });
+// Handle Redis connection errors
+redisClient.on('error', (err) => {
+    logger.error(`Redis error: ${err.message}`);
+});
 
-    redisClient.on('connect', () => {
-        logger.info('Connected to Redis successfully');
-    });
+// Your existing code here...
 
-    sessionStore = new RedisStore({ client: redisClient });
-} else {
-    const MemoryStore = createMemoryStore(session);
-    sessionStore = new MemoryStore({
-        checkPeriod: 86400000, // Prune expired entries every 24h
+// Start the server
+// Removed duplicate declarations
+
+// Handle shutdown gracefully
+process.on('SIGTERM', () => {
+    logger.info('SIGTERM signal received: closing HTTP server');
+    server.close(() => {
+        logger.info('HTTP server closed');
+        // Close Redis connection if in production
+        if (env.NODE_ENV === 'production' && redisClient) {
+            redisClient.quit(() => {
+                logger.info('Redis client disconnected');
+                process.exit(0);
+            });
+        } else {
+            process.exit(0);
+        }
     });
-    logger.info('Using in-memory session store');
-}
+});
 
 // ***** SECURITY MIDDLEWARE ***** //
 app.use(helmet());
@@ -136,7 +127,7 @@ app.use((err, req, res) => {
     res.status(500).json({
         error: 'Internal Server Error',
         message: env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
-    });
+app.use((err, req, res, next) => {
 });
 
 // ***** ROUTES ***** //
@@ -283,7 +274,7 @@ const ensureAccessToken = async (req, res) => {
     // For simplicity, this example assumes access tokens are valid
     // You can enhance this with actual token validation and refresh
     next();
-};
+const ensureAccessToken = async (req, res, next) => {
 
 apiRouter.use(ensureAccessToken);
 
