@@ -104,53 +104,6 @@ app.use(
 // ***** MIDDLEWARE TO PARSE JSON ***** //
 app.use(express.json());
 
-// Function to send greeting message
-async function sendGreetingMessage(playerId, lobbyId) {
-    const message = `Welcome to the lobby, ${playerId}!`;
-    try {
-        await axios.post(`https://api.faceit.com/lobbies/${lobbyId}/messages`, {
-            message: message,
-        }, {
-            headers: {
-                'Authorization': `Bearer ${env.FACEIT_API_KEY_SERVER}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        console.log(`Greeting message sent to player ${playerId}`);
-    } catch (error) {
-        console.error(`Failed to send greeting message: ${error.message}`);
-    }
-}
-
-// Function to monitor lobby events
-async function monitorLobbyEvents(lobbyId) {
-    // Example implementation to monitor lobby events
-    // You need to replace this with actual implementation to get lobby events
-    setInterval(async () => {
-        const response = await axios.get(`https://api.faceit.com/lobbies/${lobbyId}/events`, {
-            headers: {
-                'Authorization': `Bearer ${env.FACEIT_API_KEY_SERVER}`
-            }
-        });
-        const events = response.data.events;
-        for (const event of events) {
-            if (event.type === 'player_joined') {
-                await sendGreetingMessage(event.player_id, lobbyId);
-            }
-        }
-    }, 5000); // Check every 5 seconds
-}
-
-// Example route to start monitoring a lobby
-app.post('/start-monitoring', async (req, res) => {
-    const { lobbyId } = req.body;
-    if (!lobbyId) {
-        return res.status(400).json({ error: 'Missing lobbyId' });
-    }
-    monitorLobbyEvents(lobbyId);
-    res.status(200).json({ message: `Started monitoring lobby ${lobbyId}` });
-});
-
 // Root Endpoint - Show login page
 app.get('/', (req, res) => {
     if (req.session.accessToken) {
