@@ -10,6 +10,8 @@ const { cleanEnv, str, url: envUrl, port } = require('envalid');
 const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
+const FaceitJS = require('./FaceitJS');
+const { getAuthorizationUrl } = require('./FaceitJS');
 
 // ***** ENVIRONMENT VARIABLES ***** //
 dotenv.config();
@@ -158,7 +160,6 @@ app.get('/auth', async (req, res) => {
     try {
         const state = Math.random().toString(36).substring(2, 15);
         req.session.authState = state; // Store state in session
-        const { getAuthorizationUrl } = await import('./FaceitJS.js');
         const authUrl = getAuthorizationUrl(state);
         const { default: logger } = await import('./logger.js');
         logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
