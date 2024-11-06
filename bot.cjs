@@ -13,6 +13,7 @@ const { cleanEnv, str, url: envUrl } = require('envalid');
 const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
+const logger = require('./logger.js'); // Ensure logger.js is using CommonJS (module.exports)
 
 // ***** ENVIRONMENT VARIABLES ***** //
 dotenv.config();
@@ -25,7 +26,10 @@ const env = cleanEnv(process.env, {
     FACEIT_API_KEY_SERVER: str(),
     FACEIT_API_KEY_CLIENT: str(),
     SESSION_SECRET: str(),
-    REDIS_URL: envUrl(), // Ensure this line is present
+    NODE_ENV: str({ choices: ['development', 'production'] }),
+    FACEIT_HUB_ID: str(),
+    PORT: str({ default: '3000' }),
+    REDIS_URL: str({ default: '' }), // Optional, only for production
 });
 
 // Initialize Express app
@@ -71,8 +75,31 @@ app.use(
 );
 
 // ***** SESSION CONFIGURATION ***** //
-const RedisStore = connectRedis(session);
-const sessionStore = new RedisStore({ url: env.REDIS_URL });
+let sessionStore;
+if (env.NODE_ENV === 'production') {
+    if (!env.REDIS_URL) {
+        logger.error('REDIS_URL is required in production');
+        process.exit(1);
+    }
+    const RedisStore = connectRedis(session);
+    const redisClient = new Redis(env.REDIS_URL);
+
+    redisClient.on('error', (err) => {
+        logger.error(`Redis error: ${err.message}`);
+    });
+
+    redisClient.on('connect', () => {
+        logger.info('Connected to Redis successfully');
+    });
+
+    sessionStore = new RedisStore({ client: redisClient });
+} else {
+    const MemoryStore = createMemoryStore(session);
+    sessionStore = new MemoryStore({
+        checkPeriod: 86400000, // Prune expired entries every 24h
+    });
+    logger.info('Using in-memory session store');
+}
 
 app.use(
     session({
@@ -103,6 +130,10 @@ app.use(function (err, req, res, next) {
 });
 
 // ***** ROUTES ***** //
+
+// Import FaceitJS class
+const FaceitJS = require('./FaceitJS.js'); // Ensure FaceitJS.js is using CommonJS (module.exports)
+const faceit = new FaceitJS(env.FACEIT_API_KEY_SERVER, env.FACEIT_API_KEY_CLIENT);
 
 // Root Endpoint - Show login page
 app.get('/', (req, res) => {
@@ -147,12 +178,11 @@ app.get('/', (req, res) => {
 });
 
 // Auth Endpoint
-app.get('/auth', async (req, res) => {
+app.get('/auth', (req, res) => {
     try {
         const state = Math.random().toString(36).substring(2, 15);
         req.session.authState = state; // Store state in session
-        const { getAuthorizationUrl } = await import('./FaceitJS.js');
-        const authUrl = getAuthorizationUrl(state);
+        const authUrl = faceit.getAuthorizationUrl(state);
         logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
         res.redirect(authUrl);
     } catch (error) {
@@ -179,15 +209,12 @@ app.get('/callback', async (req, res) => {
         }
         delete req.session.authState; // Clean up
 
-        // Dynamically import FaceitJS module
-        const { getAccessTokenFromCode, getUserInfo } = await import('./FaceitJS.js');
-
         // Exchange code for access token
-        const token = await getAccessTokenFromCode(code);
+        const token = await faceit.getAccessTokenFromCode(code);
         logger.info(`Access token obtained: ${token.access_token}`);
 
         // Use the access token to retrieve user information
-        const userInfo = await getUserInfo(token.access_token);
+        const userInfo = await faceit.getUserInfo(token.access_token);
         logger.info(`User info retrieved: ${userInfo.nickname}`);
 
         // Store access token and user info in session
@@ -248,8 +275,7 @@ apiRouter.use(isAuthenticated);
 apiRouter.get('/hubs/:hubId', async (req, res) => {
     try {
         const { hubId } = req.params;
-        const { getHubsById } = await import('./FaceitJS.js');
-        const response = await getHubsById(hubId);
+        const response = await faceit.getHubsById(hubId);
         res.json(response);
     } catch (error) {
         logger.error(`Error getting hub: ${error.message}`);
@@ -272,8 +298,7 @@ apiRouter.post('/championships/rehost', async (req, res) => {
             });
         }
 
-        const { rehostChampionship } = await import('./FaceitJS.js');
-        const response = await rehostChampionship(eventId, gameId);
+        const response = await faceit.rehostChampionship(eventId, gameId);
         res.json({
             message: `Rehosted event ${eventId} for game ${gameId}`,
             data: response,
@@ -298,8 +323,7 @@ apiRouter.post('/championships/cancel', async (req, res) => {
             });
         }
 
-        const { cancelChampionship } = await import('./FaceitJS.js');
-        const response = await cancelChampionship(eventId);
+        const response = await faceit.cancelChampionship(eventId);
         res.json({
             message: `Canceled event ${eventId}`,
             data: response,
@@ -332,16 +356,14 @@ app.get('/logout', (req, res) => {
 
 // Start the server
 const PORT = env.PORT || 3000;
-const server = app.listen(PORT, async () => {
-    const { default: logger } = await import('./logger.js');
+const server = app.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
     logger.info(`Environment: ${env.NODE_ENV}`);
     logger.info(`Redirect URI: ${env.REDIRECT_URI}`);
 });
 
 // Handle shutdown gracefully
-process.on('SIGTERM', async () => {
-    const { default: logger } = await import('./logger.js');
+process.on('SIGTERM', () => {
     logger.info('SIGTERM signal received: closing HTTP server');
     server.close(() => {
         logger.info('HTTP server closed');
