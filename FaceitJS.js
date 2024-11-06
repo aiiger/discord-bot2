@@ -40,23 +40,26 @@ module.exports.getAuthorizationUrl = function(state) {
 };
 
 module.exports.getAccessTokenFromCode = async function(code) {
-    const tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
-    const params = new URLSearchParams({
-        grant_type: 'authorization_code',
-        code: code,
-        redirect_uri: process.env.REDIRECT_URI,
-        client_id: process.env.FACEIT_CLIENT_ID,
-        client_secret: process.env.FACEIT_CLIENT_SECRET,
-    });
+  const tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
+  const params = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code: code,
+    redirect_uri: process.env.REDIRECT_URI,
+    client_id: process.env.FACEIT_CLIENT_ID,
+    client_secret: process.env.FACEIT_CLIENT_SECRET,
+  });
 
+  try {
     const response = await axios.post(tokenUrl, params.toString(), {
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
     });
-
     return response.data;
-};
+  } catch (error) {
+    throw new Error(`Failed to get access token: ${error.response.data.error_description || error.message}`);
+  }
+};;
 
 module.exports.getUserInfo = async function(accessToken) {
     const response = await axios.get('https://api.faceit.com/auth/v1/userinfo', {
