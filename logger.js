@@ -1,22 +1,11 @@
-// logger.js
+const logger = require('./logger.js');
 
-const winston = require('winston');
-
-// Define the log format
-const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.printf(
-    (info) => `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`
-  )
-);
-
-// Create the logger instance
-const logger = winston.createLogger({
-  level: 'info',
-  format: logFormat,
-  transports: [
-    new winston.transports.Console(),
-  ],
+app.get('/callback', async (req, res) => {
+  try {
+    logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
+    // ... rest of your code
+  } catch (error) {
+    logger.error(`Error during OAuth callback: ${error.message}`);
+    res.redirect('/?error=auth_failed');
+  }
 });
-
-module.exports = logger;

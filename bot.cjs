@@ -163,48 +163,49 @@ app.get('/auth', async (req, res) => {
 
 // OAuth2 Callback Endpoint
 app.get('/callback', async (req, res) => {
-  const { default: logger } = await import('./logger.js');
-  const { code, state, error, error_description } = req.query;
-
-  logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
-
-  if (error) {
-    logger.error(`FACEIT returned an error: ${error_description || error}`);
-    return res.redirect(`/?error=${encodeURIComponent(error_description || error)}`);
-  }
-
-  if (!code) {
-    logger.warn('No code provided - redirecting to login');
-    return res.redirect('/?error=no_code');
-  }
-
-  // Validate the state parameter
-  if (state !== req.session.authState) {
-    logger.warn('Invalid state parameter - possible CSRF attack');
-    return res.redirect('/?error=invalid_state');
-  }
-
-  delete req.session.authState; // Clean up
-
-  try {
-    // Exchange the code for an access token
-    const token = await getAccessTokenFromCode(code);
-    logger.info(`Access token obtained: ${token.access_token}`);
-
-    // Retrieve user info
-    const userInfo = await getUserInfo(token.access_token);
-    logger.info(`User info retrieved: ${userInfo.nickname}`);
-
-    // Store data in session
-    req.session.accessToken = token.access_token;
-    req.session.user = userInfo;
-
-    res.redirect('/dashboard');
-  } catch (err) {
-    logger.error(`Error during OAuth callback: ${err.message}`);
-    res.redirect('/?error=auth_failed');
-  }
-});
+    const logger = require('./logger.js');
+    logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
+  
+    const { code, state, error, error_description } = req.query;
+  
+    if (error) {
+      logger.error(`FACEIT returned an error: ${error_description || error}`);
+      return res.redirect(`/?error=${encodeURIComponent(error_description || error)}`);
+    }
+  
+    if (!code) {
+      logger.warn('No code provided - redirecting to login');
+      return res.redirect('/?error=no_code');
+    }
+  
+    // Validate the state parameter
+    if (state !== req.session.authState) {
+      logger.warn('Invalid state parameter - possible CSRF attack');
+      return res.redirect('/?error=invalid_state');
+    }
+  
+    delete req.session.authState; // Clean up
+  
+    try {
+      // Exchange the code for an access token
+      const token = await getAccessTokenFromCode(code);
+      logger.info(`Access token obtained: ${token.access_token}`);
+  
+      // Retrieve user info
+      const userInfo = await getUserInfo(token.access_token);
+      logger.info(`User info retrieved: ${userInfo.nickname}`);
+  
+      // Store data in session
+      req.session.accessToken = token.access_token;
+      req.session.user = userInfo;
+  
+      res.redirect('/dashboard');
+    } catch (err) {
+      logger.error(`Error during OAuth callback: ${err.message}`);
+      res.redirect('/?error=auth_failed');
+    }
+  });
+  
 
 // Dashboard Route
 app.get('/dashboard', (req, res) => {
