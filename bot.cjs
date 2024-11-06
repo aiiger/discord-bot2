@@ -75,7 +75,8 @@ app.use(
 
 // ***** SESSION CONFIGURATION ***** //
 const RedisStore = connectRedis(session);
-const sessionStore = new RedisStore({ url: env.REDIS_URL });
+const redisClient = new Redis(env.REDIS_URL); // Create Redis client instance
+const sessionStore = new RedisStore({ client: redisClient }); // Pass Redis client to RedisStore
 
 app.use(
     session({
