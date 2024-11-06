@@ -16,6 +16,7 @@ class FaceitJS {
         this.getAccessTokenFromCode = this.getAccessTokenFromCode.bind(this);
         this.getUserInfo = this.getUserInfo.bind(this);
         this.getHubMatches = this.getHubMatches.bind(this); // Bind the new method
+        this.getMatchesInConfigurationMode = this.getMatchesInConfigurationMode.bind(this);
     }
 
     /**
@@ -104,6 +105,26 @@ class FaceitJS {
                 throw new Error(`Hub Matches Retrieval Failed: ${error.response.data.error_description || error.response.data.error}`);
             } else {
                 throw new Error(`Hub Matches Retrieval Failed: ${error.message}`);
+            }
+        }
+    }
+
+    /**
+     * Retrieves all matches in configuration mode for a specific hub.
+     * @param {string} hubId - The ID of the hub.
+     * @returns {Array} - The list of matches in configuration mode.
+     */
+    async getMatchesInConfigurationMode(hubId) {
+        try {
+            const response = await axios.get(`${this.baseUrl}/hubs/${hubId}/matches`);
+            const matches = response.data.items.filter(match => match.status === 'CONFIGURATION');
+            return matches;
+        } catch (error) {
+            // Log detailed error information
+            if (error.response) {
+                throw new Error(`Matches Retrieval Failed: ${error.response.data.error_description || error.response.data.error}`);
+            } else {
+                throw new Error(`Matches Retrieval Failed: ${error.message}`);
             }
         }
     }

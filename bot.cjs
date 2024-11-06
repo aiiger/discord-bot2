@@ -11,7 +11,7 @@ const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
 const FaceitJS = require('./FaceitJS');
-const { getAuthorizationUrl, getAccessTokenFromCode, getUserInfo, getHubMatches } = new FaceitJS();
+const { getAuthorizationUrl, getAccessTokenFromCode, getUserInfo, getHubMatches, getMatchesInConfigurationMode } = new FaceitJS();
 const logger = require('./logger');
 
 // ***** ENVIRONMENT VARIABLES ***** //
@@ -320,50 +320,51 @@ apiRouter.get('/hubs/:hubId/matches/:matchId', async (req, res) => {
     }
 });
 
-// Health check endpoint for Heroku
-app.get('/health', (_, res) => {
-    res.status(200).json({ status: 'OK' });
-});
+// ELO Configuration Endpoint
+apiRouter.post('/elo/config', async (req, res) => {
+    try {
+        const { hubId, eloConfig } = req.body;
 
-// Logout Route
-app.get('/logout', async (req, res) => {
-    logger.info('Logging out');
-    req.session.destroy((err) => {
-        if (err) {
-            logger.error(`Error destroying session: ${err.message}`);
-            return res.status(500).send('Failed to logout.');
-        }
-        res.clearCookie('faceit.sid');
-        res.redirect('/?message=logged_out');
-    });
-});
-
-// Start the server
-const PORT = env.PORT || 3000;
-const server = app.listen(PORT, () => {
-    logger.info(`Server running on port ${PORT}`);
-    logger.info(`Environment: ${env.NODE_ENV}`);
-    logger.info(`Redirect URI: ${env.REDIRECT_URI}`);
-});
-
-// Handle shutdown gracefully
-process.on('SIGTERM', () => {
-    logger.info('SIGTERM signal received: closing HTTP server');
-    server.close(() => {
-        logger.info('HTTP server closed');
-        // Close Redis connection if in production
-        if (env.NODE_ENV === 'production' && sessionStore.client) {
-            sessionStore.client.quit(() => {
-                logger.info('Redis client disconnected');
-                process.exit(0);
+        if (!hubId || !eloConfig) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'Missing hubId or eloConfig',
             });
-        } else {
-            process.exit(0);
         }
-    });
-});
 
-// Catch-all route for undefined paths
-app.use((_req, res) => {
-    res.status(404).send('Not Found');
+        // Implement your logic to update ELO configuration here
+        // For example, you can call a FACEIT API endpoint to update the ELO configuration
+
+        res.json({
+            message: `ELO configuration updated for hub ${hubId}`,
+            data: eloConfig,
+        });
+    } catch (error) {
+        logger.error(`Error// bot.cjs
+
+apiRouter.post('/elo/config', async (req, res) => {
+    try {
+        const { hubId, eloConfig } = req.body;
+
+        if (!hubId || !eloConfig) {
+            return res.status(400).json({
+                error: 'Bad Request',
+                message: 'Missing hubId or eloConfig',
+            });
+        }
+
+        // Implement your logic to update ELO configuration here
+        // For example, you can call a FACEIT API endpoint to update the ELO configuration
+
+        res.json({
+            message: `ELO configuration updated for hub ${hubId}`,
+            data: eloConfig,
+        });
+    } catch (error) {
+        logger.error(`Error updating ELO configuration: ${error.message}`);
+        res.status(500).json({
+            error: 'ELO Config Error',
+            message: 'Failed to update ELO configuration',
+        });
+    }
 });
