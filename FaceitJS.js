@@ -161,12 +161,18 @@ FaceitJS.prototype.getHubsById = getHubsById;
 FaceitJS.prototype.hubsById = getHubsById;
 
 // ***** EXPORT THE FACEITJS CLASS ***** //
-export default FaceitJS;
+module.exports = FaceitJS;
 
 // ***** ADDITIONAL EXPORTS ***** //
-export function getAuthorizationUrl(state) {
-    // Your implementation here
-}
+module.exports.getAuthorizationUrl = function(state) {
+    const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: process.env.FACEIT_CLIENT_ID,
+        redirect_uri: process.env.REDIRECT_URI,
+        scope: 'openid profile email',
+        state: state,
+    });
 
-// Other exports...
-module.exports = FaceitJS;
+    // Use the correct OAuth2 authorization endpoint
+    return `https://api.faceit.com/auth/v1/oauth/authorize?${params.toString()}`;
+};
