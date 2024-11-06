@@ -11,7 +11,7 @@ const dotenv = require('dotenv');
 const express = require('express');
 const session = require('express-session');
 const FaceitJS = require('./FaceitJS');
-const { getAuthorizationUrl, getAccessTokenFromCode, getUserInfo } = new FaceitJS();
+const { getAuthorizationUrl, getAccessTokenFromCode, getUserInfo, getHubMatches } = new FaceitJS();
 const logger = require('./logger');
 
 // ***** ENVIRONMENT VARIABLES ***** //
@@ -301,6 +301,21 @@ apiRouter.post('/championships/cancel', async (req, res) => {
         res.status(500).json({
             error: 'Cancel Error',
             message: 'Failed to cancel championship',
+        });
+    }
+});
+
+// New Route to Get Hub Matches Details
+apiRouter.get('/hubs/:hubId/matches/:matchId', async (req, res) => {
+    try {
+        const { hubId, matchId } = req.params;
+        const response = await FaceitJS.getHubMatches(hubId, matchId);
+        res.json(response);
+    } catch (error) {
+        logger.error(`Error getting hub matches: ${error.message}`);
+        res.status(500).json({
+            error: 'Hub Matches Error',
+            message: 'Failed to get hub matches information',
         });
     }
 });

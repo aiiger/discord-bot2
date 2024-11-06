@@ -15,6 +15,7 @@ class FaceitJS {
         this.getAuthorizationUrl = this.getAuthorizationUrl.bind(this);
         this.getAccessTokenFromCode = this.getAccessTokenFromCode.bind(this);
         this.getUserInfo = this.getUserInfo.bind(this);
+        this.getHubMatches = this.getHubMatches.bind(this); // Bind the new method
     }
 
     /**
@@ -83,6 +84,26 @@ class FaceitJS {
                 throw new Error(`User Info Retrieval Failed: ${error.response.data.error_description || error.response.data.error}`);
             } else {
                 throw new Error(`User Info Retrieval Failed: ${error.message}`);
+            }
+        }
+    }
+
+    /**
+     * Retrieves match details for a specific hub.
+     * @param {string} hubId - The ID of the hub.
+     * @param {string} matchId - The ID of the match.
+     * @returns {Object} - The match details.
+     */
+    async getHubMatches(hubId, matchId) {
+        try {
+            const response = await axios.get(`${this.baseUrl}/hubs/${hubId}/matches/${matchId}`);
+            return response.data;
+        } catch (error) {
+            // Log detailed error information
+            if (error.response) {
+                throw new Error(`Hub Matches Retrieval Failed: ${error.response.data.error_description || error.response.data.error}`);
+            } else {
+                throw new Error(`Hub Matches Retrieval Failed: ${error.message}`);
             }
         }
     }
