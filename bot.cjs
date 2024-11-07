@@ -322,7 +322,7 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// Start the server
+// Start the servergg
 const PORT = env.PORT || 3000;
 const server = app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
