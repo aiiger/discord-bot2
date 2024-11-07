@@ -7,7 +7,7 @@ const { URLSearchParams } = require('url');
 class FaceitJS {
     constructor() {
         this.baseUrl = 'https://api.faceit.com';
-        this.authUrl = 'https://api.faceit.com/auth/v1/oauth/authorize';
+        this.authUrl = 'https://api.faceit.com/auth/v1/oauth/authorize'; // Correct OAuth endpoint
         this.tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
         this.userInfoUrl = 'https://api.faceit.com/core/v1/users/me'; // Updated endpoint
     }
@@ -91,7 +91,7 @@ class FaceitJS {
         try {
             const response = await axios.get(`${this.baseUrl}/championships/${id}`, {
                 headers: {
-                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Assuming server-side API key
+                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Ensure API key has necessary permissions
                 },
             });
             return response.data;
@@ -113,7 +113,7 @@ class FaceitJS {
         try {
             const response = await axios.get(`${this.baseUrl}/hubs/${id}`, {
                 headers: {
-                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Assuming server-side API key
+                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Ensure API key has necessary permissions
                 },
             });
             return response.data;
@@ -136,7 +136,7 @@ class FaceitJS {
         try {
             const response = await axios.post(`${this.baseUrl}/championships/${eventId}/rehost`, { game_id: gameId }, {
                 headers: {
-                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Assuming server-side API key
+                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Ensure API key has necessary permissions
                     'Content-Type': 'application/json',
                 },
             });
@@ -159,7 +159,7 @@ class FaceitJS {
         try {
             const response = await axios.post(`${this.baseUrl}/championships/${eventId}/cancel`, {}, {
                 headers: {
-                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Assuming server-side API key
+                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY_SERVER}`, // Ensure API key has necessary permissions
                     'Content-Type': 'application/json',
                 },
             });

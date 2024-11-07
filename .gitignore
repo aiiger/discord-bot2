@@ -1,7 +1,25 @@
+# Visual Studio
+.vs/
+
+# Node.js
 node_modules/
+package-lock.json
+
+# Environment Variables
 .env
-npm-debug.log
-.DS_Store
+
+# Logs
 *.log
- .vs/
-        faceit-bot-test/
+
+# Generated Files
+generateSecret.js
+
+# Faceit Bot Test Directory
+faceit-bot-test/
+
+# Other IDEs
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
