@@ -1,15 +1,15 @@
 // ***** IMPORTS ***** //
-import helmet from 'helmet';
-import Redis from 'redis';
-import rateLimit from 'express-rate-limit';
-import morgan from 'morgan';
-import { cleanEnv, str, url as envUrl, port } from 'envalid';
-import dotenv from 'dotenv';
-import express from 'express';
-import session from 'express-session';
-import connectRedis from 'connect-redis';
-import FaceitJS from './FaceitJS.js';
-import logger from './logger.js';
+import helmet from "helmet";
+import Redis from "redis";
+import rateLimit from "express-rate-limit";
+import morgan from "morgan";
+import { cleanEnv, str, url as envUrl, port } from "envalid";
+import dotenv from "dotenv";
+import express from "express";
+import session from "express-session";
+import connectRedis from "connect-redis";
+import FaceitJS from "./FaceitJS.js";
+import logger from "./logger.js";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -23,7 +23,7 @@ const env = cleanEnv(process.env, {
   FACEIT_API_KEY_CLIENT: str(),
   SESSION_SECRET: str(),
   REDIS_URL: envUrl(),
-  NODE_ENV: str({ choices: ['development', 'production', 'test'] }),
+  NODE_ENV: str({ choices: ["development", "production", "test"] }),
   PORT: port(),
 });
 
@@ -40,53 +40,53 @@ app.use(helmet());
 
 // ***** CONTENT SECURITY POLICY ***** //
 app.use(
-    helmet.contentSecurityPolicy({
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "https://api.faceit.com"],
-            styleSrc: ["'self'", "https://fonts.googleapis.com"],
-            imgSrc: ["'self'", "data:", "https://api.faceit.com"],
-            connectSrc: ["'self'", "https://api.faceit.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            objectSrc: ["'none'"],
-            upgradeInsecureRequests: [],
-        },
-    })
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://api.faceit.com"],
+      styleSrc: ["'self'", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "https://api.faceit.com"],
+      connectSrc: ["'self'", "https://api.faceit.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  })
 );
 
 // ***** RATE LIMITING ***** //
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: "Too many requests from this IP, please try again later.",
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests from this IP, please try again later.",
 });
 app.use(limiter);
 
 // ***** LOGGER ***** //
 app.use(
-    morgan("combined", {
-        stream: {
-            write: (message) => {
-                logger.info(message.trim());
-            },
-        },
-    })
+  morgan("combined", {
+    stream: {
+      write: (message) => {
+        logger.info(message.trim());
+      },
+    },
+  })
 );
 
 // Create a Redis client
 const redisClient = Redis.createClient({
-    url: env.REDIS_URL,
-    socket: {
-        tls: true,
-        rejectUnauthorized: false, // Accept self-signed certificates
-    },
+  url: env.REDIS_URL,
+  socket: {
+    tls: true,
+    rejectUnauthorized: false, // Accept self-signed certificates
+  },
 });
 
 // Handle Redis connection errors
 redisClient.on("error", (err) => {
-    logger.error("Redis Client Error:", err);
+  logger.error("Redis Client Error:", err);
 });
 
 // Initialize RedisStore
@@ -94,24 +94,24 @@ const RedisStore = connectRedis(session);
 
 // Create a new Redis store for sessions
 const sessionStore = new RedisStore({
-    client: redisClient,
+  client: redisClient,
 });
 
 // Configure session middleware
 app.use(
-    session({
-        store: sessionStore,
-        secret: env.SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-            secure: env.NODE_ENV === "production", // Ensure HTTPS in production
-            httpOnly: true,
-            sameSite: "lax", // Adjust based on your requirements
-            maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        },
-        name: "faceit.sid",
-    })
+  session({
+    store: sessionStore,
+    secret: env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: env.NODE_ENV === "production", // Ensure HTTPS in production
+      httpOnly: true,
+      sameSite: "lax", // Adjust based on your requirements
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+    name: "faceit.sid",
+  })
 );
 
 // ***** MIDDLEWARE TO PARSE JSON ***** //
@@ -119,10 +119,10 @@ app.use(express.json());
 
 // Root Endpoint - Show login page
 app.get("/", (req, res) => {
-    if (req.session.accessToken) {
-        res.redirect("/dashboard");
-    } else {
-        res.send(`
+  if (req.session.accessToken) {
+    res.redirect("/dashboard");
+  } else {
+    res.send(`
       <!DOCTYPE html>
       <html>
       <head>
@@ -156,81 +156,81 @@ app.get("/", (req, res) => {
       </body>
       </html>
     `);
-    }
+  }
 });
 
 // Auth Endpoint
 app.get("/auth", async (req, res) => {
-    try {
-        const state = Math.random().toString(36).substring(2, 15);
-        req.session.authState = state; // Store state in session
-        const authUrl = FaceitJS.getAuthorizationUrl(state);
-        logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
-        res.redirect(authUrl);
-    } catch (error) {
-        logger.error(`Error generating auth URL: ${error.message}`);
-        res.status(500).send("Authentication initialization failed.");
-    }
+  try {
+    const state = Math.random().toString(36).substring(2, 15);
+    req.session.authState = state; // Store state in session
+    const authUrl = FaceitJS.getAuthorizationUrl(state);
+    logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
+    res.redirect(authUrl);
+  } catch (error) {
+    logger.error(`Error generating auth URL: ${error.message}`);
+    res.status(500).send("Authentication initialization failed.");
+  }
 });
 
 // OAuth2 Callback Endpoint
 app.get("/callback", async (req, res) => {
-    logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
-    logger.info(
-        `Full URL: ${req.protocol}://${req.get("host")}${req.originalUrl}`
+  logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
+  logger.info(
+    `Full URL: ${req.protocol}://${req.get("host")}${req.originalUrl}`
+  );
+
+  const { code, state, error, error_description } = req.query;
+
+  if (error) {
+    logger.error(`FACEIT returned an error: ${error_description || error}`);
+    return res.redirect(
+      `/?error=${encodeURIComponent(error_description || error)}`
     );
+  }
 
-    const { code, state, error, error_description } = req.query;
+  if (!code) {
+    logger.warn("No code provided - redirecting to login");
+    return res.redirect("/?error=no_code");
+  }
 
-    if (error) {
-        logger.error(`FACEIT returned an error: ${error_description || error}`);
-        return res.redirect(
-            `/?error=${encodeURIComponent(error_description || error)}`
-        );
-    }
+  // Validate the state parameter
+  if (state !== req.session.authState) {
+    logger.warn("Invalid state parameter - possible CSRF attack");
+    return res.redirect("/?error=invalid_state");
+  }
 
-    if (!code) {
-        logger.warn("No code provided - redirecting to login");
-        return res.redirect("/?error=no_code");
-    }
+  delete req.session.authState; // Clean up
 
-    // Validate the state parameter
-    if (state !== req.session.authState) {
-        logger.warn("Invalid state parameter - possible CSRF attack");
-        return res.redirect("/?error=invalid_stgotate");
-    }
+  try {
+    // Exchange the code for an access token
+    const token = await FaceitJS.getAccessTokenFromCode(code);
+    logger.info(`Access token obtained: ${token.access_token}`);
 
-    delete req.session.authState; // Clean up
+    // Retrieve user info
+    const userInfo = await FaceitJS.getUserInfo(token.access_token);
+    logger.info(`User info retrieved: ${userInfo.nickname}`);
 
-    try {
-        // Exchange the code for an access token
-        const token = await FaceitJS.getAccessTokenFromCode(code);
-        logger.info(`Access token obtained: ${token.access_token}`);
+    // Store data in session
+    req.session.accessToken = token.access_token;
+    req.session.user = userInfo;
 
-        // Retrieve user info
-        const userInfo = await FaceitJS.getUserInfo(token.access_token);
-        logger.info(`User info retrieved: ${userInfo.nickname}`);
-
-        // Store data in session
-        req.session.accessToken = token.access_token;
-        req.session.user = userInfo;
-
-        res.redirect("/dashboard");
-    } catch (err) {
-        logger.error(`Error during OAuth callback: ${err.message}`);
-        res.redirect("/?error=auth_failed");
-    }
+    res.redirect("/dashboard");
+  } catch (err) {
+    logger.error(`Error during OAuth callback: ${err.message}`);
+    res.redirect("/?error=auth_failed");
+  }
 });
 
 // Dashboard Route
 app.get("/dashboard", (req, res) => {
-    if (!req.session.accessToken) {
-        return res.redirect("/");
-    }
-    res.render("dashboard", { user: req.session.user });
+  if (!req.session.accessToken) {
+    return res.redirect("/");
+  }
+  res.render("dashboard", { user: req.session.user });
 });
 
 // Start the server
 app.listen(env.PORT, () => {
-    logger.info(`Server is running on port ${env.PORT}`);
+  logger.info(`Server is running on port ${env.PORT}`);
 });
