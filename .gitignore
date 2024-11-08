@@ -1,2 +1,21 @@
-# Visual Studio
+# Node.js dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Environment Variables
+.env
+
+# IDEs and Editors
 .vs/
+.idea/
+.vscode/
+
+# OS-specific files
+Thumbs.db
+.DS_Store
+
+# Build outputs
+dist/
+build/
