@@ -1,8 +1,10 @@
 // FaceitJS.js
 const axios = require('axios');
+const EventEmitter = require('events');
 
-class FaceitJS {
+class FaceitJS extends EventEmitter {
     constructor() {
+        super();
         // Initialize configuration
         this.clientId = process.env.CLIENT_ID;
         this.clientSecret = process.env.CLIENT_SECRET;
@@ -35,6 +37,9 @@ class FaceitJS {
             },
             (error) => Promise.reject(error)
         );
+
+        // Start polling for match state changes
+        this.startPolling();
     }
 
     /**
@@ -244,6 +249,56 @@ class FaceitJS {
             });
             throw new Error(`Failed to cancel match: ${error.message}`);
         }
+    }
+
+    /**
+     * Starts polling for active matches and emits events on state changes.
+     */
+    startPolling() {
+        // Track the previous state of matches to detect changes
+        this.previousMatchStates = {};
+
+        setInterval(async () => {
+            try {
+                const activeMatches = await this.getActiveMatches();
+                activeMatches.forEach(match => {
+                    const prevState = this.previousMatchStates[match.id];
+                    if (prevState && prevState !== match.state) {
+                        // Emit an event when match state changes
+                        this.emit('matchStateChange', match);
+                    }
+                    // Update the previous state
+                    this.previousMatchStates[match.id] = match.state;
+                });
+            } catch (error) {
+                console.error('Error during polling active matches:', error);
+            }
+        }, 60000); // Poll every minute
+    }
+
+    /**
+     * Registers a callback to be called when a match state changes.
+     * @param {Function} callback - The callback function.
+     */
+    onMatchStateChange(callback) {
+        this.on('matchStateChange', callback);
+    }
+
+    /**
+     * Generates the authorization URL for OAuth.
+     * @param {string} state - The CSRF token.
+     * @returns {string} - The authorization URL.
+     */
+    getAuthorizationUrl(state) {
+        const params = new URLSearchParams({
+            response_type: 'code',
+            client_id: this.clientId,
+            redirect_uri: this.redirectUri,
+            scope: 'user:info matches:read matches:write',
+            state: state
+        });
+
+        return `https://open.faceit.com/oauth/authorize?${params.toString()}`;
     }
 }
 
