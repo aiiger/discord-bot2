@@ -9,13 +9,55 @@ const FaceitJS = require('./FaceitJS');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Initialize Redis client
+// Initialize Redis client with SSL configuration
 const redisClient = createClient({
-    url: process.env.REDIS_URL
+    url: process.env.REDIS_URL,
+    socket: {
+        tls: true,
+        rejectUnauthorized: false // Allow self-signed certificates
+    }
 });
 
-redisClient.on('error', err => console.error('Redis Client Error:', err));
-redisClient.connect().catch(console.error);
+// Redis error handling
+redisClient.on('error', err => {
+    console.error('Redis Client Error:', err);
+});
+
+// Connect to Redis with fallback
+let sessionStore;
+const initializeSessionStore = async () => {
+    try {
+        await redisClient.connect();
+        sessionStore = new RedisStore({ client: redisClient });
+        console.log('Connected to Redis successfully');
+    } catch (error) {
+        console.warn('Failed to connect to Redis, falling back to MemoryStore:', error);
+        sessionStore = new session.MemoryStore();
+    }
+
+    // Session middleware configuration
+    app.use(session({
+        store: sessionStore,
+        secret: process.env.SESSION_SECRET || 'your-secret-key',
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            secure: process.env.NODE_ENV === 'production',
+            httpOnly: true,
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        }
+    }));
+};
+
+// Initialize session store and start server
+initializeSessionStore().then(() => {
+    app.listen(port, () => {
+        console.log(`Server is running on port ${port}`);
+    });
+}).catch(error => {
+    console.error('Failed to initialize session store:', error);
+    process.exit(1);
+});
 
 // Session middleware configuration
 app.use(session({
