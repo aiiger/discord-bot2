@@ -18,85 +18,18 @@ const redisClient = createClient({
     }
 });
 
-// Express middleware
-app.use(express.json());
-
-// Routes
-app.get('/', (req, res) => {
-    res.send('<a href="/auth">Login with FACEIT</a>');
-});
-
-app.get('/auth', (req, res) => {
-    try {
-        const state = crypto.randomBytes(16).toString('hex');
-        req.session.state = state;
-        console.log('Generated state:', state);
-        const authUrl = faceitJS.getAuthorizationUrl(state);
-        console.log('Auth URL:', authUrl);
-        res.redirect(authUrl);
-    } catch (error) {
-        console.error('Auth error:', error);
-        res.status(500).send('Authentication failed');
-    }
-});
-
-app.get('/callback', async (req, res) => {
-    try {
-        const { code, state } = req.query;
-        console.log('Received state:', state);
-        console.log('Session state:', req.session.state);
-
-        if (!state || !req.session.state || state !== req.session.state) {
-            console.error('State mismatch', { 
-                receivedState: state, 
-                sessionState: req.session.state 
-            });
-            return res.status(400).send('Invalid state parameter');
-        }
-
-        delete req.session.state;
-
-        const tokenData = await faceitJS.getAccessTokenFromCode(code);
-        req.session.accessToken = tokenData.access_token;
-        req.session.refreshToken = tokenData.refresh_token;
-        
-        await new Promise((resolve, reject) => {
-            req.session.save(err => err ? reject(err) : resolve());
-        });
-
-        res.redirect('/dashboard');
-    } catch (error) {
-        console.error('Callback error:', error);
-        res.status(500).send('Error exchanging authorization code for tokens');
-    }
-});
-
-app.get('/dashboard', async (req, res) => {
-    if (!req.session.accessToken) {
-        return res.redirect('/');
-    }
-
-    try {
-        const userInfo = await faceitJS.getUserInfo(req.session.accessToken);
-        res.json(userInfo);
-    } catch (error) {
-        console.error('Dashboard error:', error);
-        res.status(500).send('Error fetching user info');
-    }
-});
-
-// Initialize app
 const initializeApp = async () => {
     try {
+        // Connect to Redis
         await redisClient.connect();
         console.log('Connected to Redis successfully');
 
-        // Session middleware
+        // Session middleware FIRST
         app.use(session({
             store: new RedisStore({ client: redisClient }),
             secret: process.env.SESSION_SECRET || 'your-secret-key',
             resave: false,
-            saveUninitialized: false,
+            saveUninitialized: true,
             cookie: {
                 secure: process.env.NODE_ENV === 'production',
                 httpOnly: true,
@@ -104,12 +37,79 @@ const initializeApp = async () => {
             }
         }));
 
+        // Middleware
+        app.use(express.json());
+
+        // Routes
+        app.get('/', (req, res) => {
+            res.send('<a href="/auth">Login with FACEIT</a>');
+        });
+
+        app.get('/auth', (req, res) => {
+            try {
+                const state = crypto.randomBytes(16).toString('hex');
+                req.session.state = state;
+                console.log('Generated state:', state);
+                const authUrl = faceitJS.getAuthorizationUrl(state);
+                console.log('Auth URL:', authUrl);
+                res.redirect(authUrl);
+            } catch (error) {
+                console.error('Auth error:', error);
+                res.status(500).send('Authentication failed');
+            }
+        });
+
+        app.get('/callback', async (req, res) => {
+            try {
+                const { code, state } = req.query;
+                console.log('Received state:', state);
+                console.log('Session state:', req.session?.state);
+
+                if (!state || !req.session?.state || state !== req.session.state) {
+                    console.error('State mismatch', { 
+                        receivedState: state, 
+                        sessionState: req.session?.state 
+                    });
+                    return res.status(400).send('Invalid state parameter');
+                }
+
+                delete req.session.state;
+
+                const tokenData = await faceitJS.getAccessTokenFromCode(code);
+                req.session.accessToken = tokenData.access_token;
+                req.session.refreshToken = tokenData.refresh_token;
+                
+                await new Promise((resolve, reject) => {
+                    req.session.save(err => err ? reject(err) : resolve());
+                });
+
+                res.redirect('/dashboard');
+            } catch (error) {
+                console.error('Callback error:', error);
+                res.status(500).send('Error exchanging authorization code for tokens');
+            }
+        });
+
+        app.get('/dashboard', async (req, res) => {
+            if (!req.session?.accessToken) {
+                return res.redirect('/');
+            }
+
+            try {
+                const userInfo = await faceitJS.getUserInfo(req.session.accessToken);
+                res.json(userInfo);
+            } catch (error) {
+                console.error('Dashboard error:', error);
+                res.status(500).send('Error fetching user info');
+            }
+        });
+
         // Start server
         app.listen(port, () => {
             console.log(`Server is running on port ${port}`);
         });
     } catch (error) {
-        console.error('Failed to initialize Redis:', error);
+        console.error('Failed to initialize:', error);
         process.exit(1);
     }
 };
