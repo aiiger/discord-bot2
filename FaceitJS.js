@@ -1,7 +1,6 @@
-// FaceitJS.js
-
-const axios = require('axios');
-const { URLSearchParams } = require('url');
+// Importing dependencies
+import axios from 'axios';
+import { URLSearchParams } from 'url';
 
 // ***** FACEITJS CLASS ***** //
 class FaceitJS {
@@ -131,5 +130,4 @@ class FaceitJS {
 }
 
 // ***** EXPORT AN INSTANCE OF FACEITJS ***** //
-const faceit = new FaceitJS();
-module.exports = faceit;
+export default FaceitJS;
