@@ -135,6 +135,7 @@ const initializeApp = async () => {
         });
 
         app.get("/callback", async (req, res) => {
+            console.log(req.query); // Log the query parameters
             try {
                 const { code, state, error } = req.query;
                 if (error) {
@@ -147,10 +148,7 @@ const initializeApp = async () => {
                 }
                 if (state !== req.session.authState) {
                     logger.warn("Invalid state parameter - possible CSRF attack");
-                    return res.redirect("/?error=invalid_state");
-                }
-                delete req.session.authState;
-
+                    return res.redirect("/?error=invalid_state")
                 const token = await FaceitJS.getAccessTokenFromCode(code);
                 logger.info(`Access token obtained: ${token.access_token}`);
                 const userInfo = await FaceitJS.getUserInfo(token.access_token);
@@ -163,7 +161,6 @@ const initializeApp = async () => {
                 res.redirect("/?error=auth_failed");
             }
         });
-
         // Start server
         const PORT = env.PORT || 3000;
         app.listen(PORT, () => {
