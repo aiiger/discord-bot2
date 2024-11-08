@@ -31,10 +31,6 @@ const env = cleanEnv(process.env, {
 const app = express();
 app.set("trust proxy", 1); // Trust the first proxy
 
-// Set the view engine to EJS and views directory
-app.set("view engine", "ejs");
-app.set("views", "./views");
-
 // ***** SECURITY MIDDLEWARE ***** //
 app.use(helmet());
 
