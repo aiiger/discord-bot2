@@ -83,6 +83,7 @@ function generateState() {
 app.get('/auth', (req, res) => {
     const state = generateState();
     req.session.state = state;
+    console.log('Generated state:', state); // Debugging statement
     const authorizationUrl = faceitJS.getAuthorizationUrl(state);
     res.redirect(authorizationUrl);
 });
@@ -90,6 +91,9 @@ app.get('/auth', (req, res) => {
 app.get('/callback', async (req, res) => {
     const receivedState = req.query.state;
     const sessionState = req.session.state;
+
+    console.log('Received state:', receivedState); // Debugging statement
+    console.log('Session state:', sessionState); // Debugging statement
 
     if (receivedState !== sessionState) {
         console.error('State mismatch', { receivedState, sessionState });
