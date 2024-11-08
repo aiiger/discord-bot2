@@ -1,8 +1,8 @@
 // ***** IMPORTS ***** //
 import express from 'express';
 import session from 'express-session';
-import connectRedis from 'connect-redis';
-import RedisStore from "connect-redis;
+import RedisStore from 'connect-redis'; // Correct import statement
+import Redis from 'redis';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
@@ -89,18 +89,13 @@ redisClient.on("error", (err) => {
     logger.error("Redis Client Error:", err);
 });
 
-// Initialize RedisStore with 'new' if your version requires it
-const RedisStore = connectRedis(session); // Initialize the RedisStore constructor
-
-// Create a new Redis store for sessions
-const sessionStore = new RedisStore({
-    client: redisClient,
-});
+// Initialize RedisStore
+const store = new RedisStore({ client: redisClient }); // Use new with RedisStore
 
 // Configure session middleware
 app.use(
     session({
-        store: sessionStore,
+        store: store,
         secret: env.SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
