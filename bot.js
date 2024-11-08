@@ -1,15 +1,14 @@
 // bot.js
 
-import express from 'express';
-import dotenv from 'dotenv';
+import Redis from 'ioredis';
 import session from 'express-session';
+import RedisStore from 'connect-redis';
+import dotenv from 'dotenv';
+import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import FaceitJS from './FaceitJS.js';
-import RedisStore from 'connect-redis';
-import Redis from 'ioredis';
+import helmet from 'helmet';
 
-// Load environment variables from .env file
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,71 +17,48 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Verify required environment variables
-const requiredEnvVars = [
-    'FACEIT_API_KEY_SERVER',
-    'FACEIT_API_KEY_CLIENT',
-    'SESSION_SECRET',
-    'FACEIT_CLIENT_ID',
-    'FACEIT_CLIENT_SECRET',
-    'REDIRECT_URI',
-    'REDIS_URL' // Ensure this is set for production
-];
+// Initialize Redis client
+const redisClient = new Redis(process.env.REDIS_URL, {
+    tls: {
+        // **Important:** Do not disable certificate validation in production
+        rejectUnauthorized: true, // Ensures certificates are valid and trusted
+    },
+});
 
-for (const envVar of requiredEnvVars) {
-    if (!process.env[envVar]) {
-        console.error(`Missing required environment variable: ${envVar}`);
-        process.exit(1);
-    }
-}
+// Handle Redis connection errors
+redisClient.on('error', (err) => {
+    console.error('Redis Client Error', err);
+});
 
-// Initialize FaceitJS with your API keys
-const faceit = new FaceitJS(process.env.FACEIT_API_KEY_SERVER, process.env.FACEIT_API_KEY_CLIENT);
+// Initialize session store
+const redisStore = new RedisStore({
+    client: redisClient,
+    prefix: 'faceit:sess:',
+});
 
-// Determine the environment
-const isProduction = process.env.NODE_ENV === 'production';
-
-// Initialize Redis client and session store
-let sessionStoreInstance;
-
-if (isProduction) {
-    // In production, use Redis for session storage
-    const redisClient = new Redis(process.env.REDIS_URL);
-
-    redisClient.on('error', (err) => {
-        console.error('Redis Client Error', err);
-    });
-
-    sessionStoreInstance = new RedisStore({
-        client: redisClient,
-        prefix: 'faceit:sess:', // Optional prefix
-    });
-} else {
-    // In development, use MemoryStore
-    sessionStoreInstance = new session.MemoryStore();
-}
-
-// Set EJS as the view engine
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views')); // Ensure 'views' directory is correctly set
+// Middleware to enhance security
+app.use(helmet());
 
 // Middleware to parse JSON
 app.use(express.json());
 
 // Middleware to handle sessions
 app.use(session({
-    store: sessionStoreInstance,
+    store: redisStore,
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: isProduction, // Ensure HTTPS in production
+        secure: process.env.NODE_ENV === 'production', // Ensures HTTPS in production
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
     name: 'faceit.sid'
 }));
 
+// Set EJS as the view engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
