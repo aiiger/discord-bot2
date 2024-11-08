@@ -74,16 +74,13 @@ app.use(
         },
     })
 );
+// Initialize Redis client
+const RedisStore = connectRedis(session); 
 
 // Create a Redis client
-const RedisStore = connectRedis(session);
-    url: env.REDIS_URL,
-    socket: {
-        tls: true,
-        rejectUnauthorized: false, // Accept self-signed certificates
-    },
+const sessionStore = new RedisStore({
+  client: redisClient,
 });
-
 // Handle Redis connection errors
 redisClient.on("error", (err) => {
     logger.error("Redis Client Error:", err);
@@ -99,19 +96,19 @@ const sessionStore = new RedisStore({
 
 // Configure session middleware
 app.use(
-    session({
-        store: sessionStore,
-        secret: env.SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-            secure: env.NODE_ENV === "production", // Ensure HTTPS in production
-            httpOnly: true,
-            sameSite: "lax", // Adjust based on your requirements
-            maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        },
-        name: "faceit.sid",
-    })
+  session({
+    store: sessionStore,
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production', // Ensure HTTPS in production
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+    name: 'sessionId',
+  })
 );
 
 // ***** MIDDLEWARE TO PARSE JSON ***** //
