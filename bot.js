@@ -86,9 +86,6 @@ redisClient.on("error", (err) => {
     logger.error("Redis Client Error:", err);
 });
 
-// Initialize RedisStore
-const RedisStore = connectRedis(session); // Correct way to initialize
-
 // Configure session middleware
 app.use(
   session({
