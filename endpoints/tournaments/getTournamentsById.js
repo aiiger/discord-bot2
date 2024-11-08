@@ -2,25 +2,27 @@ const axios = require("axios");
 const urlConstructorUtil = require("../../utils/urlConstructor.js");
 const getHeaders = require("../../utils/headers.js");
 /*
-    Uses url https://open.faceit.com/data/v4/hubs
+    Uses url https://open.faceit.com/data/v4/tournaments
     Method: GET
-    Parameters: -expanded {lis of name to expand in the request} possible names: organizer, game.
+    Parameters: - tournamentId : string
+                - expanded : Array        -> possible values: --(nothing),organizer, game.
     Description: 
 */
-module.exports = async function getHubsById(hubId, expanded) {
+module.exports = async function getTournamentsById(tournamentId, expanded) {
   if (!Array.isArray(expanded)) {
     return new Error("Be sure that second argument is an array.");
   }
+
   let apiKey = this.getApiKeyServer();
   let headers = getHeaders(apiKey);
 
-  let baseURL = "https://open.faceit.com/data/v4/hubs";
+  let baseURL = "https://open.faceit.com/data/v4/tournaments";
 
   //get url
   let url = urlConstructorUtil(
     baseURL,
     [""],
-    [hubId],
+    [tournamentId],
     ["expanded"],
     [expanded],
     {}

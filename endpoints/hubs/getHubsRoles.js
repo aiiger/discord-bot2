@@ -7,23 +7,25 @@ const getHeaders = require("../../utils/headers.js");
     Parameters: -expanded {lis of name to expand in the request} possible names: organizer, game.
     Description: 
 */
-module.exports = async function getHubsById(hubId, expanded) {
-  if (!Array.isArray(expanded)) {
-    return new Error("Be sure that second argument is an array.");
-  }
+module.exports = async function getHubsRoles(hubId, offset = 0, limit = 20) {
   let apiKey = this.getApiKeyServer();
   let headers = getHeaders(apiKey);
 
   let baseURL = "https://open.faceit.com/data/v4/hubs";
 
+  let searchOptions = {
+    offset: offset,
+    limit: limit,
+  };
+
   //get url
   let url = urlConstructorUtil(
     baseURL,
-    [""],
-    [hubId],
-    ["expanded"],
-    [expanded],
-    {}
+    ["", "roles"],
+    [hubId, ""],
+    [],
+    [],
+    searchOptions
   );
 
   //try catch to make the call via axios

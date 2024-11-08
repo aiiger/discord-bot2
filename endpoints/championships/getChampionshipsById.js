@@ -1,6 +1,6 @@
-import axios from "axios";
-import urlConstructorUtil from '../../utils/urlConstructor.js';
-import getHeaders from '../../utils/headers.js';
+const axios = require("axios");
+const urlConstructorUtil = require('../../utils/urlConstructor.js');
+const getHeaders = require('../../utils/headers.js');
 /*
     Uses url https://open.faceit.com/data/v4/championships
     Method: GET
@@ -8,7 +8,7 @@ import getHeaders from '../../utils/headers.js';
                 - expanded : Array        -> possible values: --(nothing),organizer, game.
     Description: 
 */
-export default async function getChampionshipsById(championshipId, expanded) {
+module.exports = async function getChampionshipsById(championshipId, expanded) {
     //verify if expanded is an array
     if(!Array.isArray(expanded)){
         return new Error('Be sure that second argument is an array.');
@@ -33,4 +33,4 @@ export default async function getChampionshipsById(championshipId, expanded) {
     //console.error(err.response.data)
     return new Error(err.response.data);
   }
-}
+};
