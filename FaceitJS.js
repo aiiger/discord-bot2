@@ -21,8 +21,8 @@ class FaceitJS {
             lang: 'en'
         });
         
-        // Use the correct authorization endpoint
-        return `https://accounts.faceit.com/oauth/authorize?${params.toString()}`;
+        // Use the correct authorization endpoint from the documentation
+        return `https://accounts.faceit.com/accounts/auth/v1/oauth/authorize?${params.toString()}`;
     }
 
     async getAccessTokenFromCode(code) {
