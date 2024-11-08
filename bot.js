@@ -1,5 +1,4 @@
 // ***** IMPORTS ***** //
-import connectRedis from 'connect-redis';
 import Redis from 'ioredis';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -8,8 +7,9 @@ import { cleanEnv, str, url as envUrl, port } from 'envalid';
 import dotenv from 'dotenv';
 import express from 'express';
 import session from 'express-session';
-import FaceitJS from './FaceitJS.js'; // Import the instance
-import logger from './logger.js'; // Import the logger
+import connectRedis from 'connect-redis';
+import FaceitJS from './FaceitJS.js';
+import logger from './logger.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -76,7 +76,7 @@ app.use(
 );
 
 // ***** SESSION CONFIGURATION ***** //
-const RedisStore = connectRedis(session);
+const RedisStore = connectRedis(session); // Correctly initialize RedisStore
 const redisClient = new Redis(env.REDIS_URL, {
   tls: {
     rejectUnauthorized: false, // Accept self-signed certificates
@@ -89,7 +89,9 @@ redisClient.on('error', (err) => {
 });
 
 // Create a new Redis store for sessions
-const sessionStore = new RedisStore({ client: redisClient });
+const sessionStore = new RedisStore({
+  client: redisClient,
+});
 
 app.use(
   session({
@@ -157,7 +159,7 @@ app.get('/auth', async (req, res) => {
   try {
     const state = Math.random().toString(36).substring(2, 15);
     req.session.authState = state; // Store state in session
-    const authUrl = FaceitJS.getAuthorizationUrl(state); // Correctly access the method
+    const authUrl = FaceitJS.getAuthorizationUrl(state);
     logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
     res.redirect(authUrl);
   } catch (error) {
