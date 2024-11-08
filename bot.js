@@ -1,36 +1,17 @@
-// bot.js
-import express from 'express';
-import session from 'express-session';
-import RedisStore from 'connect-redis';
-import Redis from 'redis';
-import dotenv from 'dotenv';
-import faceitJS from './FaceitJS.js';
-
-dotenv.config();
+const express = require('express');
+const session = require('express-session');
+const crypto = require('crypto');
+const axios = require('axios');
+const FaceitJS = require('./FaceitJS'); // Assuming FaceitJS is in a separate file
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Create Redis client
-const redisClient = Redis.createClient({
-    url: process.env.REDIS_URL,
-    socket: {
-        tls: true,
-        rejectUnauthorized: false,
-    }
-});
-
-redisClient.on('error', err => console.log('Redis Client Error', err));
-redisClient.on('connect', () => console.log('Redis Client Connected'));
-
-await redisClient.connect();
-
-// Configure session middleware with Redis store
+// Session middleware configuration
 app.use(session({
-    store: new RedisStore({ client: redisClient }),
-    secret: process.env.SESSION_SECRET,
+    secret: 'your-secret-key',
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
@@ -39,6 +20,8 @@ app.use(session({
 }));
 
 app.use(express.json());
+
+const faceitJS = new FaceitJS();
 
 // Root route
 app.get('/', (req, res) => {
