@@ -1,3 +1,4 @@
+// bot.js
 const express = require('express');
 const session = require('express-session');
 const crypto = require('crypto');
@@ -18,39 +19,41 @@ const redisClient = createClient({
     }
 });
 
+// Initialize app
 const initializeApp = async () => {
     try {
         await redisClient.connect();
         console.log('Redis connected');
 
-        // Session middleware FIRST
+        // Session middleware
         app.use(session({
             store: new RedisStore({
                 client: redisClient,
                 prefix: 'faceit:sess:',
-                ttl: 86400
+                ttl: 86400 // 1 day
             }),
-            secret: process.env.SESSION_SECRET || 'your-secret-key',
+            secret: process.env.SESSION_SECRET,
             name: 'sessionId',
             resave: true,
-            rolling: true,
             saveUninitialized: false,
             cookie: {
                 secure: process.env.NODE_ENV === 'production',
                 httpOnly: true,
-                maxAge: 24 * 60 * 60 * 1000,
+                maxAge: 24 * 60 * 60 * 1000, // 1 day
                 sameSite: 'lax'
             }
         }));
 
         // Debug middleware
         app.use((req, res, next) => {
-            console.log(`[${req.method}] ${req.path} - SessionID: ${req.sessionID}`);
-            console.log('Session data:', req.session);
+            console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - SessionID: ${req.sessionID}`);
+            console.log('Session Data:', req.session);
             next();
         });
 
+        // Parse incoming requests
         app.use(express.json());
+        app.use(express.urlencoded({ extended: true }));
 
         // Routes
         app.get('/', (req, res) => {
@@ -63,7 +66,7 @@ const initializeApp = async () => {
                 req.session.state = state;
                 req.session.stateTimestamp = Date.now();
 
-                // Force session save
+                // Force session save before redirect
                 await new Promise((resolve, reject) => {
                     req.session.save((err) => {
                         if (err) {
@@ -87,7 +90,8 @@ const initializeApp = async () => {
 
         app.get('/callback', async (req, res) => {
             const { code, state } = req.query;
-            console.log('Callback - Session:', req.sessionID, req.session);
+            console.log('Callback - Received state:', state);
+            console.log('Callback - Session state:', req.session?.state);
 
             if (!state || !req.session?.state || state !== req.session.state) {
                 console.error('State mismatch:', {
@@ -103,6 +107,7 @@ const initializeApp = async () => {
                 req.session.accessToken = tokenData.access_token;
                 req.session.refreshToken = tokenData.refresh_token;
                 delete req.session.state;
+                delete req.session.stateTimestamp;
 
                 await new Promise((resolve, reject) => {
                     req.session.save((err) => {
@@ -118,18 +123,39 @@ const initializeApp = async () => {
             }
         });
 
+        app.get('/dashboard', async (req, res) => {
+            if (!req.session?.accessToken) {
+                return res.redirect('/');
+            }
+
+            try {
+                const userInfo = await faceitJS.getUserInfo(req.session.accessToken);
+                res.json(userInfo);
+            } catch (error) {
+                console.error('Dashboard error:', error);
+                res.status(500).send('Error fetching user info');
+            }
+        });
+
+        // Error handler
+        app.use((err, req, res) => {
+            console.error(err.stack);
+            res.status(500).send('Something broke!');
+        });
+
+        // Start server
         app.listen(port, () => {
             console.log(`Server running on port ${port}`);
         });
-    } catch (error) {
-        console.error('Failed to initialize:', error);
+        } catch (error) {
+            console.error('Failed to initialize app:', error);
+            process.exit(1);
+        }
+    };
+    
+    initializeApp().catch(error => {
+        console.error('Failed to initialize app:', error);
         process.exit(1);
-    }
-};
-
-initializeApp().catch(error => {
-    console.error('Failed to initialize app:', error);
-    process.exit(1);
-});
-
-module.exports = app;
+    });
+    
+    module.exports = app;
