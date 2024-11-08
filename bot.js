@@ -9,31 +9,27 @@ const app = express();
 const port = process.env.PORT || 3000;
 const faceitJS = new FaceitJS();
 
-// Redis client setup with retry strategy
+// Redis client setup
 const redisClient = createClient({
     url: process.env.REDIS_URL,
     socket: {
         tls: true,
         rejectUnauthorized: false
     },
-    retryStrategy: function(times) {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-    }
+    retryStrategy: (times) => Math.min(times * 50, 2000)
 });
 
-redisClient.on('error', (err) => console.error('Redis Client Error:', err));
-redisClient.on('connect', () => console.log('Redis Client Connected'));
-
+// Initialize app
 const initializeApp = async () => {
     try {
         await redisClient.connect();
-        
-        // Session store with debug logging
-        const sessionStore = new RedisStore({ 
+        console.log('Redis connected');
+
+        const sessionStore = new RedisStore({
             client: redisClient,
             prefix: 'faceit:sess:',
-            logErrors: true
+            ttl: 86400, // 1 day
+            disableTouch: false
         });
 
         // Session middleware
@@ -48,31 +44,28 @@ const initializeApp = async () => {
                 secure: process.env.NODE_ENV === 'production',
                 httpOnly: true,
                 maxAge: 24 * 60 * 60 * 1000,
-                sameSite: 'lax'
+                sameSite: 'lax',
+                path: '/'
             }
         }));
 
-        // Debug middleware
+        // Session verification middleware
         app.use((req, res, next) => {
-            console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-            console.log('Session ID:', req.sessionID);
-            console.log('Session Data:', req.session);
+            if (!req.session) {
+                return next(new Error('Session not found'));
+            }
             next();
         });
 
-        app.get('/', (req, res) => {
-            res.send('<a href="/auth">Login with FACEIT</a>');
-        });
-
+        // Auth route
         app.get('/auth', async (req, res) => {
             try {
+                await new Promise((resolve) => req.session.reload(resolve));
+                
                 const state = crypto.randomBytes(32).toString('hex');
                 req.session.state = state;
                 req.session.stateTimestamp = Date.now();
-                
-                console.log('Auth - Generated state:', state);
-                
-                // Wait for session save
+
                 await new Promise((resolve, reject) => {
                     req.session.save((err) => {
                         if (err) reject(err);
@@ -80,7 +73,7 @@ const initializeApp = async () => {
                     });
                 });
 
-                console.log('Auth - Session saved, state:', req.session.state);
+                console.log('Auth - Session saved with state:', state);
                 const authUrl = faceitJS.getAuthorizationUrl(state);
                 res.redirect(authUrl);
             } catch (error) {
@@ -89,41 +82,7 @@ const initializeApp = async () => {
             }
         });
 
-        app.get('/callback', async (req, res) => {
-            try {
-                const { code, state } = req.query;
-                console.log('Callback - Received state:', state);
-                console.log('Callback - Session state:', req.session?.state);
-
-                if (!state || !req.session?.state) {
-                    console.error('State missing', { 
-                        receivedState: state, 
-                        sessionState: req.session?.state,
-                        sessionID: req.sessionID
-                    });
-                    return res.status(400).send('Invalid state parameter');
-                }
-
-                const tokenData = await faceitJS.getAccessTokenFromCode(code);
-                req.session.accessToken = tokenData.access_token;
-                req.session.refreshToken = tokenData.refresh_token;
-                delete req.session.state;
-                delete req.session.stateTimestamp;
-
-                await new Promise((resolve, reject) => {
-                    req.session.save((err) => {
-                        if (err) reject(err);
-                        else resolve();
-                    });
-                });
-
-                res.redirect('/dashboard');
-            } catch (error) {
-                console.error('Callback error:', error);
-                res.status(500).send('Error processing callback');
-            }
-        });
-
+        // Start server
         app.listen(port, () => {
             console.log(`Server running on port ${port}`);
         });
@@ -133,6 +92,7 @@ const initializeApp = async () => {
     }
 };
 
+// Start app with error handling
 initializeApp().catch(error => {
     console.error('Failed to initialize app:', error);
     process.exit(1);
