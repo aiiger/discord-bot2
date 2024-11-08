@@ -1,9 +1,8 @@
 // ***** IMPORTS ***** //
 import helmet from 'helmet';
-// ***** IMPORTS ***** //
-import Redis from 'redis';;
+import Redis from 'redis';
 import rateLimit from 'express-rate-limit';
-import morgan from 'morgan';
+import mfrom 'morgan';
 import { cleanEnv, str, url as envUrl, port } from 'envalid';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -76,17 +75,29 @@ app.use(
   })
 );
 
+// Create a Redis client
+const redisClient = Redis.createClient({
+  url: env.REDIS_URL,
+  socket: {
+    tls: true,
+    rejectUnauthorized: false, // Accept self-signed certificates
+  },
+});
+
 // Handle Redis connection errors
 redisClient.on('error', (err) => {
   logger.error('Redis Client Error:', err);
 });
 
-// Create a new Redis store for sessions using 'new'
-const RedisStore = connectRedis(session); // Initialize RedisStore correctly
+// Initialize RedisStore
+const RedisStore = connectRedis(session);
+
+// Create a new Redis store for sessions
 const sessionStore = new RedisStore({
   client: redisClient,
 });
 
+// Configure session middleware
 app.use(
   session({
     store: sessionStore,
