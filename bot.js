@@ -76,15 +76,6 @@ app.use(
   })
 );
 
-// ***** SESSION CONFIGURATION ***** //
-const RedisStore = connectRedis(session); // Correctly initialize RedisStore
-const redisClient = Redis.createClient({
-  url: env.REDIS_URL,
-  tls: {
-    rejectUnauthorized: false, // Accept self-signed certificates
-  },
-});
-
 // Handle Redis connection errors
 redisClient.on('error', (err) => {
   logger.error('Redis Client Error:', err);
