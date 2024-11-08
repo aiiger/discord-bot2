@@ -1,106 +1,252 @@
 # FACEIT Bot
 
-A Discord bot for managing FACEIT CS2 matches, with features for rehosting and cancelling matches based on ELO differences.
+A bot for managing FACEIT championships and hubs, with rehost and cancel functionality.
+
+## Features
+
+- Client Credentials authentication with FACEIT
+- Championship management commands:
+  - Rehost championships
+  - Cancel championships
+- Hub information retrieval
+- Production-ready configuration
+
+## Prerequisites
+
+1. FACEIT Developer Account
+   - Go to https://developers.faceit.com/
+   - Create a new application
+   - Get your API keys and client credentials
+
+2. Required Credentials:
+   - API Key (Server)
+   - API Key (Client)
+   - Client ID
+   - Client Secret
 
 ## Setup
 
-1. Clone the repository
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd discord-bot2
+```
+
 2. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
-
-Required environment variables:
-```env
-# FACEIT API Credentials
-FACEIT_API_KEY=your_api_key_here
-FACEIT_HUB_ID=your_hub_id_here
-
-# Bot Configuration
-ELO_THRESHOLD=70        # Minimum ELO difference for match cancellation
-REHOST_VOTE_COUNT=6     # Number of votes needed for rehost
-NODE_ENV=production     # Set to 'production' in Heroku
+3. Create a `.env` file based on `.env.example`:
+```bash
+cp .env.example .env
 ```
 
-## Heroku Deployment
+4. Fill in your environment variables in `.env`:
+```env
+# API Keys from FACEIT Developer Portal
+FACEIT_API_KEY_SERVER=your_server_api_key_here
+FACEIT_API_KEY_CLIENT=your_client_api_key_here
 
-1. Create a new Heroku app
-2. Set the environment variables in Heroku:
-   - Go to Settings -> Config Vars
-   - Add all the required environment variables listed above
+# OAuth2 Client Credentials
+FACEIT_CLIENT_ID=your_client_id_here
+FACEIT_CLIENT_SECRET=your_client_secret_here
+
+# Session Security
+SESSION_SECRET=your_random_secret_here
+
+# Environment
+NODE_ENV=production
+```
+
+## API Endpoints
+
+### Hub Management
+- `GET /api/hubs/:hubId`: Get hub information
+  - URL parameter: hubId (string)
+  - Returns hub details
+
+### Hub Management
+- `GET /api/hubs/:hubId`: Get hub information
+  - URL parameter: hubId (string)
+  - Requires authentication
+  - Returns hub details
+
+### Championship Management
+- `POST /api/championships/rehost`: Rehost a championship
+  - Required body: `{ "gameId": "string", "eventId": "string" }`
+  
+- `POST /api/championships/cancel`: Cancel a championship
+  - Required body: `{ "eventId": "string" }`
+<<<<<<< HEAD
+  - Requires authentication
+=======
+>>>>>>> fd6eabfd3114f4e6055340ee7ea728d6f46f4340
+
+### System
+- `GET /health`: Health check endpoint
+
+## Example API Usage
+
+### Get Hub Information
+```bash
+curl -X GET \
+  https://your-app-name.herokuapp.com/api/hubs/your-hub-id
+```
+
+### Rehost Championship
+```bash
+curl -X POST \
+  https://your-app-name.herokuapp.com/api/championships/rehost \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "gameId": "your-game-id",
+    "eventId": "your-event-id"
+  }'
+```
+
+### Cancel Championship
+```bash
+curl -X POST \
+  https://your-app-name.herokuapp.com/api/championships/cancel \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "eventId": "your-event-id"
+  }'
+```
+
+## Deployment to Heroku
+
+1. Create a new Heroku app:
+```bash
+heroku create your-app-name
+```
+
+2. Set required environment variables:
+```bash
+heroku config:set FACEIT_API_KEY_SERVER=your_server_api_key_here
+heroku config:set FACEIT_API_KEY_CLIENT=your_client_api_key_here
+heroku config:set FACEIT_CLIENT_ID=your_client_id_here
+heroku config:set FACEIT_CLIENT_SECRET=your_client_secret_here
+heroku config:set SESSION_SECRET=your_session_secret_here
+heroku config:set NODE_ENV=production
+```
 
 3. Deploy to Heroku:
 ```bash
-git add .
-git commit -m "Initial commit"
-git push heroku master
+git push heroku main
 ```
 
-## Features
-
-### Match Commands
-
-- `!rehost` - Vote for match rehost
-  - Requires configured number of votes (default: 6)
-  - Only works during active matches
-  - Automatically resets votes when match ends
-
-- `!cancel` - Check if match can be cancelled
-  - Checks ELO difference between teams
-  - Cancels match if difference exceeds threshold
-  - Shows current ELO difference
-
-### API Integration
-
-The bot uses the FACEIT API to:
-- Monitor match status
-- Calculate team ELO differences
-- Execute match rehosts
-- Process match cancellations
-
-## Project Structure
-
-```
-├── bot.js              # Main bot file
-├── auth.js             # Authentication handling
-├── endpoints/          # FACEIT API endpoints
-│   ├── hubs/          # Hub-related endpoints
-│   ├── matches/       # Match-related endpoints
-│   └── players/       # Player-related endpoints
-├── utils/             # Utility functions
-│   ├── headers.js     # API headers
-│   └── urlConstructor.js # URL construction
-└── public/            # Public web files
-```
-
-## Development
-
-To run locally:
+4. Ensure at least one dyno is running:
 ```bash
-npm start
+heroku ps:scale web=1
 ```
 
-For testing:
+## Authentication
+
+<<<<<<< HEAD
+- Secure session configuration
+  - HTTP-only cookies
+  - Secure cookies (HTTPS only)
+  - Custom session name
+- CSRF protection via state parameter
+- Environment variable validation
+- Production security settings
+- Graceful shutdown handling
+
+## Example API Usage
+
+### Get Hub Information
 ```bash
-node test/faceit-api.test.js
+curl -X GET \
+  https://your-app-name.herokuapp.com/api/hubs/your-hub-id \
+  -H 'Cookie: faceit.sid=your-session-cookie'
 ```
 
-## Error Handling
+### Rehost Championship
+```bash
+curl -X POST \
+  https://your-app-name.herokuapp.com/api/championships/rehost \
+  -H 'Cookie: faceit.sid=your-session-cookie' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "gameId": "your-game-id",
+    "eventId": "your-event-id"
+  }'
+```
 
-The bot includes comprehensive error handling for:
-- API failures
-- Invalid commands
-- Missing permissions
-- Network issues
+### Cancel Championship
+```bash
+curl -X POST \
+  https://your-app-name.herokuapp.com/api/championships/cancel \
+  -H 'Cookie: faceit.sid=your-session-cookie' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "eventId": "your-event-id"
+  }'
+```
+=======
+The bot uses FACEIT's Client Credentials flow for authentication:
 
-All errors are logged and appropriate feedback is provided to users.
+1. Automatic token management:
+   - Tokens are automatically obtained when needed
+   - Tokens are stored in the session
+   - Tokens are refreshed when expired
 
-## Monitoring
+2. Security features:
+   - Secure session configuration
+   - HTTP-only cookies
+   - Environment variable validation
+>>>>>>> fd6eabfd3114f4e6055340ee7ea728d6f46f4340
 
-Health check endpoint available at `/health` showing:
-- Server status
-- Active matches
-- Configuration
-- Uptime
+## Error Responses
+
+All API endpoints return consistent error responses:
+
+```json
+{
+  "error": "Error Type",
+  "message": "Human readable error message"
+}
+```
+
+Common error types:
+<<<<<<< HEAD
+- Unauthorized: Not logged in
+=======
+- Authentication Error: Failed to authenticate with FACEIT
+>>>>>>> fd6eabfd3114f4e6055340ee7ea728d6f46f4340
+- Bad Request: Missing required parameters
+- Internal Server Error: Server-side issues
+
+## Production Notes
+
+<<<<<<< HEAD
+1. HTTPS Required
+   - All cookies are secure-only
+   - All communication must be over HTTPS
+
+2. Authentication Flow
+   - Login through FACEIT OAuth2
+   - Session cookie used for subsequent requests
+   - No localhost/development mode available
+
+3. API Structure
+   - All API endpoints under /api prefix
+   - Authentication required for all endpoints
+=======
+1. Security:
+   - All cookies are secure-only in production
+   - Session data is encrypted
+   - Environment variables are validated
+
+2. Monitoring:
+   - Health check endpoint
+   - Error logging
+   - Graceful shutdown handling
+
+3. API Structure:
+   - All endpoints under /api prefix
+   - Consistent error responses
+>>>>>>> fd6eabfd3114f4e6055340ee7ea728d6f46f4340
+   - JSON responses for all API calls

@@ -7,9 +7,22 @@ const { URLSearchParams } = require('url');
 class FaceitJS {
     constructor() {
         this.baseUrl = 'https://api.faceit.com';
+<<<<<<< HEAD
         this.authUrl = 'https://api.faceit.com/auth/v1/oauth/authorize'; // Correct OAuth endpoint
         this.tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
         this.userInfoUrl = 'https://api.faceit.com/core/v1/users/me'; // Updated endpoint
+=======
+        this.authUrl = 'https://www.faceit.com/oauth/authorize';
+        this.tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
+        this.userInfoUrl = 'https://api.faceit.com/core/v1/users/me'; // Updated endpoint
+
+        // Bind methods to the instance
+        this.getAuthorizationUrl = this.getAuthorizationUrl.bind(this);
+        this.getAccessTokenFromCode = this.getAccessTokenFromCode.bind(this);
+        this.getUserInfo = this.getUserInfo.bind(this);
+        this.getHubMatches = this.getHubMatches.bind(this); // Bind the new method
+        this.getMatchesInConfigurationMode = this.getMatchesInConfigurationMode.bind(this);
+>>>>>>> 64af7b0f66e5538bb146a4a95d447196292e1b98
     }
 
     /**
@@ -83,6 +96,7 @@ class FaceitJS {
     }
 
     /**
+<<<<<<< HEAD
      * Retrieves championships by ID.
      * @param {string} id - The championship ID.
      * @returns {Object} - The championship data.
@@ -100,11 +114,29 @@ class FaceitJS {
                 throw new Error(`Get Championships Failed: ${error.response.data.error_description || error.response.data.error}`);
             } else {
                 throw new Error(`Get Championships Failed: ${error.message}`);
+=======
+     * Retrieves match details for a specific hub.
+     * @param {string} hubId - The ID of the hub.
+     * @param {string} matchId - The ID of the match.
+     * @returns {Object} - The match details.
+     */
+    async getHubMatches(hubId, matchId) {
+        try {
+            const response = await axios.get(`${this.baseUrl}/hubs/${hubId}/matches/${matchId}`);
+            return response.data;
+        } catch (error) {
+            // Log detailed error information
+            if (error.response) {
+                throw new Error(`Hub Matches Retrieval Failed: ${error.response.data.error_description || error.response.data.error}`);
+            } else {
+                throw new Error(`Hub Matches Retrieval Failed: ${error.message}`);
+>>>>>>> 64af7b0f66e5538bb146a4a95d447196292e1b98
             }
         }
     }
 
     /**
+<<<<<<< HEAD
      * Retrieves hubs by ID.
      * @param {string} id - The hub ID.
      * @returns {Object} - The hub data.
@@ -169,11 +201,33 @@ class FaceitJS {
                 throw new Error(`Cancel Championship Failed: ${error.response.data.error_description || error.response.data.error}`);
             } else {
                 throw new Error(`Cancel Championship Failed: ${error.message}`);
+=======
+     * Retrieves all matches in configuration mode for a specific hub.
+     * @param {string} hubId - The ID of the hub.
+     * @returns {Array} - The list of matches in configuration mode.
+     */
+    async getMatchesInConfigurationMode(hubId) {
+        try {
+            const response = await axios.get(`${this.baseUrl}/hubs/${hubId}/matches`);
+            const matches = response.data.items.filter(match => match.status === 'CONFIGURATION');
+            return matches;
+        } catch (error) {
+            // Log detailed error information
+            if (error.response) {
+                throw new Error(`Matches Retrieval Failed: ${error.response.data.error_description || error.response.data.error}`);
+            } else {
+                throw new Error(`Matches Retrieval Failed: ${error.message}`);
+>>>>>>> 64af7b0f66e5538bb146a4a95d447196292e1b98
             }
         }
     }
 }
 
+<<<<<<< HEAD
 // ***** EXPORT AN INSTANCE OF FACEITJS ***** //
 const faceit = new FaceitJS();
 module.exports = faceit;
+=======
+// ***** EXPORT THE FACEITJS CLASS ***** //
+module.exports = FaceitJS;
+>>>>>>> 64af7b0f66e5538bb146a4a95d447196292e1b98

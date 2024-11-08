@@ -1,19 +1,14 @@
 {
   "name": "discord-bot2",
   "version": "1.0.0",
-  "description": "Your bot description",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot.js",
+    "test": "node test/faceit-api.test.js"
   },
-  "dependencies": {
-    "envalid": "^7.3.1",
-    "express": "^4.17.1",
-    "simple-update-notifier": "^2.0.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.7",
-    "prettier": "^3.3.3"
+  "engines": {
+    "node": "18.x",
+    "npm": "9.x"
   },
   "author": "Your Name",
   "license": "ISC"
