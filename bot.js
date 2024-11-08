@@ -2,7 +2,7 @@
 import express from 'express';
 import session from 'express-session';
 import RedisStore from 'connect-redis';
-import Redis from 'redis';
+import { createClient } from 'redis';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
@@ -34,7 +34,7 @@ app.set("trust proxy", 1);
 const initializeApp = async () => {
     try {
         // Create Redis client
-        const redisClient = Redis.createClient({
+        const redisClient = createClient({
             url: env.REDIS_URL,
             socket: {
                 tls: true,
@@ -88,7 +88,10 @@ const initializeApp = async () => {
         }));
 
         // Initialize RedisStore
-        const store = new RedisStore({ client: redisClient });
+        const store = new RedisStore({
+            client: redisClient,
+            prefix: 'sess:'
+        });
 
         // Session middleware
         app.use(session({
@@ -148,7 +151,8 @@ const initializeApp = async () => {
                 }
                 if (state !== req.session.authState) {
                     logger.warn("Invalid state parameter - possible CSRF attack");
-                    return res.redirect("/?error=invalid_state")
+                    return res.redirect("/?error=invalid_state");
+                }
                 const token = await FaceitJS.getAccessTokenFromCode(code);
                 logger.info(`Access token obtained: ${token.access_token}`);
                 const userInfo = await FaceitJS.getUserInfo(token.access_token);
