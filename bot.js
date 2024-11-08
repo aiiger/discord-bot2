@@ -13,7 +13,7 @@ const port = process.env.PORT || 3000;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-// Session middleware with proper configuration
+// Session middleware
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
@@ -21,7 +21,7 @@ app.use(session({
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        maxAge: 24 * 60 * 60 * 1000
     }
 }));
 
@@ -35,9 +35,9 @@ app.get('/auth', (req, res) => {
     try {
         const state = crypto.randomBytes(16).toString('hex');
         req.session.state = state;
+        console.log('Generated state:', state);
         const authorizationUrl = faceitJS.getAuthorizationUrl(state);
         console.log('Auth URL:', authorizationUrl);
-        console.log('State saved in session:', state);
         res.redirect(authorizationUrl);
     } catch (error) {
         console.error('Auth error:', error);
@@ -60,7 +60,6 @@ app.get('/callback', async (req, res) => {
             return res.status(400).send('Invalid state parameter');
         }
 
-        // Clear the state from session
         delete req.session.state;
 
         const tokenData = await faceitJS.getAccessTokenFromCode(code);
@@ -88,7 +87,6 @@ app.get('/dashboard', async (req, res) => {
     }
 });
 
-// Start the server
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
