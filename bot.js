@@ -1,5 +1,3 @@
-// bot.js
-
 // ***** IMPORTS ***** //
 import connectRedis from 'connect-redis';
 import Redis from 'ioredis';
@@ -10,9 +8,10 @@ import { cleanEnv, str, url as envUrl, port } from 'envalid';
 import dotenv from 'dotenv';
 import express from 'express';
 import session from 'express-session';
-import FaceitJS from './FaceitJS.js'; // Import the instance with .js extension
-import logger from './logger.js'; // Import the logger with .js extension
+import FaceitJS from './FaceitJS.js'; // Import the instance
+import logger from './logger.js'; // Import the logger
 
+// Load environment variables from .env file
 dotenv.config();
 
 // ***** ENVIRONMENT VARIABLES ***** //
@@ -32,7 +31,7 @@ const env = cleanEnv(process.env, {
 const app = express();
 app.set('trust proxy', 1); // Trust the first proxy
 
-// Set the view engine to EJS
+// Set the view engine to EJS and views directory
 app.set('view engine', 'ejs');
 app.set('views', './views');
 
@@ -83,6 +82,13 @@ const redisClient = new Redis(env.REDIS_URL, {
     rejectUnauthorized: false, // Accept self-signed certificates
   },
 });
+
+// Handle Redis connection errors
+redisClient.on('error', (err) => {
+  logger.error('Redis Client Error:', err);
+});
+
+// Create a new Redis store for sessions
 const sessionStore = new RedisStore({ client: redisClient });
 
 app.use(
