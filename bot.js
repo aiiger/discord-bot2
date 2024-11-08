@@ -216,4 +216,4 @@ app.get('/dashboard', (req, res) => {
 // Start the server
 app.listen(env.PORT, () => {
   logger.info(`Server is running on port ${env.PORT}`);
-});const sessionStore = new RedisStore({ client: redisClient });
+});
