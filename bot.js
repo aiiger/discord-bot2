@@ -78,7 +78,8 @@ app.use(
 
 // ***** SESSION CONFIGURATION ***** //
 const RedisStore = connectRedis(session); // Correctly initialize RedisStore
-const redisClient = new Redis(env.REDIS_URL, {
+const redisClient = Redis.createClient({
+  url: env.REDIS_URL,
   tls: {
     rejectUnauthorized: false, // Accept self-signed certificates
   },
@@ -89,7 +90,7 @@ redisClient.on('error', (err) => {
   logger.error('Redis Client Error:', err);
 });
 
-// Create a new Redis store for sessions
+// Create a new Redis store for sessions using 'new'
 const sessionStore = new RedisStore({
   client: redisClient,
 });
