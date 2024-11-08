@@ -197,7 +197,7 @@ app.get("/callback", async (req, res) => {
     // Validate the state parameter
     if (state !== req.session.authState) {
         logger.warn("Invalid state parameter - possible CSRF attack");
-        return res.redirect("/?error=invalid_state");
+        return res.redirect("/?error=invalid_stgotate");
     }
 
     delete req.session.authState; // Clean up
