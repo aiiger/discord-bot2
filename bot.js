@@ -207,4 +207,15 @@ app.get('/dashboard', (req, res) => {
     return res.redirect('/');
   }
   res.send(`
+        // Set the view engine to EJS
+        app.set('view engine', 'ejs');
+        app.set('views', './views');
+
+        // Dashboard Route
+        app.get('/dashboard', (req, res) => {
+          if (!req.session.accessToken) {
+            return res.redirect('/');
+          }
+          res.render('dashboard', { user: req.session.user });
+        });
       <h1>Welcome, ${req.session.user.nickname}!</h1>

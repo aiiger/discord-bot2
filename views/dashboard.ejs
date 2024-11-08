@@ -1,17 +1,9 @@
-// Dashboard Route
-app.get('/dashboard', (req, res) => {
-if (!req.session.accessToken) {
-return res.redirect('/');
-}
-res.send(`
 <!DOCTYPE html>
 <html>
-	<head>
-		<title>Dashboard</title>
-	</head>
-	<body>
-		<h1>Welcome, ${req.session.user.nickname}!</h1>
-	</body>
+<head>
+    <title>Dashboard</title>
+</head>
+<body>
+    <h1>Welcome, <%= user.nickname %>!</h1>
+</body>
 </html>
-`);
-});
