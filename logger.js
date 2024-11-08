@@ -1,17 +1,13 @@
-const { createLogger, format, transports } = require('winston');
+import winston from 'winston';
 
-const logger = createLogger({
-    level: 'info',
-    format: format.combine(
-        format.timestamp({
-            format: 'YYYY-MM-DD HH:mm:ss'
-        }),
-        format.printf(info => `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`)
-    ),
-    transports: [
-        new transports.Console(),
-        // Add other transports like file if needed
-    ],
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' }),
+  ],
 });
 
-module.exports = logger;
+export default logger;

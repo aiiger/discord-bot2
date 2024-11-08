@@ -1,30 +1,34 @@
 {
   "name": "discord-bot2",
   "version": "1.0.0",
-  "description": "FACEIT Discord Bot",
-  "main": "bot.cjs",
+  "main": "bot.js",
+  "type": "module",
   "scripts": {
-    "start": "node bot.cjs",
-    "dev": "nodemon bot.cjs"
+    "start": "node bot.js",
+    "test": "node test/faceit-api.test.js"
   },
-  "dependencies": {
-    "axios": "^1.7.7",
-    "connect-redis": "^6.0.0",
-    "dotenv": "^16.0.3",
-    "ejs": "^3.1.10",
-    "envalid": "^7.3.0",
-    "express": "^4.18.2",
-    "express-rate-limit": "^6.7.0",
-    "express-session": "^1.17.3",
-    "helmet": "^6.0.1",
-    "ioredis": "^5.3.1",
-    "memorystore": "^1.6.6",
-    "morgan": "^1.10.0",
-    "winston": "^3.8.2"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
+  "engines": {
+    "node": ">=22.11.0",
+    "npm": ">=10.8.1"
   },
   "author": "Your Name",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "connect-mongo": "^5.1.0",
+    "connect-redis": "^7.1.1",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "envalid": "^8.0.0",
+    "express": "^4.21.1",
+    "express-rate-limit": "^7.4.1",
+    "express-session": "^1.18.1",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.4.1",
+    "mongoose": "^8.8.0",
+    "morgan": "^1.10.0",
+    "redis": "^4.7.0",
+    "url": "^0.11.4",
+    "winston": "^3.16.0"
+  }
 }

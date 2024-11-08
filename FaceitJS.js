@@ -1,13 +1,12 @@
-// FaceitJS.js
-
-const axios = require('axios');
-const { URLSearchParams } = require('url');
+// Importing dependencies
+import axios from 'axios';
+import { URLSearchParams } from 'url';
 
 // ***** FACEITJS CLASS ***** //
 class FaceitJS {
     constructor() {
         this.baseUrl = 'https://api.faceit.com';
-        this.authUrl = 'https://www.faceit.com/oauth/authorize';
+        this.authUrl = 'https://api.faceit.com/auth/v1/oauth/authorize'; // Correct OAuth endpoint
         this.tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
         this.userInfoUrl = 'https://api.faceit.com/core/v1/users/me'; // Updated endpoint
 
@@ -130,5 +129,5 @@ class FaceitJS {
     }
 }
 
-// ***** EXPORT THE FACEITJS CLASS ***** //
-module.exports = FaceitJS;
+// ***** EXPORT AN INSTANCE OF FACEITJS ***** //
+export default FaceitJS;
