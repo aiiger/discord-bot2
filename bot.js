@@ -211,8 +211,6 @@ app.get("/callback", async (req, res) => {
     }
 });
 
-
-
 // Dashboard Route
 app.get("/dashboard", (req, res) => {
     if (!req.session.accessToken) {
