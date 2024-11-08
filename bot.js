@@ -67,22 +67,25 @@ app.use((req, res, next) => {
     next();
 });
 
-// Greet players when match is in config stage
-faceitJS.onMatchStateChange(async (match) => {
-    if (match.state === 'config') {
-        greetPlayers(match.players);
-    }
-});
+// Function to send messages to a single player
+const sendMessage = (playerId, message) => {
+    // Implement message sending via FACEIT API or chat system
+    faceitJS.sendChatMessage(playerId, message);
+};
 
+// Function to send messages to all players in a match
+const sendMessageToAll = (matchId, message) => {
+    const players = faceitJS.getPlayersInMatch(matchId);
+    players.forEach(player => {
+        sendMessage(player.id, message);
+    });
+};
+
+// Function to greet players
 const greetPlayers = (players) => {
     players.forEach(player => {
         sendMessage(player.id, 'Welcome to the match! Good luck!');
     });
-};
-
-const sendMessage = (playerId, message) => {
-    // Implement message sending via FACEIT API or chat system
-    faceitJS.sendChatMessage(playerId, message);
 };
 
 // Voting mechanism for rehosting
@@ -117,13 +120,6 @@ const rehostMatch = async (matchId) => {
     }
 };
 
-const sendMessageToAll = (matchId, message) => {
-    const players = faceitJS.getPlayersInMatch(matchId);
-    players.forEach(player => {
-        sendMessage(player.id, message);
-    });
-};
-
 // Check Elo differential and cancel match if necessary
 const checkEloDifferential = async (matchId) => {
     const players = await faceitJS.getPlayersInMatch(matchId);
@@ -146,11 +142,21 @@ const cancelMatch = async (matchId) => {
     }
 };
 
-// Periodically check Elo differential
+// Track matches that have been greeted to avoid duplicate greetings
+const greetedMatches = new Set();
+
+// Periodically check matches
 setInterval(async () => {
     const activeMatches = await faceitJS.getActiveMatches();
-    activeMatches.forEach(match => {
-        checkEloDifferential(match.id);
+    activeMatches.forEach(async (match) => {
+        // Greet players if match is in config stage and hasn't been greeted yet
+        if (match.state === 'config' && !greetedMatches.has(match.id)) {
+            greetPlayers(match.players);
+            greetedMatches.add(match.id);
+        }
+
+        // Check Elo differential
+        await checkEloDifferential(match.id);
     });
 }, 60000); // Check every minute
 
