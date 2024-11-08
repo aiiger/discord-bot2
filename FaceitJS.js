@@ -21,7 +21,8 @@ class FaceitJS {
             lang: 'en'
         });
         
-        return `https://api.faceit.com/auth/v1/oauth/authorize?${params.toString()}`;
+        // Change to accounts.faceit.com for login flow
+        return `https://accounts.faceit.com/accounts/auth/v1/oauth/authorize?${params.toString()}`;
     }
     async getAccessTokenFromCode(code) {
         const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
