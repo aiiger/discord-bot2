@@ -88,7 +88,10 @@ const redisClient = Redis.createClient({
 redisClient.on("error", (err) => {
     logger.error("Redis Client Error:", err);
 });
-
+app.use((err, req, res, next) => {
+    logger.error(err.stack);
+    res.status(500).send('Something broke!');
+});
 // Initialize RedisStore
 const store = new RedisStore({ client: redisClient }); // Use new with RedisStore
 
@@ -114,43 +117,27 @@ app.use(express.json());
 
 // Root Endpoint - Show login page
 app.get("/", (req, res) => {
-    if (req.session.accessToken) {
-        res.redirect("/dashboard");
-    } else {
-        res.send(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>FACEIT Bot</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                        text-align: center;
-                    }
-                    h1 {
-                        color: #FF5500;
-                    }
-                    .login-button {
-                        display: inline-block;
-                        padding: 10px 20px;
-                        background-color: #FF5500;
-                        color: white;
-                        text-decoration: none;
-                        border-radius: 5px;
-                        margin-top: 20px;
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>FACEIT Bot</h1>
-                <p>Please log in with your FACEIT account to continue.</p>
-                <a href="/auth" class="login-button">Login with FACEIT</a>
-            </body>
-            </html>
-        `);
+    try {
+        if (req.session.accessToken) {
+            res.redirect("/dashboard");
+        } else {
+            res.send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>FACEIT Bot</title>
+                </head>
+                <body>
+                    <h1>FACEIT Bot</h1>
+                    <p>Please log in with your FACEIT account to continue.</p>
+                    <a href="/auth">Login with FACEIT</a>
+                </body>
+                </html>
+            `);
+        }
+    } catch (error) {
+        logger.error(`Error in root route: ${error.message}`);
+        res.status(500).send("Internal Server Error");
     }
 });
 
@@ -167,6 +154,8 @@ app.get("/auth", async (req, res) => {
         res.status(500).send("Authentication initialization failed.");
     }
 });
+
+
 
 // OAuth2 Callback Endpoint
 app.get("/callback", async (req, res) => {
