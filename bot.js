@@ -1,7 +1,8 @@
 // bot.js
 import express from 'express';
-import crypto from 'crypto';
 import session from 'express-session';
+import RedisStore from 'connect-redis';
+import Redis from 'redis';
 import dotenv from 'dotenv';
 import faceitJS from './FaceitJS.js';
 
@@ -10,20 +11,34 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Middleware to parse JSON bodies
-app.use(express.json());
+// Create Redis client
+const redisClient = Redis.createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+        tls: true,
+        rejectUnauthorized: false,
+    }
+});
 
-// Session middleware
+redisClient.on('error', err => console.log('Redis Client Error', err));
+redisClient.on('connect', () => console.log('Redis Client Connected'));
+
+await redisClient.connect();
+
+// Configure session middleware with Redis store
 app.use(session({
+    store: new RedisStore({ client: redisClient }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
+
+app.use(express.json());
 
 // Root route
 app.get('/', (req, res) => {
@@ -65,6 +80,8 @@ app.get('/callback', async (req, res) => {
         const tokenData = await faceitJS.getAccessTokenFromCode(code);
         req.session.accessToken = tokenData.access_token;
         req.session.refreshToken = tokenData.refresh_token;
+        
+        await req.session.save();
         res.redirect('/dashboard');
     } catch (error) {
         console.error('Callback error:', error);
