@@ -5,7 +5,9 @@ class FaceitJS {
         this.clientId = 'y30bdac0f-591c-408d-88c3-bebb897339b9'; // Replace with your actual client ID
         this.clientSecret = 'BiiHeq7uTxAVWD60y6EtWXpAONTiosJjtPqO8Va8'; // Replace with your actual client secret
         this.redirectUri = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback'; // Replace with your actual redirect URI
-        this.tokenEndpoint = 'https://accounts.faceit.com/token';
+        this.tokenEndpoint = 'https://api.faceit.com/auth/v1/oauth/token';
+        this.authorizationEndpoint = 'https://accounts.faceit.com';
+        this.userinfoEndpoint = 'https://api.faceit.com/auth/v1/resources/userinfo';
     }
 
     getAuthorizationUrl(state) {
@@ -14,12 +16,10 @@ class FaceitJS {
             response_type: 'code',
             redirect_uri: this.redirectUri,
             state: state,
-            scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read',
-            redirect_popup: 'false',
-            lang: 'en'
+            scope: 'openid profile email membership',
         });
 
-        return `https://accounts.faceit.com/accounts?${params.toString()}`;
+        return `${this.authorizationEndpoint}?${params.toString()}`;
     }
 
     async getAccessTokenFromCode(code) {
@@ -48,7 +48,7 @@ class FaceitJS {
 
     async getUserInfo(accessToken) {
         try {
-            const response = await axios.get('https://api.faceit.com/auth/v1/resources/userinfo', {
+            const response = await axios.get(this.userinfoEndpoint, {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
                 },
