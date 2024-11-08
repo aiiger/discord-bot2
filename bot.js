@@ -1,12 +1,11 @@
 // ***** IMPORTS ***** //
-import Redis from 'ioredis';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import { cleanEnv, str, url as envUrl, port } from 'envalid';
 import dotenv from 'dotenv';
 // ***** IMPORTS ***** //
-import Redis from 'ioredis';
+import Redis from 'redis';;
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
