@@ -2,11 +2,11 @@
   "name": "discord-bot2",
   "version": "1.0.0",
   "main": "bot.js",
-  "type": "module",
   "scripts": {
     "start": "node bot.js",
     "test": "node test/faceit-api.test.js"
   },
+  "type": "module",
   "engines": {
     "node": ">=22.11.0",
     "npm": ">=10.8.1"
