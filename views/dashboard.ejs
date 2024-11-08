@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FACEIT Bot - Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .logout-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #FF5500;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            transition: background-color 0.3s ease;
+        }
+        .logout-button:hover {
+            background-color: #e04e00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome, <%= user.nickname %>!</h1>
+        <p>You are now authenticated with FACEIT.</p>
+        <h2>Available Commands:</h2>
+        <ul>
+            <li><strong>Get Hub:</strong> GET /api/hubs/:hubId</li>
+            <li><strong>Rehost:</strong> POST /api/championships/rehost</li>
+            <li><strong>Cancel:</strong> POST /api/championships/cancel</li>
+        </ul>
+        <a href="/logout" class="logout-button">Logout</a>
+    </div>
+</body>
+</html>
