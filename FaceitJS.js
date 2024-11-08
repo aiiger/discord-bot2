@@ -85,8 +85,8 @@ class FaceitJS {
         }
     }
 
-    // Additional methods for FACEIT API interactions can be added here
-    async getPlayerInfo(playerId) {
+    // Additional helper methods for API calls
+    async getPlayerDetails(playerId) {
         try {
             const response = await axios({
                 method: 'get',
@@ -97,37 +97,7 @@ class FaceitJS {
             });
             return response.data;
         } catch (error) {
-            throw new Error(`Failed to get player info: ${error.message}`);
-        }
-    }
-
-    async getPlayerStats(playerId, game = 'csgo') {
-        try {
-            const response = await axios({
-                method: 'get',
-                url: `https://api.faceit.com/stats/v1/stats/users/${playerId}/games/${game}`,
-                headers: {
-                    'Authorization': `Bearer ${this.apiKey}`
-                }
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(`Failed to get player stats: ${error.message}`);
-        }
-    }
-
-    async getPlayerMatches(playerId, game = 'csgo', limit = 20) {
-        try {
-            const response = await axios({
-                method: 'get',
-                url: `https://api.faceit.com/stats/v1/stats/time/users/${playerId}/games/${game}?size=${limit}`,
-                headers: {
-                    'Authorization': `Bearer ${this.apiKey}`
-                }
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(`Failed to get player matches: ${error.message}`);
+            throw new Error(`Failed to get player details: ${error.message}`);
         }
     }
 }
