@@ -16,10 +16,14 @@ class FaceitJS {
             client_id: this.clientId,
             redirect_uri: this.redirectUri,
             state: state,
-            scope: 'openid profile email'
+            scope: 'openid profile email',
+            // Add these parameters as per documentation
+            redirect_popup: 'false',
+            lang: 'en'
         });
         
-        return `https://accounts.faceit.com/auth?${params.toString()}`;
+        // Use the correct authorization endpoint
+        return `https://accounts.faceit.com/accounts/auth/v1/oauth/authorize?${params.toString()}`;
     }
 
     async getAccessTokenFromCode(code) {
@@ -42,6 +46,7 @@ class FaceitJS {
             
             return response.data;
         } catch (error) {
+            console.error('Token exchange error:', error.response?.data || error.message);
             throw new Error(`Failed to get access token: ${error.message}`);
         }
     }
@@ -58,6 +63,7 @@ class FaceitJS {
             
             return response.data;
         } catch (error) {
+            console.error('User info error:', error.response?.data || error.message);
             throw new Error(`Failed to get user info: ${error.message}`);
         }
     }
@@ -81,23 +87,8 @@ class FaceitJS {
             
             return response.data;
         } catch (error) {
+            console.error('Token refresh error:', error.response?.data || error.message);
             throw new Error(`Failed to refresh token: ${error.message}`);
-        }
-    }
-
-    // Additional helper methods for API calls
-    async getPlayerDetails(playerId) {
-        try {
-            const response = await axios({
-                method: 'get',
-                url: `https://api.faceit.com/core/v1/users/${playerId}`,
-                headers: {
-                    'Authorization': `Bearer ${this.apiKey}`
-                }
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(`Failed to get player details: ${error.message}`);
         }
     }
 }
