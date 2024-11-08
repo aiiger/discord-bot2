@@ -1,20 +1,20 @@
 // ***** IMPORTS ***** //
 import express from 'express';
 import session from 'express-session';
-import RedisStore from 'connect-redis'; // Correct import statement
+import RedisStore from 'connect-redis';
 import Redis from 'redis';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { cleanEnv, str, url as envUrl, port } from 'envalid';
-import FaceitJS from './FaceitJS.js'; // Ensure this path is correct
-import logger from './logger.js'; // Ensure this path is correct
+import FaceitJS from './FaceitJS.js';
+import logger from './logger.js';
 
-// Load environment variables from .env file
+// Load environment variables
 dotenv.config();
 
-// ***** ENVIRONMENT VARIABLES ***** //
+// Environment variables validation
 const env = cleanEnv(process.env, {
     FACEIT_CLIENT_ID: str(),
     FACEIT_CLIENT_SECRET: str(),
@@ -29,12 +29,10 @@ const env = cleanEnv(process.env, {
 
 // Initialize Express app
 const app = express();
-app.set("trust proxy", 1); // Trust the first proxy
+app.set("trust proxy", 1);
 
 // ***** SECURITY MIDDLEWARE ***** //
 app.use(helmet());
-
-// ***** CONTENT SECURITY POLICY ***** //
 app.use(
     helmet.contentSecurityPolicy({
         directives: {
@@ -50,17 +48,17 @@ app.use(
     })
 );
 
-// ***** RATE LIMITING ***** //
+// Rate limiting
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    windowMs: 15 * 60 * 1000,
+    max: 100,
     standardHeaders: true,
     legacyHeaders: false,
     message: "Too many requests from this IP, please try again later.",
 });
 app.use(limiter);
 
-// ***** LOGGER ***** //
+// Logger setup
 app.use(
     morgan("combined", {
         stream: {
@@ -71,129 +69,142 @@ app.use(
     })
 );
 
-// Create a Redis client
-const redisClient = Redis.createClient({
-    url: env.REDIS_URL,
-    socket: {
-        tls: true,
-        rejectUnauthorized: false, // Accept self-signed certificates if needed
-    },
-});
-
-// Handle Redis connection errors
-redisClient.on("error", (err) => {
-    logger.error("Redis Client Error:", err);
-});
-app.use((err, req, res, next) => {
-    logger.error(err.stack);
-    res.status(500).send('Something broke!');
-});
-// Initialize RedisStore
-const store = new RedisStore({ client: redisClient }); // Use new with RedisStore
-
-// Configure session middleware
-app.use(
-    session({
-        store: store,
-        secret: env.SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-            secure: env.NODE_ENV === 'production', // Ensure HTTPS in production
-            httpOnly: true,
-            sameSite: 'lax',
-            maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        },
-        name: 'sessionId',
-    })
-);
-
-// ***** MIDDLEWARE TO PARSE JSON ***** //
-app.use(express.json());
-
-// Root Endpoint - Show login page
-// Example of enhanced error handling for your routes
-app.get("/", (req, res) => {
+// Initialize Redis and Express
+const initializeApp = async () => {
     try {
-        if (req.session.accessToken) {
-            res.redirect("/dashboard");
-        } else {
-            res.send(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>FACEIT Bot</title>
-                </head>
-                <body>
-                    <h1>FACEIT Bot</h1>
-                    <p>Please log in with your FACEIT account to continue.</p>
-                    <a href="/auth">Login with FACEIT</a>
-                </body>
-                </html>
-            `);
-        }
+        // Create Redis client with proper configuration
+        const redisClient = Redis.createClient({
+            url: env.REDIS_URL,
+            socket: {
+                tls: true,
+                rejectUnauthorized: false,
+            }
+        });
+
+        // Redis error handling
+        redisClient.on("error", (err) => {
+            logger.error("Redis Client Error:", err);
+        });
+
+        redisClient.on("connect", () => {
+            logger.info("Redis Client Connected");
+        });
+
+        // Connect to Redis
+        await redisClient.connect();
+
+        // Initialize RedisStore
+        const store = new RedisStore({ client: redisClient });
+
+        // Session middleware
+        app.use(
+            session({
+                store: store,
+                secret: env.SESSION_SECRET,
+                resave: false,
+                saveUninitialized: false,
+                cookie: {
+                    secure: env.NODE_ENV === 'production',
+                    httpOnly: true,
+                    sameSite: 'lax',
+                    maxAge: 24 * 60 * 60 * 1000,
+                },
+                name: 'sessionId',
+            })
+        );
+
+        // Parse JSON bodies
+        app.use(express.json());
+
+        // Routes
+        app.get("/", (req, res) => {
+            try {
+                if (req.session.accessToken) {
+                    res.redirect("/dashboard");
+                } else {
+                    res.send(`<h1>Please log in with your FACEIT account to continue.</h1><a href="/auth">Login with FACEIT</a>`);
+                }
+            } catch (error) {
+                logger.error(`Error in root route: ${error.message}`);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+
+        app.get("/auth", async (req, res) => {
+            try {
+                const state = Math.random().toString(36).substring(2, 15);
+                req.session.authState = state;
+                const authUrl = FaceitJS.getAuthorizationUrl(state);
+                logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
+                res.redirect(authUrl);
+            } catch (error) {
+                logger.error(`Error generating auth URL: ${error.message}`);
+                res.status(500).send("Authentication initialization failed.");
+            }
+        });
+
+        app.get("/callback", async (req, res) => {
+            try {
+                const { code, state, error } = req.query;
+                if (error) {
+                    logger.error(`OAuth Error: ${error}`);
+                    return res.redirect(`/?error=${encodeURIComponent(error)}`);
+                }
+                if (!code) {
+                    logger.warn("No code provided - redirecting to login");
+                    return res.redirect("/?error=no_code");
+                }
+                if (state !== req.session.authState) {
+                    logger.warn("Invalid state parameter - possible CSRF attack");
+                    return res.redirect("/?error=invalid_state");
+                }
+                delete req.session.authState;
+
+                const token = await FaceitJS.getAccessTokenFromCode(code);
+                logger.info(`Access token obtained: ${token.access_token}`);
+                const userInfo = await FaceitJS.getUserInfo(token.access_token);
+                logger.info(`User info retrieved: ${userInfo.nickname}`);
+                req.session.accessToken = token.access_token;
+                req.session.user = userInfo;
+                res.redirect("/dashboard");
+            } catch (err) {
+                logger.error(`Error during OAuth callback: ${err.message}`);
+                res.redirect("/?error=auth_failed");
+            }
+        });
+
+        // Error handling middleware
+        app.use((err, req, res, next) => {
+            logger.error('Server Error:', err);
+            res.status(500).json({
+                error: 'Internal Server Error',
+                message: env.NODE_ENV === 'development' ? err.message : undefined
+            });
+        });
+
+        // Start server
+        const PORT = env.PORT || 3000;
+        app.listen(PORT, () => {
+            logger.info(`Server is running on port ${PORT}`);
+        });
+
+        // Graceful shutdown
+        process.on('SIGTERM', async () => {
+            try {
+                await redisClient.quit();
+                logger.info('Redis client disconnected');
+                process.exit(0);
+            } catch (err) {
+                logger.error('Error during shutdown:', err);
+                process.exit(1);
+            }
+        });
+
     } catch (error) {
-        logger.error(`Error in root route: ${error.message}`);
-        res.status(500).send("Internal Server Error");
+        logger.error('Failed to initialize application:', error);
+        process.exit(1);
     }
-});
+};
 
-app.get("/auth", async (req, res) => {
-    try {
-        const state = Math.random().toString(36).substring(2, 15);
-        req.session.authState = state; // Store state in session
-        const authUrl = FaceitJS.getAuthorizationUrl(state);
-        logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
-        res.redirect(authUrl);
-    } catch (error) {
-        logger.error(`Error generating auth URL: ${error.message}`);
-        res.status(500).send("Authentication initialization failed.");
-    }
-});
-
-app.get("/callback", async (req, res) => {
-    try {
-        const { code, state, error } = req.query;
-
-        if (error) {
-            logger.error(`OAuth Error: ${error}`);
-            return res.redirect(`/?error=${encodeURIComponent(error)}`);
-        }
-
-        if (!code) {
-            logger.warn("No code provided - redirecting to login");
-            return res.redirect("/?error=no_code");
-        }
-
-        if (state !== req.session.authState) {
-            logger.warn("Invalid state parameter - possible CSRF attack");
-            return res.redirect("/?error=invalid_state");
-        }
-
-        delete req.session.authState; // Clean up
-
-        const token = await FaceitJS.getAccessTokenFromCode(code);
-        logger.info(`Access token obtained: ${token.access_token}`);
-
-        const userInfo = await FaceitJS.getUserInfo(token.access_token);
-        logger.info(`User info retrieved: ${userInfo.nickname}`);
-
-        req.session.accessToken = token.access_token;
-        req.session.user = userInfo;
-
-        res.redirect("/dashboard");
-    } catch (err) {
-        logger.error(`Error during OAuth callback: ${err.message}`);
-        res.redirect("/?error=auth_failed");
-    }
-});
-
-
-// Favicon route to prevent unnecessary errors
-app.get('/favicon.ico', (req, res) => res.status(204)); // No content
-
-// Start the server
-const PORT = env.PORT || 3000; // Default to 3000 if PORT is not set
-app.listen(PORT, () => {
-    logger.info(`Server is running on port ${PORT}`);
-});
+// Start the application
+initializeApp();
