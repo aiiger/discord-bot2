@@ -1,12 +1,17 @@
 // FaceitJS.js
 import axios from 'axios';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 class FaceitJS {
     constructor() {
-        this.clientId = process.env.FACEIT_CLIENT_ID;
-        this.clientSecret = process.env.FACEIT_CLIENT_SECRET;
+        this.clientId = process.env.CLIENT_ID;
+        this.clientSecret = process.env.CLIENT_SECRET;
         this.redirectUri = process.env.REDIRECT_URI;
-        this.tokenEndpoint = 'https://api.faceit.com/auth/v1/oauth/token';
+        this.tokenEndpoint = process.env.TOKEN_ENDPOINT;
+        this.authorizationEndpoint = process.env.AUTHORIZATION_ENDPOINT;
+        this.scope = process.env.SCOPE;
     }
 
     getAuthorizationUrl(state) {
@@ -15,10 +20,11 @@ class FaceitJS {
             client_id: this.clientId,
             redirect_uri: this.redirectUri,
             state: state,
-            scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read'
+            scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read',
+            redirect_popup: 'false',
+            lang: 'en'
         });
         
-        // According to FACEIT documentation
         return `https://accounts.faceit.com/?${params.toString()}`;
     }
 
@@ -26,20 +32,19 @@ class FaceitJS {
         const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
         
         try {
-            const response = await axios({
-                method: 'post',
-                url: this.tokenEndpoint,
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': `Basic ${credentials}`
-                },
-                data: new URLSearchParams({
+            const response = await axios.post(this.tokenEndpoint, 
+                new URLSearchParams({
                     grant_type: 'authorization_code',
                     code: code,
-                    redirect_uri: this.redirectUri
-                })
-            });
-            
+                    redirect_uri: this.redirectUri,
+                }), 
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Authorization': `Basic ${credentials}`,
+                    },
+                }
+            );
             return response.data;
         } catch (error) {
             console.error('Token exchange error:', error.response?.data || error.message);
@@ -49,14 +54,11 @@ class FaceitJS {
 
     async getUserInfo(accessToken) {
         try {
-            const response = await axios({
-                method: 'get',
-                url: 'https://api.faceit.com/auth/v1/resources/userinfo',
+            const response = await axios.get('https://api.faceit.com/auth/v1/resources/userinfo', {
                 headers: {
-                    'Authorization': `Bearer ${accessToken}`
-                }
+                    'Authorization': `Bearer ${accessToken}`,
+                },
             });
-            
             return response.data;
         } catch (error) {
             console.error('User info error:', error.response?.data || error.message);
@@ -68,19 +70,18 @@ class FaceitJS {
         const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
         
         try {
-            const response = await axios({
-                method: 'post',
-                url: this.tokenEndpoint,
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': `Basic ${credentials}`
-                },
-                data: new URLSearchParams({
+            const response = await axios.post(this.tokenEndpoint,
+                new URLSearchParams({
                     grant_type: 'refresh_token',
-                    refresh_token: refreshToken
-                })
-            });
-            
+                    refresh_token: refreshToken,
+                }),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Authorization': `Basic ${credentials}`,
+                    },
+                }
+            );
             return response.data;
         } catch (error) {
             console.error('Token refresh error:', error.response?.data || error.message);
