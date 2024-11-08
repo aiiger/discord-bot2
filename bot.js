@@ -224,4 +224,9 @@ app.get('/dashboard', (req, res) => {
 // Start the server
 app.listen(env.PORT, () => {
   logger.info(`Server is running on port ${env.PORT}`);
+});const RedisStore = connectRedis(session); // Correctly initialize RedisStore
+const redisClient = new Redis(env.REDIS_URL, {
+  tls: {
+    rejectUnauthorized: false, // Accept self-signed certificates
+  },
 });
