@@ -16,13 +16,15 @@ class FaceitJS {
             client_id: this.clientId,
             redirect_uri: this.redirectUri,
             state: state,
+            // Required scopes according to OpenID Connect spec
             scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read',
-            redirect_popup: 'false',
-            lang: 'en'
+            // Additional required parameters
+            nonce: Math.random().toString(36).substring(2, 15),
+            response_mode: 'query'
         });
         
-        // Use the correct authorization endpoint for the login flow
-        return `https://accounts.faceit.com/accounts?${params.toString()}`;
+        // Use the authorization endpoint as specified in the OpenID Connect spec
+        return `https://accounts.faceit.com/accounts/auth/v1/oauth/authorize?${params.toString()}`;
     }
     async getAccessTokenFromCode(code) {
         const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
