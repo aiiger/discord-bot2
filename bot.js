@@ -170,34 +170,28 @@ app.get("/auth", async (req, res) => {
 
 // OAuth2 Callback Endpoint
 app.get("/callback", async (req, res) => {
-    logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
-    logger.info(
-        `Full URL: ${req.protocol}://${req.get("host")}${req.originalUrl}`
-    );
-
-    const { code, state, error, error_description } = req.query;
-
-    if (error) {
-        logger.error(`FACEIT returned an error: ${error_description || error}`);
-        return res.redirect(
-            `/?error=${encodeURIComponent(error_description || error)}`
-        );
-    }
-
-    if (!code) {
-        logger.warn("No code provided - redirecting to login");
-        return res.redirect("/?error=no_code");
-    }
-
-    // Validate the state parameter
-    if (state !== req.session.authState) {
-        logger.warn("Invalid state parameter - possible CSRF attack");
-        return res.redirect("/?error=invalid_state");
-    }
-
-    delete req.session.authState; // Clean up
-
     try {
+        logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
+        const { code, state, error } = req.query;
+
+        if (error) {
+            logger.error(`FACEIT returned an error: ${error}`);
+            return res.redirect(`/?error=${encodeURIComponent(error)}`);
+        }
+
+        if (!code) {
+            logger.warn("No code provided - redirecting to login");
+            return res.redirect("/?error=no_code");
+        }
+
+        // Validate the state parameter
+        if (state !== req.session.authState) {
+            logger.warn("Invalid state parameter - possible CSRF attack");
+            return res.redirect("/?error=invalid_state");
+        }
+
+        delete req.session.authState; // Clean up
+
         // Exchange the code for an access token
         const token = await FaceitJS.getAccessTokenFromCode(code);
         logger.info(`Access token obtained: ${token.access_token}`);
@@ -216,6 +210,7 @@ app.get("/callback", async (req, res) => {
         res.redirect("/?error=auth_failed");
     }
 });
+
 
 // Dashboard Route
 app.get("/dashboard", (req, res) => {
