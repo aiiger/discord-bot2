@@ -15,9 +15,9 @@ app.use(session({
 
 class FaceitJS {
     constructor() {
-        this.clientId = 'your-client-id';
-        this.clientSecret = 'your-client-secret';
-        this.redirectUri = 'your-redirect-uri';
+        this.clientId = 'y30bdac0f-591c-408d-88c3-bebb897339b9'; // Replace with your actual client ID
+        this.clientSecret = 'BiiHeq7uTxAVWD60y6EtWXpAONTiosJjtPqO8Va8'; // Replace with your actual client secret
+        this.redirectUri = 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback'; // Replace with your actual redirect URI
         this.tokenEndpoint = 'https://accounts.faceit.com/token';
     }
 
@@ -32,7 +32,7 @@ class FaceitJS {
             lang: 'en'
         });
 
-        return `https://accounts.faceit.com/?${params.toString()}`;
+        return `https://accounts.faceit.com/accounts?${params.toString()}`;
     }
 
     async getAccessTokenFromCode(code) {
