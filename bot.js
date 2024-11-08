@@ -1,15 +1,15 @@
 // ***** IMPORTS ***** //
-import helmet from "helmet";
-import Redis from "redis";
-import rateLimit from "express-rate-limit";
-import morgan from "morgan";
-import { cleanEnv, str, url as envUrl, port } from "envalid";
-import dotenv from "dotenv";
-import express from "express";
-import session from "express-session";
-import connectRedis from "connect-redis";
-import FaceitJS from "./FaceitJS.js";
-import logger from "./logger.js";
+import express from 'express';
+import session from 'express-session';
+import connectRedis from 'connect-redis';
+import Redis from 'redis';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import morgan from 'morgan';
+import dotenv from 'dotenv';
+import { cleanEnv, str, url as envUrl, port } from 'envalid';
+import FaceitJS from './FaceitJS.js'; // Ensure this path is correct
+import logger from './logger.js'; // Ensure this path is correct
 
 // Load environment variables from .env file
 dotenv.config();
@@ -74,33 +74,44 @@ app.use(
         },
     })
 );
-// Initialize Redis client
-const RedisStore = connectRedis(session); 
 
 // Create a Redis client
-const sessionStore = new RedisStore({
-  client: redisClient,
+const redisClient = Redis.createClient({
+    url: env.REDIS_URL,
+    socket: {
+        tls: true,
+        rejectUnauthorized: false, // Accept self-signed certificates if needed
+    },
 });
+
 // Handle Redis connection errors
 redisClient.on("error", (err) => {
     logger.error("Redis Client Error:", err);
 });
 
+// Initialize RedisStore with 'new' if your version requires it
+const RedisStore = connectRedis(session); // Initialize the RedisStore constructor
+
+// Create a new Redis store for sessions
+const sessionStore = new RedisStore({
+    client: redisClient,
+});
+
 // Configure session middleware
 app.use(
-  session({
-    store: sessionStore,
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production', // Ensure HTTPS in production
-      httpOnly: true,
-      sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-    name: 'sessionId',
-  })
+    session({
+        store: sessionStore,
+        secret: env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            secure: env.NODE_ENV === 'production', // Ensure HTTPS in production
+            httpOnly: true,
+            sameSite: 'lax',
+            maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        },
+        name: 'sessionId',
+    })
 );
 
 // ***** MIDDLEWARE TO PARSE JSON ***** //
@@ -112,39 +123,39 @@ app.get("/", (req, res) => {
         res.redirect("/dashboard");
     } else {
         res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-          <title>FACEIT Bot</title>
-          <style>
-              body {
-                  font-family: Arial, sans-serif;
-                  max-width: 800px;
-                  margin: 0 auto;
-                  padding: 20px;
-                  text-align: center;
-              }
-              h1 {
-                  color: #FF5500;
-              }
-              .login-button {
-                  display: inline-block;
-                  padding: 10px 20px;
-                  background-color: #FF5500;
-                  color: white;
-                  text-decoration: none;
-                  border-radius: 5px;
-                  margin-top: 20px;
-              }
-          </style>
-      </head>
-      <body>
-          <h1>FACEIT Bot</h1>
-          <p>Please log in with your FACEIT account to continue.</p>
-          <a href="/auth" class="login-button">Login with FACEIT</a>
-      </body>
-      </html>
-    `);
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>FACEIT Bot</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 20px;
+                        text-align: center;
+                    }
+                    h1 {
+                        color: #FF5500;
+                    }
+                    .login-button {
+                        display: inline-block;
+                        padding: 10px 20px;
+                        background-color: #FF5500;
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 5px;
+                        margin-top: 20px;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>FACEIT Bot</h1>
+                <p>Please log in with your FACEIT account to continue.</p>
+                <a href="/auth" class="login-button">Login with FACEIT</a>
+            </body>
+            </html>
+        `);
     }
 });
 
