@@ -91,6 +91,7 @@ redisClient.on('error', (err) => {
 });
 
 // Create a new Redis store for sessions using 'new'
+const RedisStore = connectRedis(session); // Initialize RedisStore correctly
 const sessionStore = new RedisStore({
   client: redisClient,
 });
