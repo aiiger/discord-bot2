@@ -44,6 +44,8 @@ app.use(session({
     },
     name: 'faceit.sid'
 }));
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 // Middleware to parse JSON
 app.use(express.json());
