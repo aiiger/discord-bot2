@@ -1,12 +1,10 @@
 import express from 'express';
-import axios from 'axios';
 import crypto from 'crypto';
 import session from 'express-session';
 import dotenv from 'dotenv';
-import faceitJS from './faceitJS.js';
+import faceitJS from './FaceitJS.js';
 
-dotenv.config();
-
+dotenv.config();                                
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -35,8 +33,7 @@ app.get('/auth', (req, res) => {
 
 // Callback route
 app.get('/callback', async (req, res) => {
-  const { code, state, error } = req.query;
-
+  const { code, state } = req.query;
   // Verify state parameter
   if (state !== req.session.state) {
     return res.status(400).send('Invalid state parameter');
