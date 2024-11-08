@@ -1,7 +1,6 @@
 const express = require('express');
 const session = require('express-session');
 const crypto = require('crypto');
-const axios = require('axios');
 const FaceitJS = require('./FaceitJS'); // Ensure this path is correct
 
 const app = express();

@@ -1,17 +1,4 @@
-const express = require('express');
-const session = require('express-session');
-const crypto = require('crypto');
 const axios = require('axios');
-
-const app = express();
-
-// Session middleware configuration
-app.use(session({
-    secret: 'your-secret-key',
-    resave: false,
-    saveUninitialized: true,
-    cookie: { secure: false } // Set to true if using HTTPS
-}));
 
 class FaceitJS {
     constructor() {
@@ -74,45 +61,4 @@ class FaceitJS {
     }
 }
 
-const faceitJS = new FaceitJS();
-
-function generateState() {
-    return crypto.randomBytes(16).toString('hex');
-}
-
-app.get('/auth', (req, res) => {
-    const state = generateState();
-    req.session.state = state;
-    console.log('Generated state:', state); // Debugging statement
-    const authorizationUrl = faceitJS.getAuthorizationUrl(state);
-    res.redirect(authorizationUrl);
-});
-
-app.get('/callback', async (req, res) => {
-    const receivedState = req.query.state;
-    const sessionState = req.session.state;
-
-    console.log('Received state:', receivedState); // Debugging statement
-    console.log('Session state:', sessionState); // Debugging statement
-
-    if (receivedState !== sessionState) {
-        console.error('State mismatch', { receivedState, sessionState });
-        return res.status(400).send('State mismatch');
-    }
-
-    // Proceed with token exchange
-    try {
-        const tokenData = await faceitJS.getAccessTokenFromCode(req.query.code);
-        // Handle token data
-        res.send(tokenData);
-    } catch (error) {
-        console.error('Token exchange error:', error);
-        res.status(500).send('Failed to get access token');
-    }
-});
-
-app.listen(3000, () => {
-    console.log('Server is running on port 3000');
-});
-
-module.exports = faceitJS;
+module.exports = FaceitJS;
