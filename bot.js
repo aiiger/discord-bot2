@@ -10,8 +10,8 @@ import { cleanEnv, str, url as envUrl, port } from 'envalid';
 import dotenv from 'dotenv';
 import express from 'express';
 import session from 'express-session';
-import FaceitJS from './FaceitJS'; // Import the instance
-import logger from './logger'; // Import the logger
+import FaceitJS from './FaceitJS.js'; // Import the instance with .js extension
+import logger from './logger.js'; // Import the logger with .js extension
 
 dotenv.config();
 
