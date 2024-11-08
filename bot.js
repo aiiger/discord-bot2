@@ -1,13 +1,22 @@
+// bot.js
+
 import express from 'express';
 import dotenv from 'dotenv';
 import session from 'express-session';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import FaceitJS from './FaceitJS.js';
+import RedisStore from 'connect-redis';
+import Redis from 'ioredis';
 
+// Load environment variables from .env file
 dotenv.config();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 // Verify required environment variables
 const requiredEnvVars = [
@@ -16,7 +25,8 @@ const requiredEnvVars = [
     'SESSION_SECRET',
     'FACEIT_CLIENT_ID',
     'FACEIT_CLIENT_SECRET',
-    'REDIRECT_URI'
+    'REDIRECT_URI',
+    'REDIS_URL' // Ensure this is set for production
 ];
 
 for (const envVar of requiredEnvVars) {
@@ -26,36 +36,59 @@ for (const envVar of requiredEnvVars) {
     }
 }
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-
 // Initialize FaceitJS with your API keys
 const faceit = new FaceitJS(process.env.FACEIT_API_KEY_SERVER, process.env.FACEIT_API_KEY_CLIENT);
 
-// Session configuration
+// Determine the environment
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Initialize Redis client and session store
+let sessionStoreInstance;
+
+if (isProduction) {
+    // In production, use Redis for session storage
+    const redisClient = new Redis(process.env.REDIS_URL);
+
+    redisClient.on('error', (err) => {
+        console.error('Redis Client Error', err);
+    });
+
+    sessionStoreInstance = new RedisStore({
+        client: redisClient,
+        prefix: 'faceit:sess:', // Optional prefix
+    });
+} else {
+    // In development, use MemoryStore
+    sessionStoreInstance = new session.MemoryStore();
+}
+
+// Set EJS as the view engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views')); // Ensure 'views' directory is correctly set
+
+// Middleware to parse JSON
+app.use(express.json());
+
+// Middleware to handle sessions
 app.use(session({
+    store: sessionStoreInstance,
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction, // Ensure HTTPS in production
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     },
     name: 'faceit.sid'
 }));
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
-// Middleware to parse JSON
-app.use(express.json());
 
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({
         error: 'Internal Server Error',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+        message: isProduction ? 'Something went wrong' : err.message
     });
 });
 
@@ -64,47 +97,16 @@ app.get('/', (req, res) => {
     if (req.session.accessToken) {
         res.redirect('/dashboard');
     } else {
-        res.send(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>FACEIT Bot</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        max-width: 800px;
-                        margin: 0 auto;
-                        padding: 20px;
-                        text-align: center;
-                    }
-                    h1 {
-                        color: #FF5500;
-                    }
-                    .login-button {
-                        display: inline-block;
-                        padding: 10px 20px;
-                        background-color: #FF5500;
-                        color: white;
-                        text-decoration: none;
-                        border-radius: 5px;
-                        margin-top: 20px;
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>FACEIT Bot</h1>
-                <p>Please log in with your FACEIT account to continue.</p>
-                <a href="/auth" class="login-button">Login with FACEIT</a>
-            </body>
-            </html>
-        `);
+        res.render('login', { error: req.query.error, message: req.query.message });
     }
 });
 
 // Auth Endpoint
 app.get('/auth', (req, res) => {
     try {
-        const authUrl = faceit.getAuthorizationUrl();
+        const state = Math.random().toString(36).substring(7);
+        req.session.authState = state; // Store state in session
+        const authUrl = faceit.getAuthorizationUrl(state);
         console.log('Redirecting to FACEIT auth URL:', authUrl);
         res.redirect(authUrl);
     } catch (error) {
@@ -117,7 +119,12 @@ app.get('/auth', (req, res) => {
 app.get('/callback', async (req, res) => {
     try {
         console.log('Callback received with query:', req.query);
-        const { code, state } = req.query;
+        const { code, state, error, error_description } = req.query;
+
+        if (error) {
+            console.error('FACEIT Error:', error, error_description);
+            return res.redirect(`/?error=${encodeURIComponent(error_description)}`);
+        }
 
         if (!code) {
             console.log('No code provided - redirecting to login');
@@ -125,10 +132,11 @@ app.get('/callback', async (req, res) => {
         }
 
         // Validate state parameter
-        if (!faceit.validateState(state)) {
+        if (state !== req.session.authState) {
             console.log('Invalid state parameter - possible CSRF attack');
             return res.redirect('/?error=invalid_state');
         }
+        delete req.session.authState; // Clean up
 
         // Exchange code for access token
         const token = await faceit.getAccessTokenFromCode(code);
@@ -155,23 +163,19 @@ app.get('/dashboard', (req, res) => {
         return res.redirect('/?error=not_authenticated');
     }
 
-    res.send(`
-        <h1>Welcome, ${req.session.user.nickname}!</h1>
-        <p>You are now authenticated with FACEIT.</p>
-        <h2>Available Commands:</h2>
-        <ul>
-            <li><strong>Get Hub:</strong> GET /api/hubs/:hubId</li>
-            <li><strong>Rehost:</strong> POST /api/championships/rehost</li>
-            <li><strong>Cancel:</strong> POST /api/championships/cancel</li>
-        </ul>
-        <p><a href="/logout" style="color: #FF5500;">Logout</a></p>
-    `);
+    res.render('dashboard', { user: req.session.user });
 });
 
 // Logout Route
 app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/?message=logged_out');
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Error destroying session:', err);
+            return res.status(500).send('Could not log out.');
+        }
+        res.clearCookie('faceit.sid');
+        res.redirect('/?message=logged_out');
+    });
 });
 
 // API Routes
@@ -189,7 +193,7 @@ apiRouter.get('/hubs/:hubId', async (req, res) => {
 
     try {
         const { hubId } = req.params;
-        const response = await faceit.getHubsById(hubId);
+        const response = await faceit.getHubMatches(hubId);
         res.json(response);
     } catch (error) {
         console.error('Error getting hub:', error);
@@ -219,7 +223,7 @@ apiRouter.post('/championships/rehost', async (req, res) => {
             });
         }
 
-        const response = await faceit.getChampionshipsById(eventId);
+        const response = await faceit.getHubMatches(eventId);
         res.json({
             message: `Rehosted event ${eventId} for game ${gameId}`,
             data: response
@@ -251,7 +255,7 @@ apiRouter.post('/championships/cancel', async (req, res) => {
             });
         }
 
-        const response = await faceit.getChampionshipsById(eventId);
+        const response = await faceit.getHubMatches(eventId);
         res.json({
             message: `Canceled event ${eventId}`,
             data: response
