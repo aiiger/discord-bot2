@@ -17,7 +17,7 @@ class FaceitJS {
             redirect_uri: this.redirectUri,
             state: state,
             scope: 'openid profile email',
-            // Add these parameters as per documentation
+            // Add these required parameters
             redirect_popup: 'false',
             lang: 'en'
         });
