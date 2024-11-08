@@ -26,6 +26,7 @@ const env = cleanEnv(process.env, {
     PORT: port(),
 });
 
+// Initialize Express app
 const app = express();
 app.set("trust proxy", 1);
 
@@ -58,7 +59,7 @@ const initializeApp = async () => {
             directives: {
                 defaultSrc: ["'self'"],
                 scriptSrc: ["'self'", "https://api.faceit.com"],
-                styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
+                styleSrc: ["'self'", "https://fonts.googleapis.com"],
                 imgSrc: ["'self'", "data:", "https://api.faceit.com"],
                 connectSrc: ["'self'", "https://api.faceit.com"],
                 fontSrc: ["'self'", "https://fonts.gstatic.com"],
@@ -68,13 +69,14 @@ const initializeApp = async () => {
         }));
 
         // Rate limiting
-        app.use(rateLimit({
+        const limiter = rateLimit({
             windowMs: 15 * 60 * 1000,
             max: 100,
             standardHeaders: true,
             legacyHeaders: false,
             message: "Too many requests from this IP, please try again later.",
-        }));
+        });
+        app.use(limiter);
 
         // Logger setup
         app.use(morgan("combined", {
@@ -85,8 +87,10 @@ const initializeApp = async () => {
             },
         }));
 
-        // Initialize RedisStore and session
+        // Initialize RedisStore
         const store = new RedisStore({ client: redisClient });
+
+        // Session middleware
         app.use(session({
             store: store,
             secret: env.SESSION_SECRET,
@@ -121,7 +125,7 @@ const initializeApp = async () => {
             try {
                 const state = Math.random().toString(36).substring(2, 15);
                 req.session.authState = state;
-                const authUrl = await FaceitJS.getAuthorizationUrl(state);
+                const authUrl = FaceitJS.getAuthorizationUrl(state);
                 logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
                 res.redirect(authUrl);
             } catch (error) {
@@ -158,17 +162,6 @@ const initializeApp = async () => {
                 logger.error(`Error during OAuth callback: ${err.message}`);
                 res.redirect("/?error=auth_failed");
             }
-        });
-
-        // Error handling middleware
-        app.use((err, req, res, next) => {
-            logger.error('Server Error:', err);
-            res.status(500).send('Internal Server Error');
-        });
-
-        // 404 handler - must be after all other routes
-        app.use((req, res) => {
-            res.status(404).send('Not Found');
         });
 
         // Start server
