@@ -1,133 +1,137 @@
-// Importing dependencies
+// FaceitJS.js
 import axios from 'axios';
-import { URLSearchParams } from 'url';
 
-// ***** FACEITJS CLASS ***** //
 class FaceitJS {
     constructor() {
-        this.baseUrl = 'https://api.faceit.com';
-        this.authUrl = 'https://api.faceit.com/auth/v1/oauth/authorize'; // Correct OAuth endpoint
-        this.tokenUrl = 'https://api.faceit.com/auth/v1/oauth/token';
-        this.userInfoUrl = 'https://api.faceit.com/core/v1/users/me'; // Updated endpoint
-
-        // Bind methods to the instance
-        this.getAuthorizationUrl = this.getAuthorizationUrl.bind(this);
-        this.getAccessTokenFromCode = this.getAccessTokenFromCode.bind(this);
-        this.getUserInfo = this.getUserInfo.bind(this);
-        this.getHubMatches = this.getHubMatches.bind(this); // Bind the new method
-        this.getMatchesInConfigurationMode = this.getMatchesInConfigurationMode.bind(this);
+        this.clientId = process.env.FACEIT_CLIENT_ID;
+        this.clientSecret = process.env.FACEIT_CLIENT_SECRET;
+        this.redirectUri = process.env.REDIRECT_URI;
+        this.apiKey = process.env.FACEIT_API_KEY_SERVER;
+        this.tokenEndpoint = 'https://api.faceit.com/auth/v1/oauth/token';
     }
 
-    /**
-     * Generates the FACEIT OAuth authorization URL.
-     * @param {string} state - A unique string to maintain state between the request and callback.
-     * @returns {string} - The complete authorization URL.
-     */
     getAuthorizationUrl(state) {
         const params = new URLSearchParams({
             response_type: 'code',
-            client_id: process.env.FACEIT_CLIENT_ID,
-            redirect_uri: process.env.REDIRECT_URI,
-            scope: 'openid profile email',
+            client_id: this.clientId,
+            redirect_uri: this.redirectUri,
             state: state,
+            scope: 'openid profile email'
         });
-        return `${this.authUrl}?${params.toString()}`;
+        
+        return `https://accounts.faceit.com/auth?${params.toString()}`;
     }
 
-    /**
-     * Exchanges the authorization code for an access token.
-     * @param {string} code - The authorization code received from FACEIT.
-     * @returns {Object} - The access token response data.
-     */
     async getAccessTokenFromCode(code) {
-        const params = new URLSearchParams({
-            grant_type: 'authorization_code',
-            code: code,
-            redirect_uri: process.env.REDIRECT_URI,
-            client_id: process.env.FACEIT_CLIENT_ID,
-            client_secret: process.env.FACEIT_CLIENT_SECRET,
-        });
-
+        const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+        
         try {
-            const response = await axios.post(this.tokenUrl, params.toString(), {
+            const response = await axios({
+                method: 'post',
+                url: this.tokenEndpoint,
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${credentials}`
                 },
+                data: new URLSearchParams({
+                    grant_type: 'authorization_code',
+                    code: code,
+                    redirect_uri: this.redirectUri
+                })
             });
+            
             return response.data;
         } catch (error) {
-            // Log detailed error information
-            if (error.response) {
-                throw new Error(`Token Exchange Failed: ${error.response.data.error_description || error.response.data.error}`);
-            } else {
-                throw new Error(`Token Exchange Failed: ${error.message}`);
-            }
+            throw new Error(`Failed to get access token: ${error.message}`);
         }
     }
 
-    /**
-     * Retrieves user information using the access token.
-     * @param {string} accessToken - The access token obtained from FACEIT.
-     * @returns {Object} - The user's profile information.
-     */
     async getUserInfo(accessToken) {
         try {
-            const response = await axios.get(this.userInfoUrl, {
+            const response = await axios({
+                method: 'get',
+                url: 'https://api.faceit.com/auth/v1/resources/userinfo',
                 headers: {
-                    'Authorization': `Bearer ${accessToken}`,
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            });
+            
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to get user info: ${error.message}`);
+        }
+    }
+
+    async refreshAccessToken(refreshToken) {
+        const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+        
+        try {
+            const response = await axios({
+                method: 'post',
+                url: this.tokenEndpoint,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${credentials}`
                 },
+                data: new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    refresh_token: refreshToken
+                })
+            });
+            
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to refresh token: ${error.message}`);
+        }
+    }
+
+    // Additional methods for FACEIT API interactions can be added here
+    async getPlayerInfo(playerId) {
+        try {
+            const response = await axios({
+                method: 'get',
+                url: `https://api.faceit.com/core/v1/users/${playerId}`,
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`
+                }
             });
             return response.data;
         } catch (error) {
-            // Log detailed error information
-            if (error.response) {
-                throw new Error(`User Info Retrieval Failed: ${error.response.data.error_description || error.response.data.error}`);
-            } else {
-                throw new Error(`User Info Retrieval Failed: ${error.message}`);
-            }
+            throw new Error(`Failed to get player info: ${error.message}`);
         }
     }
 
-    /**
-     * Retrieves match details for a specific hub.
-     * @param {string} hubId - The ID of the hub.
-     * @param {string} matchId - The ID of the match.
-     * @returns {Object} - The match details.
-     */
-    async getHubMatches(hubId, matchId) {
+    async getPlayerStats(playerId, game = 'csgo') {
         try {
-            const response = await axios.get(`${this.baseUrl}/hubs/${hubId}/matches/${matchId}`);
+            const response = await axios({
+                method: 'get',
+                url: `https://api.faceit.com/stats/v1/stats/users/${playerId}/games/${game}`,
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`
+                }
+            });
             return response.data;
         } catch (error) {
-            // Log detailed error information
-            if (error.response) {
-                throw new Error(`Hub Matches Retrieval Failed: ${error.response.data.error_description || error.response.data.error}`);
-            } else {
-                throw new Error(`Hub Matches Retrieval Failed: ${error.message}`);
-            }
+            throw new Error(`Failed to get player stats: ${error.message}`);
         }
     }
 
-    /**
-     * Retrieves all matches in configuration mode for a specific hub.
-     * @param {string} hubId - The ID of the hub.
-     * @returns {Array} - The list of matches in configuration mode.
-     */
-    async getMatchesInConfigurationMode(hubId) {
+    async getPlayerMatches(playerId, game = 'csgo', limit = 20) {
         try {
-            const response = await axios.get(`${this.baseUrl}/hubs/${hubId}/matches`);
-            const matches = response.data.items.filter(match => match.status === 'CONFIGURATION');
-            return matches;
+            const response = await axios({
+                method: 'get',
+                url: `https://api.faceit.com/stats/v1/stats/time/users/${playerId}/games/${game}?size=${limit}`,
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`
+                }
+            });
+            return response.data;
         } catch (error) {
-            // Log detailed error information
-            if (error.response) {
-                throw new Error(`Matches Retrieval Failed: ${error.response.data.error_description || error.response.data.error}`);
-            } else {
-                throw new Error(`Matches Retrieval Failed: ${error.message}`);
-            }
+            throw new Error(`Failed to get player matches: ${error.message}`);
         }
     }
 }
 
-// ***** EXPORT AN INSTANCE OF FACEITJS ***** //
-export default FaceitJS;
+// Create and export a single instance
+const faceitJS = new FaceitJS();
+export default faceitJS;
