@@ -1,4 +1,4 @@
-// bot.js
+// ***** IMPORTS ***** //
 import express from 'express';
 import session from 'express-session';
 import RedisStore from 'connect-redis';
@@ -26,13 +26,17 @@ const env = cleanEnv(process.env, {
     PORT: port(),
 });
 
+// Initialize Express app
 const app = express();
 app.set("trust proxy", 1);
 
-// Initialize Redis and Express
+// Create Redis client at the top level
+let redisClient;
+
 const initializeApp = async () => {
     try {
-        const redisClient = Redis.createClient({
+        // Initialize Redis client
+        redisClient = Redis.createClient({
             url: env.REDIS_URL,
             socket: {
                 tls: true,
@@ -76,7 +80,7 @@ const initializeApp = async () => {
         });
         app.use(limiter);
 
-        // Logger
+        // Logger setup
         app.use(morgan("combined", {
             stream: {
                 write: (message) => {
@@ -85,7 +89,7 @@ const initializeApp = async () => {
             },
         }));
 
-        // Session store
+        // Initialize RedisStore
         const store = new RedisStore({ client: redisClient });
 
         // Session middleware
@@ -105,36 +109,41 @@ const initializeApp = async () => {
 
         app.use(express.json());
 
-        // Routes
-        app.get("/", (req, res) => {
-            try {
-                if (req.session.accessToken) {
-                    res.redirect("/dashboard");
-                } else {
-                    res.send(`<h1>Please log in with your FACEIT account to continue.</h1><a href="/auth">Login with FACEIT</a>`);
-                }
-            } catch (error) {
-                logger.error(`Error in root route: ${error.message}`);
-                res.status(500).send("Internal Server Error");
-            }
-        });
-
-        // ... rest of your routes ...
-
-        // Error handling middleware
-        app.use((err, req, res, next) => {
-            logger.error('Server Error:', err);
-            res.status(500).json({
-                error: 'Internal Server Error',
-                message: env.NODE_ENV === 'development' ? err.message : undefined
-            });
-        });
+        // Your existing routes...
 
         // Start server
         const PORT = env.PORT || 3000;
-        app.listen(PORT, () => {
+        const server = app.listen(PORT, () => {
             logger.info(`Server is running on port ${PORT}`);
         });
+
+        // Graceful shutdown
+        const shutdown = async () => {
+            try {
+                logger.info('Shutting down server...');
+                
+                // Close HTTP server first
+                await new Promise((resolve) => {
+                    server.close(resolve);
+                });
+                logger.info('HTTP server closed');
+
+                // Close Redis client if it exists and is connected
+                if (redisClient && redisClient.isOpen) {
+                    await redisClient.quit();
+                    logger.info('Redis client disconnected');
+                }
+
+                process.exit(0);
+            } catch (err) {
+                logger.error('Error during shutdown:', err);
+                process.exit(1);
+            }
+        };
+
+        // Handle shutdown signals
+        process.on('SIGTERM', shutdown);
+        process.on('SIGINT', shutdown);
 
     } catch (error) {
         logger.error('Failed to initialize application:', error);
@@ -146,16 +155,4 @@ const initializeApp = async () => {
 initializeApp().catch(error => {
     logger.error('Application startup failed:', error);
     process.exit(1);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-    try {
-        await redisClient.quit();
-        logger.info('Redis client disconnected');
-        process.exit(0);
-    } catch (err) {
-        logger.error('Error during shutdown:', err);
-        process.exit(1);
-    }
 });
