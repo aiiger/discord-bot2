@@ -219,7 +219,11 @@ app.get("/dashboard", (req, res) => {
     res.render("dashboard", { user: req.session.user });
 });
 
+// Favicon route to prevent unnecessary errors
+app.get('/favicon.ico', (req, res) => res.status(204)); // No content
+
 // Start the server
-app.listen(env.PORT, () => {
-    logger.info(`Server is running on port ${env.PORT}`);
+const PORT = env.PORT || 3000; // Default to 3000 if PORT is not set
+app.listen(PORT, () => {
+    logger.info(`Server is running on port ${PORT}`);
 });
