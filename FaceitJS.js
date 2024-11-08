@@ -17,13 +17,12 @@ class FaceitJS {
             redirect_uri: this.redirectUri,
             state: state,
             scope: 'openid profile email',
-            // Add these required parameters
             redirect_popup: 'false',
             lang: 'en'
         });
         
         // Use the correct authorization endpoint
-        return `https://accounts.faceit.com/accounts/auth/v1/oauth/authorize?${params.toString()}`;
+        return `https://accounts.faceit.com/oauth/authorize?${params.toString()}`;
     }
 
     async getAccessTokenFromCode(code) {
