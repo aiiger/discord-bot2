@@ -21,8 +21,8 @@ class FaceitJS {
             lang: 'en'
         });
         
-        // Use the correct authorization endpoint from the documentation
-        return `https://accounts.faceit.com/oauth/authorize?${params.toString()}`;
+        // This is the correct endpoint according to the documentation
+        return `https://accounts.faceit.com/accounts/auth/v1/oauth/authorize?${params.toString()}`;
     }
     async getAccessTokenFromCode(code) {
         const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
