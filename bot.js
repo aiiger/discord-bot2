@@ -26,17 +26,14 @@ const env = cleanEnv(process.env, {
     PORT: port(),
 });
 
-// Initialize Express app
 const app = express();
 app.set("trust proxy", 1);
 
-// Create Redis client at the top level
-let redisClient;
-
+// Initialize Redis and Express
 const initializeApp = async () => {
     try {
-        // Initialize Redis client
-        redisClient = Redis.createClient({
+        // Create Redis client
+        const redisClient = Redis.createClient({
             url: env.REDIS_URL,
             socket: {
                 tls: true,
@@ -61,7 +58,7 @@ const initializeApp = async () => {
             directives: {
                 defaultSrc: ["'self'"],
                 scriptSrc: ["'self'", "https://api.faceit.com"],
-                styleSrc: ["'self'", "https://fonts.googleapis.com"],
+                styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
                 imgSrc: ["'self'", "data:", "https://api.faceit.com"],
                 connectSrc: ["'self'", "https://api.faceit.com"],
                 fontSrc: ["'self'", "https://fonts.gstatic.com"],
@@ -71,14 +68,13 @@ const initializeApp = async () => {
         }));
 
         // Rate limiting
-        const limiter = rateLimit({
+        app.use(rateLimit({
             windowMs: 15 * 60 * 1000,
             max: 100,
             standardHeaders: true,
             legacyHeaders: false,
             message: "Too many requests from this IP, please try again later.",
-        });
-        app.use(limiter);
+        }));
 
         // Logger setup
         app.use(morgan("combined", {
@@ -89,10 +85,8 @@ const initializeApp = async () => {
             },
         }));
 
-        // Initialize RedisStore
+        // Initialize RedisStore and session
         const store = new RedisStore({ client: redisClient });
-
-        // Session middleware
         app.use(session({
             store: store,
             secret: env.SESSION_SECRET,
@@ -109,41 +103,79 @@ const initializeApp = async () => {
 
         app.use(express.json());
 
-        // Your existing routes...
+        // Routes
+        app.get("/", (req, res) => {
+            try {
+                if (req.session.accessToken) {
+                    res.redirect("/dashboard");
+                } else {
+                    res.send(`<h1>Please log in with your FACEIT account to continue.</h1><a href="/auth">Login with FACEIT</a>`);
+                }
+            } catch (error) {
+                logger.error(`Error in root route: ${error.message}`);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+
+        app.get("/auth", async (req, res) => {
+            try {
+                const state = Math.random().toString(36).substring(2, 15);
+                req.session.authState = state;
+                const authUrl = await FaceitJS.getAuthorizationUrl(state);
+                logger.info(`Redirecting to FACEIT auth URL: ${authUrl}`);
+                res.redirect(authUrl);
+            } catch (error) {
+                logger.error(`Error generating auth URL: ${error.message}`);
+                res.status(500).send("Authentication initialization failed.");
+            }
+        });
+
+        app.get("/callback", async (req, res) => {
+            try {
+                const { code, state, error } = req.query;
+                if (error) {
+                    logger.error(`OAuth Error: ${error}`);
+                    return res.redirect(`/?error=${encodeURIComponent(error)}`);
+                }
+                if (!code) {
+                    logger.warn("No code provided - redirecting to login");
+                    return res.redirect("/?error=no_code");
+                }
+                if (state !== req.session.authState) {
+                    logger.warn("Invalid state parameter - possible CSRF attack");
+                    return res.redirect("/?error=invalid_state");
+                }
+                delete req.session.authState;
+
+                const token = await FaceitJS.getAccessTokenFromCode(code);
+                logger.info(`Access token obtained: ${token.access_token}`);
+                const userInfo = await FaceitJS.getUserInfo(token.access_token);
+                logger.info(`User info retrieved: ${userInfo.nickname}`);
+                req.session.accessToken = token.access_token;
+                req.session.user = userInfo;
+                res.redirect("/dashboard");
+            } catch (err) {
+                logger.error(`Error during OAuth callback: ${err.message}`);
+                res.redirect("/?error=auth_failed");
+            }
+        });
+
+        // Error handling middleware
+        app.use((err, req, res, next) => {
+            logger.error('Server Error:', err);
+            res.status(500).send('Internal Server Error');
+        });
+
+        // 404 handler - must be after all other routes
+        app.use((req, res) => {
+            res.status(404).send('Not Found');
+        });
 
         // Start server
         const PORT = env.PORT || 3000;
-        const server = app.listen(PORT, () => {
+        app.listen(PORT, () => {
             logger.info(`Server is running on port ${PORT}`);
         });
-
-        // Graceful shutdown
-        const shutdown = async () => {
-            try {
-                logger.info('Shutting down server...');
-                
-                // Close HTTP server first
-                await new Promise((resolve) => {
-                    server.close(resolve);
-                });
-                logger.info('HTTP server closed');
-
-                // Close Redis client if it exists and is connected
-                if (redisClient && redisClient.isOpen) {
-                    await redisClient.quit();
-                    logger.info('Redis client disconnected');
-                }
-
-                process.exit(0);
-            } catch (err) {
-                logger.error('Error during shutdown:', err);
-                process.exit(1);
-            }
-        };
-
-        // Handle shutdown signals
-        process.on('SIGTERM', shutdown);
-        process.on('SIGINT', shutdown);
 
     } catch (error) {
         logger.error('Failed to initialize application:', error);
