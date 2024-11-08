@@ -11,7 +11,6 @@ class FaceitJS {
         this.redirectUri = process.env.REDIRECT_URI;
         this.tokenEndpoint = process.env.TOKEN_ENDPOINT;
         this.authorizationEndpoint = process.env.AUTHORIZATION_ENDPOINT;
-        this.scope = process.env.SCOPE;
     }
 
     getAuthorizationUrl(state) {

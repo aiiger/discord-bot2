@@ -18,6 +18,11 @@ app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: 'lax'
+    }
 }));
 
 // Generate a random string for state
@@ -43,9 +48,16 @@ app.get('/callback', async (req, res) => {
     const { code, state } = req.query;
 
     // Verify state parameter
-    if (state !== req.session.state) {
+    if (!state || state !== req.session.state) {
+        console.error('State mismatch', { 
+            receivedState: state, 
+            sessionState: req.session.state 
+        });
         return res.status(400).send('Invalid state parameter');
     }
+
+    // Clear the state from session
+    delete req.session.state;
 
     // Exchange authorization code for tokens
     try {
@@ -54,7 +66,7 @@ app.get('/callback', async (req, res) => {
         req.session.refreshToken = tokenData.refresh_token;
         res.redirect('/dashboard');
     } catch (error) {
-        console.error('Callback error:', error);
+        console.error('Token exchange error:', error);
         res.status(500).send('Error exchanging authorization code for tokens');
     }
 });
