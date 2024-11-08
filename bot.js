@@ -9,10 +9,10 @@ const app = express();
 const port = process.env.PORT || 3000;
 const faceitJS = new FaceitJS();
 
-// 1. Trust Heroku's proxy
+// Trust Heroku's proxy
 app.set('trust proxy', 1);
 
-// 2. Redis client setup
+// Redis client setup
 const redisClient = createClient({
     url: process.env.REDIS_URL,
     socket: {
@@ -35,7 +35,7 @@ const initializeRedis = async () => {
     }
 };
 
-// 3. Session middleware
+// Session middleware
 const sessionMiddleware = session({
     store: new RedisStore({
         client: redisClient,
@@ -44,30 +44,117 @@ const sessionMiddleware = session({
     }),
     secret: process.env.SESSION_SECRET,
     name: 'sessionId',
-    resave: false, // Only save session if modified
-    saveUninitialized: false, // Don't create session until something stored
+    resave: false,
+    saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Set to true in production
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 day
-        sameSite: 'lax' // Adjust based on your requirements
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
     }
 });
 
 app.use(sessionMiddleware);
 
-// 4. Body parsers
+// Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 5. Debug middleware
+// Debug middleware
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - SessionID: ${req.sessionID}`);
     console.log('Session Data:', req.session);
     next();
 });
 
-// 6. Routes
+// Greet players when match is in config stage
+faceitJS.onMatchStateChange(async (match) => {
+    if (match.state === 'config') {
+        greetPlayers(match.players);
+    }
+});
+
+const greetPlayers = (players) => {
+    players.forEach(player => {
+        sendMessage(player.id, 'Welcome to the match! Good luck!');
+    });
+};
+
+const sendMessage = (playerId, message) => {
+    // Implement message sending via FACEIT API or chat system
+    faceitJS.sendChatMessage(playerId, message);
+};
+
+// Voting mechanism for rehosting
+const votes = {};
+
+app.post('/vote', (req, res) => {
+    const { playerId, vote, matchId } = req.body;
+    handleVote(playerId, vote, matchId);
+    res.status(200).send('Vote registered');
+});
+
+const handleVote = (playerId, vote, matchId) => {
+    if (!votes[matchId]) {
+        votes[matchId] = { agree: 0, total: 0 };
+    }
+    votes[matchId].total += 1;
+    if (vote === 'agree') {
+        votes[matchId].agree += 1;
+    }
+
+    if (votes[matchId].agree >= 6) {
+        rehostMatch(matchId);
+    }
+};
+
+const rehostMatch = async (matchId) => {
+    try {
+        await faceitJS.rehostMatch(matchId);
+        sendMessageToAll(matchId, 'Rehosting the match as per player votes.');
+    } catch (error) {
+        console.error('Rehosting error:', error);
+    }
+};
+
+const sendMessageToAll = (matchId, message) => {
+    const players = faceitJS.getPlayersInMatch(matchId);
+    players.forEach(player => {
+        sendMessage(player.id, message);
+    });
+};
+
+// Check Elo differential and cancel match if necessary
+const checkEloDifferential = async (matchId) => {
+    const players = await faceitJS.getPlayersInMatch(matchId);
+    const eloScores = players.map(p => p.elo);
+    const maxElo = Math.max(...eloScores);
+    const minElo = Math.min(...eloScores);
+    const diff = maxElo - minElo;
+
+    if (diff >= 70) {
+        cancelMatch(matchId);
+    }
+};
+
+const cancelMatch = async (matchId) => {
+    try {
+        await faceitJS.cancelMatch(matchId);
+        sendMessageToAll(matchId, 'Match has been cancelled due to high Elo differential.');
+    } catch (error) {
+        console.error('Cancelling match error:', error);
+    }
+};
+
+// Periodically check Elo differential
+setInterval(async () => {
+    const activeMatches = await faceitJS.getActiveMatches();
+    activeMatches.forEach(match => {
+        checkEloDifferential(match.id);
+    });
+}, 60000); // Check every minute
+
+// Routes
 app.get('/', (req, res) => {
     res.send('<a href="/auth">Login with FACEIT</a>');
 });
@@ -78,7 +165,6 @@ app.get('/auth', async (req, res) => {
         req.session.state = state;
         req.session.stateTimestamp = Date.now();
 
-        // Force session save before redirect
         await new Promise((resolve, reject) => {
             req.session.save((err) => {
                 if (err) {
@@ -149,13 +235,13 @@ app.get('/dashboard', async (req, res) => {
     }
 });
 
-// 7. Error handler (must have all 4 parameters)
+// Error handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).send('Something broke!');
 });
 
-// 8. Start server after initializing Redis
+// Start server after initializing Redis
 const startServer = async () => {
     await initializeRedis();
     app.listen(port, () => {
