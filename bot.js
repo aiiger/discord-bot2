@@ -4,16 +4,13 @@ const session = require('express-session');
 const crypto = require('crypto');
 const RedisStore = require('connect-redis').default;
 const { createClient } = require('redis');
-const FaceitJS = require('./FaceitJS');
+const FaceitJS = require('./FaceitJS'); // Ensure correct path
 
 const app = express();
 const port = process.env.PORT || 3000;
-const faceitJS = new FaceitJS();
+const faceitJS = new FaceitJS(); // Correct instantiation
 
-// Trust Heroku's proxy
-app.set('trust proxy', 1);
-
-// Redis client setup
+// Configure Redis client
 const redisClient = createClient({
     url: process.env.REDIS_URL,
     socket: {
@@ -22,6 +19,7 @@ const redisClient = createClient({
     }
 });
 
+// Handle Redis client events
 redisClient.on('error', (err) => console.error('Redis Client Error:', err));
 redisClient.on('connect', () => console.log('Redis Client Connected'));
 
@@ -36,7 +34,7 @@ const initializeRedis = async () => {
     }
 };
 
-// Session middleware
+// Session middleware setup
 const sessionMiddleware = session({
     store: new RedisStore({
         client: redisClient,
@@ -48,20 +46,18 @@ const sessionMiddleware = session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Ensure HTTPS in production
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 day
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // 'none' for production
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
     }
 });
 
 app.use(sessionMiddleware);
-
-// Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Debug middleware
+// Debug middleware (optional)
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - SessionID: ${req.sessionID}`);
     console.log('Session Data:', req.session);
