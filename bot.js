@@ -116,6 +116,7 @@ app.use(
 app.use(express.json());
 
 // Root Endpoint - Show login page
+// Example of enhanced error handling for your routes
 app.get("/", (req, res) => {
     try {
         if (req.session.accessToken) {
@@ -141,7 +142,6 @@ app.get("/", (req, res) => {
     }
 });
 
-// Auth Endpoint
 app.get("/auth", async (req, res) => {
     try {
         const state = Math.random().toString(36).substring(2, 15);
@@ -155,12 +155,8 @@ app.get("/auth", async (req, res) => {
     }
 });
 
-
-
-// OAuth2 Callback Endpoint
 app.get("/callback", async (req, res) => {
     try {
-        logger.info(`Callback received with query: ${JSON.stringify(req.query)}`);
         const { code, state, error } = req.query;
 
         if (error) {
@@ -173,7 +169,6 @@ app.get("/callback", async (req, res) => {
             return res.redirect("/?error=no_code");
         }
 
-        // Validate the state parameter
         if (state !== req.session.authState) {
             logger.warn("Invalid state parameter - possible CSRF attack");
             return res.redirect("/?error=invalid_state");
@@ -181,15 +176,12 @@ app.get("/callback", async (req, res) => {
 
         delete req.session.authState; // Clean up
 
-        // Exchange the code for an access token
         const token = await FaceitJS.getAccessTokenFromCode(code);
         logger.info(`Access token obtained: ${token.access_token}`);
 
-        // Retrieve user info
         const userInfo = await FaceitJS.getUserInfo(token.access_token);
         logger.info(`User info retrieved: ${userInfo.nickname}`);
 
-        // Store data in session
         req.session.accessToken = token.access_token;
         req.session.user = userInfo;
 
@@ -200,13 +192,6 @@ app.get("/callback", async (req, res) => {
     }
 });
 
-// Dashboard Route
-app.get("/dashboard", (req, res) => {
-    if (!req.session.accessToken) {
-        return res.redirect("/");
-    }
-    res.render("dashboard", { user: req.session.user });
-});
 
 // Favicon route to prevent unnecessary errors
 app.get('/favicon.ico', (req, res) => res.status(204)); // No content
