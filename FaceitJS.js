@@ -16,13 +16,12 @@ class FaceitJS {
             client_id: this.clientId,
             redirect_uri: this.redirectUri,
             state: state,
-            scope: 'openid profile email',
+            scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read',
             redirect_popup: 'false',
             lang: 'en'
         });
         
-        // This is the correct endpoint according to the documentation
-        return `https://accounts.faceit.com/accounts/auth/v1/oauth/authorize?${params.toString()}`;
+        return `https://api.faceit.com/auth/v1/oauth/authorize?${params.toString()}`;
     }
     async getAccessTokenFromCode(code) {
         const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
