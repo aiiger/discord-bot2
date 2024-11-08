@@ -2,7 +2,7 @@ const express = require('express');
 const session = require('express-session');
 const crypto = require('crypto');
 const axios = require('axios');
-const FaceitJS = require('./FaceitJS'); // Assuming FaceitJS is in a separate file
+const FaceitJS = require('./FaceitJS'); // Ensure this path is correct
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -90,3 +90,5 @@ app.get('/dashboard', async (req, res) => {
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
+
+module.exports = app;
