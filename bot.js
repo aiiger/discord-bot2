@@ -1,3 +1,4 @@
+// bot.js
 const express = require('express');
 const session = require('express-session');
 const crypto = require('crypto');
@@ -47,10 +48,10 @@ const sessionMiddleware = session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NODE_ENV === 'production', // Ensure HTTPS in production
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 1 day
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // 'none' for production
     }
 });
 
@@ -74,11 +75,15 @@ const sendMessage = (playerId, message) => {
 };
 
 // Function to send messages to all players in a match
-const sendMessageToAll = (matchId, message) => {
-    const players = faceitJS.getPlayersInMatch(matchId);
-    players.forEach(player => {
-        sendMessage(player.id, message);
-    });
+const sendMessageToAll = async (matchId, message) => {
+    try {
+        const players = await faceitJS.getPlayersInMatch(matchId);
+        players.forEach(player => {
+            sendMessage(player.id, message);
+        });
+    } catch (error) {
+        console.error(`Error fetching players for match ${matchId}:`, error);
+    }
 };
 
 // Function to greet players
@@ -114,7 +119,7 @@ const handleVote = (playerId, vote, matchId) => {
 const rehostMatch = async (matchId) => {
     try {
         await faceitJS.rehostMatch(matchId);
-        sendMessageToAll(matchId, 'Rehosting the match as per player votes.');
+        await sendMessageToAll(matchId, 'Rehosting the match as per player votes.');
     } catch (error) {
         console.error('Rehosting error:', error);
     }
@@ -122,21 +127,25 @@ const rehostMatch = async (matchId) => {
 
 // Check Elo differential and cancel match if necessary
 const checkEloDifferential = async (matchId) => {
-    const players = await faceitJS.getPlayersInMatch(matchId);
-    const eloScores = players.map(p => p.elo);
-    const maxElo = Math.max(...eloScores);
-    const minElo = Math.min(...eloScores);
-    const diff = maxElo - minElo;
+    try {
+        const players = await faceitJS.getPlayersInMatch(matchId);
+        const eloScores = players.map(p => p.elo);
+        const maxElo = Math.max(...eloScores);
+        const minElo = Math.min(...eloScores);
+        const diff = maxElo - minElo;
 
-    if (diff >= 70) {
-        cancelMatch(matchId);
+        if (diff >= 70) {
+            cancelMatch(matchId);
+        }
+    } catch (error) {
+        console.error(`Error checking Elo differential for match ${matchId}:`, error);
     }
 };
 
 const cancelMatch = async (matchId) => {
     try {
         await faceitJS.cancelMatch(matchId);
-        sendMessageToAll(matchId, 'Match has been cancelled due to high Elo differential.');
+        await sendMessageToAll(matchId, 'Match has been cancelled due to high Elo differential.');
     } catch (error) {
         console.error('Cancelling match error:', error);
     }
@@ -145,20 +154,16 @@ const cancelMatch = async (matchId) => {
 // Track matches that have been greeted to avoid duplicate greetings
 const greetedMatches = new Set();
 
-// Periodically check matches
-setInterval(async () => {
-    const activeMatches = await faceitJS.getActiveMatches();
-    activeMatches.forEach(async (match) => {
-        // Greet players if match is in config stage and hasn't been greeted yet
-        if (match.state === 'config' && !greetedMatches.has(match.id)) {
-            greetPlayers(match.players);
-            greetedMatches.add(match.id);
-        }
+// Register event listener for match state changes
+faceitJS.onMatchStateChange(async (match) => {
+    if (match.state === 'config' && !greetedMatches.has(match.id)) {
+        await greetPlayers(match.players);
+        greetedMatches.add(match.id);
+    }
 
-        // Check Elo differential
-        await checkEloDifferential(match.id);
-    });
-}, 60000); // Check every minute
+    // Check Elo differential
+    await checkEloDifferential(match.id);
+});
 
 // Routes
 app.get('/', (req, res) => {
