@@ -1,17 +1,17 @@
 // bot.js
 
 // ***** IMPORTS ***** //
-const connectRedis = require('connect-redis').default; // Update this line
-const Redis = require('ioredis');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const morgan = require('morgan');
-const { cleanEnv, str, url: envUrl, port } = require('envalid');
-const dotenv = require('dotenv');
-const express = require('express');
-const session = require('express-session');
-const FaceitJS = require('./FaceitJS'); // Import the instance
-const logger = require('./logger'); // Import the logger
+import connectRedis from 'connect-redis';
+import Redis from 'ioredis';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import morgan from 'morgan';
+import { cleanEnv, str, url as envUrl, port } from 'envalid';
+import dotenv from 'dotenv';
+import express from 'express';
+import session from 'express-session';
+import FaceitJS from './FaceitJS'; // Import the instance
+import logger from './logger'; // Import the logger
 
 dotenv.config();
 
@@ -208,104 +208,3 @@ app.get('/dashboard', (req, res) => {
   }
   res.send(`
       <h1>Welcome, ${req.session.user.nickname}!</h1>
-      <p>You are now authenticated with FACEIT.</p>
-      <h2>Available Commands:</h2>
-      <ul>
-          <li><strong>Get Hub:</strong> GET /api/hubs/:hubId</li>
-          <li><strong>Rehost:</strong> POST /api/championships/rehost</li>
-          <li><strong>Cancel:</strong> POST /api/championships/cancel</li>
-      </ul>
-      <p><a href="/logout" style="color: #FF5500;">Logout</a></p>
-  `);
-});
-
-// API Routes
-const apiRouter = express.Router();
-app.use('/api', apiRouter);
-
-// Middleware to check authentication
-const isAuthenticated = (req, res, next) => {
-  if (req.session.accessToken) {
-    next();
-  } else {
-    res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Please log in first',
-    });
-  }
-};
-
-// Apply authentication middleware to all API routes
-apiRouter.use(isAuthenticated);
-
-// Hub Routes
-apiRouter.get('/hubs/:hubId', async (req, res) => {
-  try {
-    const { hubId } = req.params;
-    const response = await FaceitJS.getHubsById(hubId);
-    res.json(response);
-  } catch (error) {
-    logger.error(`Error getting hub: ${error.message}`);
-    res.status(500).json({
-      error: 'Hub Error',
-      message: 'Failed to get hub information',
-    });
-  }
-});
-
-// Championship Routes
-apiRouter.post('/championships/rehost', async (req, res) => {
-  try {
-    const { gameId, eventId } = req.body;
-
-    if (!gameId || !eventId) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Missing gameId or eventId',
-      });
-    }
-
-    const response = await FaceitJS.rehostChampionship(eventId, gameId);
-    res.json({
-      message: `Rehosted event ${eventId} for game ${gameId}`,
-      data: response,
-    });
-  } catch (error) {
-    logger.error(`Error rehosting championship: ${error.message}`);
-    res.status(500).json({
-      error: 'Rehost Error',
-      message: 'Failed to rehost championship',
-    });
-  }
-});
-
-apiRouter.post('/championships/cancel', async (req, res) => {
-  try {
-    const { eventId } = req.body;
-
-    if (!eventId) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Missing eventId',
-      });
-    }
-
-    const response = await FaceitJS.cancelChampionship(eventId);
-    res.json({
-      message: `Canceled event ${eventId}`,
-      data: response,
-    });
-  } catch (error) {
-    logger.error(`Error canceling championship: ${error.message}`);
-    res.status(500).json({
-      error: 'Cancel Error',
-      message: 'Failed to cancel championship',
-    });
-  }
-});
-
-// Start the server
-const PORT = env.PORT || 3000;
-app.listen(PORT, () => {
-  logger.info(`Server is running on port ${PORT}`);
-});
