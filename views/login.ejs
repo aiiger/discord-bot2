@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FACEIT Bot - Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .login-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #FF5500;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            transition: background-color 0.3s ease;
+        }
+        .login-button:hover {
+            background-color: #e04e00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FACEIT Bot</h1>
+        <p>Please log in with your FACEIT account to continue.</p>
+        <a href="/auth" class="login-button">Login with FACEIT</a>
+        <% if (typeof error !== 'undefined') { %>
+            <p style="color: red;"><%= error %></p>
+        <% } %>
+        <% if (typeof message !== 'undefined') { %>
+            <p style="color: green;"><%= message %></p>
+        <% } %>
+    </div>
+</body>
+</html>
