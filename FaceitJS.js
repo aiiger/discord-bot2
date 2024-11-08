@@ -11,20 +11,26 @@ class FaceitJS {
     }
 
     getAuthorizationUrl(state) {
+        // REQUIRED parameters according to the spec
         const params = new URLSearchParams({
-            response_type: 'code',
-            client_id: this.clientId,
-            redirect_uri: this.redirectUri,
-            state: state,
-            // Required scopes according to OpenID Connect spec
+            // REQUIRED. Must contain openid scope value
             scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read',
-            // Additional required parameters
-            nonce: Math.random().toString(36).substring(2, 15),
-            response_mode: 'query'
+            
+            // REQUIRED. Must be 'code' for Authorization Code Flow
+            response_type: 'code',
+            
+            // REQUIRED. Your client ID
+            client_id: this.clientId,
+            
+            // REQUIRED. Must exactly match the registered redirect URI
+            redirect_uri: this.redirectUri,
+            
+            // RECOMMENDED for CSRF protection
+            state: state
         });
         
-        // Use the authorization endpoint as specified in the OpenID Connect spec
-        return `https://accounts.faceit.com/accounts/auth/v1/oauth/authorize?${params.toString()}`;
+        // Use HTTPS endpoint as required by the spec
+        return `https://api.faceit.com/auth/v1/oauth/authorize?${params.toString()}`;
     }
     async getAccessTokenFromCode(code) {
         const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
