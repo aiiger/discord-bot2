@@ -1,30 +1,30 @@
 // ***** IMPORTS ***** //
-import helmet from "helmet";
-import Redis from "ioredis"; // Corrected import statement
-import rateLimit from "express-rate-limit";
-import morgan from "morgan";
-import { cleanEnv, str, url as envUrl, port } from "envalid";
-import dotenv from "dotenv";
-import express from "express";
-import session from "express-session";
-import connectRedis from "connect-redis";
-import FaceitJS from "./FaceitJS.js";
-import logger from "./logger.js";
+import helmet from 'helmet';
+import Redis from 'redis';
+import rateLimit from 'express-rate-limit';
+import morgan from 'morgan';
+import { cleanEnv, str, url as envUrl, port } from 'envalid';
+import dotenv from 'dotenv';
+import express from 'express';
+import session from 'express-session';
+import connectRedis from 'connect-redis';
+import FaceitJS from './FaceitJS.js';
+import logger from './logger.js';
 
 // Load environment variables from .env file
 dotenv.config();
 
 // ***** ENVIRONMENT VARIABLES ***** //
 const env = cleanEnv(process.env, {
-    FACEIT_CLIENT_ID: str(),
-    FACEIT_CLIENT_SECRET: str(),
-    REDIRECT_URI: envUrl(),
-    FACEIT_API_KEY_SERVER: str(),
-    FACEIT_API_KEY_CLIENT: str(),
-    SESSION_SECRET: str(),
-    REDIS_URL: envUrl(),
-    NODE_ENV: str({ choices: ["development", "production", "test"] }),
-    PORT: port(),
+  FACEIT_CLIENT_ID: str(),
+  FACEIT_CLIENT_SECRET: str(),
+  REDIRECT_URI: envUrl(),
+  FACEIT_API_KEY_SERVER: str(),
+  FACEIT_API_KEY_CLIENT: str(),
+  SESSION_SECRET: str(),
+  REDIS_URL: envUrl(),
+  NODE_ENV: str({ choices: ['development', 'production', 'test'] }),
+  PORT: port(),
 });
 
 // Initialize Express app
