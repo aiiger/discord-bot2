@@ -20,14 +20,17 @@ class FaceitJS {
 
   getAuthorizationUrl(state) {
     const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: this.clientId,
-      redirect_uri: this.redirectUri,
-      state: state,
-      scope: this.scope,
+        // REQUIRED parameters according to flow diagram
+        response_type: 'code',  // Not 'token' as shown in the client-side example
+        client_id: this.clientId,
+        redirect_uri: this.redirectUri,
+        state: state,
+        scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read'
     });
-    return `${this.authorizationEndpoint}?${params.toString()}`;
-  }
+    
+    // According to the flow diagram, step 4: "FACEIT opens Partner authorization page"
+    return `https://accounts.faceit.com/accounts?${params.toString()}`;
+}
 
   async getAccessTokenFromCode(code) {
     const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
