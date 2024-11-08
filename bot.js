@@ -20,39 +20,73 @@ const redisClient = createClient({
 
 const initializeApp = async () => {
     try {
-        // Connect to Redis
         await redisClient.connect();
         console.log('Connected to Redis successfully');
 
-        // Session middleware FIRST
+        // Security headers
+        app.use((req, res, next) => {
+            res.set({
+                'X-Frame-Options': 'DENY',
+                'X-Content-Type-Options': 'nosniff',
+                'Referrer-Policy': 'strict-origin-when-cross-origin'
+            });
+            next();
+        });
+
+        // Session middleware with secure settings
         app.use(session({
-            store: new RedisStore({ client: redisClient }),
+            store: new RedisStore({ 
+                client: redisClient,
+                prefix: 'faceit:sess:'
+            }),
             secret: process.env.SESSION_SECRET || 'your-secret-key',
+            name: 'sessionId',
             resave: false,
-            saveUninitialized: true,
+            saveUninitialized: false,
+            rolling: true,
             cookie: {
                 secure: process.env.NODE_ENV === 'production',
                 httpOnly: true,
-                maxAge: 24 * 60 * 60 * 1000
+                maxAge: 24 * 60 * 60 * 1000,
+                sameSite: 'lax'
             }
         }));
 
-        // Middleware
         app.use(express.json());
+
+        // Debug middleware
+        app.use((req, res, next) => {
+            console.log('Session ID:', req.sessionID);
+            console.log('Session Data:', req.session);
+            next();
+        });
 
         // Routes
         app.get('/', (req, res) => {
+            req.session.touch();
             res.send('<a href="/auth">Login with FACEIT</a>');
         });
 
         app.get('/auth', (req, res) => {
             try {
-                const state = crypto.randomBytes(16).toString('hex');
+                const state = crypto.randomBytes(32).toString('hex');
                 req.session.state = state;
+                req.session.stateTimestamp = Date.now();
+                
                 console.log('Generated state:', state);
+                console.log('Session after state set:', req.session);
+                
                 const authUrl = faceitJS.getAuthorizationUrl(state);
-                console.log('Auth URL:', authUrl);
-                res.redirect(authUrl);
+                
+                // Force session save before redirect
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Session save error:', err);
+                        return res.status(500).send('Authentication failed');
+                    }
+                    console.log('Session saved, redirecting...');
+                    res.redirect(authUrl);
+                });
             } catch (error) {
                 console.error('Auth error:', error);
                 res.status(500).send('Authentication failed');
@@ -63,17 +97,34 @@ const initializeApp = async () => {
             try {
                 const { code, state } = req.query;
                 console.log('Received state:', state);
-                console.log('Session state:', req.session?.state);
+                console.log('Session on callback:', req.session);
 
-                if (!state || !req.session?.state || state !== req.session.state) {
-                    console.error('State mismatch', { 
+                if (!state || !req.session?.state) {
+                    console.error('State missing', { 
                         receivedState: state, 
-                        sessionState: req.session?.state 
+                        sessionState: req.session?.state,
+                        sessionID: req.sessionID
                     });
                     return res.status(400).send('Invalid state parameter');
                 }
 
+                if (state !== req.session.state) {
+                    console.error('State mismatch', { 
+                        receivedState: state, 
+                        sessionState: req.session.state,
+                        sessionID: req.sessionID
+                    });
+                    return res.status(400).send('State parameter mismatch');
+                }
+
+                // Check state age
+                const stateAge = Date.now() - req.session.stateTimestamp;
+                if (stateAge > 5 * 60 * 1000) { // 5 minutes
+                    return res.status(400).send('State parameter expired');
+                }
+
                 delete req.session.state;
+                delete req.session.stateTimestamp;
 
                 const tokenData = await faceitJS.getAccessTokenFromCode(code);
                 req.session.accessToken = tokenData.access_token;
@@ -104,7 +155,6 @@ const initializeApp = async () => {
             }
         });
 
-        // Start server
         app.listen(port, () => {
             console.log(`Server is running on port ${port}`);
         });
@@ -114,13 +164,11 @@ const initializeApp = async () => {
     }
 };
 
-// Start app
 initializeApp().catch(error => {
     console.error('Failed to initialize app:', error);
     process.exit(1);
 });
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
     try {
         await redisClient.quit();
