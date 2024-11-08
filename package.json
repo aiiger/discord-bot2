@@ -2,19 +2,20 @@
   "name": "discord-bot2",
   "version": "1.0.0",
   "main": "bot.js",
+  "type": "module",
   "scripts": {
     "start": "node bot.js",
     "test": "node test/faceit-api.test.js"
   },
   "engines": {
-    "node": "22.x",
-    "npm": "10.x"
+    "node": ">=18.x",
+    "npm": ">=9.x"
   },
   "author": "Your Name",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.7.7",
-    "connect-redis": "^7.1.1",
+    "connect-redis": "^7.0.0",
     "dotenv": "^16.4.5",
     "envalid": "^8.0.0",
     "express-rate-limit": "^7.4.1",
@@ -22,7 +23,6 @@
     "helmet": "^8.0.0",
     "ioredis": "^5.4.1",
     "morgan": "^1.10.0",
-    "redis": "^4.7.0",
     "url": "^0.11.4",
     "winston": "^3.16.0"
   }
