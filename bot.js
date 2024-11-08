@@ -2,7 +2,7 @@
 import helmet from 'helmet';
 import Redis from 'redis';
 import rateLimit from 'express-rate-limit';
-import mfrom 'morgan';
+import morgan from 'morgan';
 import { cleanEnv, str, url as envUrl, port } from 'envalid';
 import dotenv from 'dotenv';
 import express from 'express';
