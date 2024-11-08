@@ -11,5 +11,9 @@
     "npm": "9.x"
   },
   "author": "Your Name",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "connect-redis": "^7.1.1",
+    "ioredis": "^5.4.1"
+  }
 }
