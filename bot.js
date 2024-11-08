@@ -89,11 +89,6 @@ redisClient.on("error", (err) => {
 // Initialize RedisStore
 const RedisStore = connectRedis(session); // Correct way to initialize
 
-// Create a new Redis store for sessions using 'new'
-const sessionStore = new RedisStore({
-    client: redisClient,
-});
-
 // Configure session middleware
 app.use(
   session({
