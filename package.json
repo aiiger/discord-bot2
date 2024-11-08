@@ -17,8 +17,11 @@
     "express-rate-limit": "^7.1.1",
     "express-session": "^1.17.3",
     "helmet": "^7.0.0",
+    "json": "^11.0.0",
     "morgan": "^1.10.0",
     "redis": "^4.6.10",
+    "rest-client": "^0.1.5",
+    "tough-cookie": "^5.0.0",
     "winston": "^3.16.0"
   }
 }

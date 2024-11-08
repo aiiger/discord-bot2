@@ -1,10 +1,14 @@
-require('dotenv').config();
-const express = require('express');
-const axios = require('axios');
-const crypto = require('crypto');
-const session = require('express-session');
+import express from 'express';
+import axios from 'axios';
+import crypto from 'crypto';
+import session from 'express-session';
+import dotenv from 'dotenv';
+import faceitJS from './faceitJS.js';
+
+dotenv.config();
 
 const app = express();
+const port = process.env.PORT || 3000;
 
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -16,7 +20,7 @@ app.use(session({
   saveUninitialized: true,
 }));
 
-// Generate a random string for state and nonce
+// Generate a random string for state
 function generateRandomString(length) {
   return crypto.randomBytes(length).toString('hex');
 }
@@ -24,20 +28,9 @@ function generateRandomString(length) {
 // Authentication route
 app.get('/auth', (req, res) => {
   const state = generateRandomString(16);
-  const nonce = generateRandomString(16);
-  const authorizationUrl = new URL(process.env.AUTHORIZATION_ENDPOINT);
-  authorizationUrl.searchParams.append('response_type', 'code');
-  authorizationUrl.searchParams.append('scope', process.env.SCOPE);
-  authorizationUrl.searchParams.append('client_id', process.env.CLIENT_ID);
-  authorizationUrl.searchParams.append('redirect_uri', process.env.REDIRECT_URI);
-  authorizationUrl.searchParams.append('state', state);
-  authorizationUrl.searchParams.append('nonce', nonce);
-
-  // Store state and nonce in session
   req.session.state = state;
-  req.session.nonce = nonce;
-
-  res.redirect(authorizationUrl.toString());
+  const authorizationUrl = faceitJS.getAuthorizationUrl(state);
+  res.redirect(authorizationUrl);
 });
 
 // Callback route
@@ -51,20 +44,9 @@ app.get('/callback', async (req, res) => {
 
   // Exchange authorization code for tokens
   try {
-    const response = await axios.post(process.env.TOKEN_ENDPOINT, {
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: process.env.REDIRECT_URI,
-      client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-    });
-    const { access_token, id_token, refresh_token } = response.data;
-
-    // Store tokens in session
-    req.session.accessToken = access_token;
-    req.session.idToken = id_token;
-    req.session.refreshToken = refresh_token;
-
+    const tokenData = await faceitJS.getAccessTokenFromCode(code);
+    req.session.accessToken = tokenData.access_token;
+    req.session.refreshToken = tokenData.refresh_token;
     res.redirect('/dashboard');
   } catch (error) {
     res.status(500).send('Error exchanging authorization code for tokens');
@@ -78,19 +60,14 @@ app.get('/dashboard', async (req, res) => {
     return res.status(401).send('Unauthorized');
   }
   try {
-    const response = await axios.get('https://api.faceit.com/dashboard', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-    res.json(response.data);
+    const userInfo = await faceitJS.getUserInfo(accessToken);
+    res.json(userInfo);
   } catch (error) {
-    res.status(500).send('Error fetching dashboard data');
+    res.status(500).send('Error fetching user info');
   }
 });
 
 // Start the server
-const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
