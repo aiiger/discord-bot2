@@ -175,7 +175,7 @@ app.get("/callback", async (req, res) => {
         const { code, state, error } = req.query;
 
         if (error) {
-            logger.error(`FACEIT returned an error: ${error}`);
+            logger.error(`OAuth Error: ${error}`);
             return res.redirect(`/?error=${encodeURIComponent(error)}`);
         }
 
@@ -210,6 +210,7 @@ app.get("/callback", async (req, res) => {
         res.redirect("/?error=auth_failed");
     }
 });
+
 
 
 // Dashboard Route
