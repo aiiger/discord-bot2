@@ -12,27 +12,30 @@ class FaceitJS {
 
     getAuthorizationUrl(state) {
         const params = new URLSearchParams({
+            // REQUIRED parameters according to OpenID Connect spec
             response_type: 'code',
             client_id: this.clientId,
             redirect_uri: this.redirectUri,
             state: state,
-            // Required scopes from your application settings
             scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read',
+            // FACEIT specific parameters
             redirect_popup: 'false',
             lang: 'en'
         });
         
-        // According to FACEIT Connect documentation page 3:
+        // According to FACEIT documentation:
         // "The FACEIT Connect url is the following: https://accounts.faceit.com/"
         return `https://accounts.faceit.com/?${params.toString()}`;
     }
+    
     async getAccessTokenFromCode(code) {
+        // Base64 encode client credentials
         const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
         
         try {
             const response = await axios({
                 method: 'post',
-                url: this.tokenEndpoint,
+                url: 'https://api.faceit.com/auth/v1/oauth/token',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'Authorization': `Basic ${credentials}`
