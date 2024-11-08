@@ -32,6 +32,10 @@ const env = cleanEnv(process.env, {
 const app = express();
 app.set('trust proxy', 1); // Trust the first proxy
 
+// Set the view engine to EJS
+app.set('view engine', 'ejs');
+app.set('views', './views');
+
 // ***** SECURITY MIDDLEWARE ***** //
 app.use(helmet());
 
@@ -206,16 +210,10 @@ app.get('/dashboard', (req, res) => {
   if (!req.session.accessToken) {
     return res.redirect('/');
   }
-  res.send(`
-        // Set the view engine to EJS
-        app.set('view engine', 'ejs');
-        app.set('views', './views');
+  res.render('dashboard', { user: req.session.user });
+});
 
-        // Dashboard Route
-        app.get('/dashboard', (req, res) => {
-          if (!req.session.accessToken) {
-            return res.redirect('/');
-          }
-          res.render('dashboard', { user: req.session.user });
-        });
-      <h1>Welcome, ${req.session.user.nickname}!</h1>
+// Start the server
+app.listen(env.PORT, () => {
+  logger.info(`Server is running on port ${env.PORT}`);
+});
