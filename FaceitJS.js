@@ -11,26 +11,20 @@ class FaceitJS {
     }
 
     getAuthorizationUrl(state) {
-        // REQUIRED parameters according to the spec
         const params = new URLSearchParams({
-            // REQUIRED. Must contain openid scope value
-            scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read',
-            
-            // REQUIRED. Must be 'code' for Authorization Code Flow
             response_type: 'code',
-            
-            // REQUIRED. Your client ID
             client_id: this.clientId,
-            
-            // REQUIRED. Must exactly match the registered redirect URI
             redirect_uri: this.redirectUri,
-            
-            // RECOMMENDED for CSRF protection
-            state: state
+            state: state,
+            // Required scopes from your application settings
+            scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read',
+            redirect_popup: 'false',
+            lang: 'en'
         });
         
-        // Use HTTPS endpoint as required by the spec
-        return `https://api.faceit.com/auth/v1/oauth/authorize?${params.toString()}`;
+        // According to FACEIT Connect documentation page 3:
+        // "The FACEIT Connect url is the following: https://accounts.faceit.com/"
+        return `https://accounts.faceit.com/?${params.toString()}`;
     }
     async getAccessTokenFromCode(code) {
         const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
