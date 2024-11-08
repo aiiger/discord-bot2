@@ -10,7 +10,6 @@ class FaceitJS {
         this.clientSecret = process.env.CLIENT_SECRET;
         this.redirectUri = process.env.REDIRECT_URI;
         this.tokenEndpoint = process.env.TOKEN_ENDPOINT;
-        this.authorizationEndpoint = process.env.AUTHORIZATION_ENDPOINT;
     }
 
     getAuthorizationUrl(state) {
@@ -62,29 +61,6 @@ class FaceitJS {
         } catch (error) {
             console.error('User info error:', error.response?.data || error.message);
             throw new Error(`Failed to get user info: ${error.message}`);
-        }
-    }
-
-    async refreshAccessToken(refreshToken) {
-        const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
-        
-        try {
-            const response = await axios.post(this.tokenEndpoint,
-                new URLSearchParams({
-                    grant_type: 'refresh_token',
-                    refresh_token: refreshToken,
-                }),
-                {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'Authorization': `Basic ${credentials}`,
-                    },
-                }
-            );
-            return response.data;
-        } catch (error) {
-            console.error('Token refresh error:', error.response?.data || error.message);
-            throw new Error(`Failed to refresh token: ${error.message}`);
         }
     }
 }

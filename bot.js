@@ -13,22 +13,17 @@ const port = process.env.PORT || 3000;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-// Session middleware
+// Session middleware with proper configuration
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        sameSite: 'lax'
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
-
-// Generate a random string for state
-function generateRandomString(length) {
-    return crypto.randomBytes(length).toString('hex');
-}
 
 // Root route
 app.get('/', (req, res) => {
@@ -37,49 +32,55 @@ app.get('/', (req, res) => {
 
 // Authentication route
 app.get('/auth', (req, res) => {
-    const state = generateRandomString(16);
-    req.session.state = state;
-    const authorizationUrl = faceitJS.getAuthorizationUrl(state);
-    res.redirect(authorizationUrl);
+    try {
+        const state = crypto.randomBytes(16).toString('hex');
+        req.session.state = state;
+        const authorizationUrl = faceitJS.getAuthorizationUrl(state);
+        console.log('Auth URL:', authorizationUrl);
+        console.log('State saved in session:', state);
+        res.redirect(authorizationUrl);
+    } catch (error) {
+        console.error('Auth error:', error);
+        res.status(500).send('Authentication failed');
+    }
 });
 
 // Callback route
 app.get('/callback', async (req, res) => {
-    const { code, state } = req.query;
-
-    // Verify state parameter
-    if (!state || state !== req.session.state) {
-        console.error('State mismatch', { 
-            receivedState: state, 
-            sessionState: req.session.state 
-        });
-        return res.status(400).send('Invalid state parameter');
-    }
-
-    // Clear the state from session
-    delete req.session.state;
-
-    // Exchange authorization code for tokens
     try {
+        const { code, state } = req.query;
+        console.log('Received state:', state);
+        console.log('Session state:', req.session.state);
+
+        if (!state || !req.session.state || state !== req.session.state) {
+            console.error('State mismatch', { 
+                receivedState: state, 
+                sessionState: req.session.state 
+            });
+            return res.status(400).send('Invalid state parameter');
+        }
+
+        // Clear the state from session
+        delete req.session.state;
+
         const tokenData = await faceitJS.getAccessTokenFromCode(code);
         req.session.accessToken = tokenData.access_token;
         req.session.refreshToken = tokenData.refresh_token;
         res.redirect('/dashboard');
     } catch (error) {
-        console.error('Token exchange error:', error);
+        console.error('Callback error:', error);
         res.status(500).send('Error exchanging authorization code for tokens');
     }
 });
 
 // Protected route
 app.get('/dashboard', async (req, res) => {
-    const { accessToken } = req.session;
-    if (!accessToken) {
-        return res.status(401).send('Unauthorized');
+    if (!req.session.accessToken) {
+        return res.redirect('/');
     }
 
     try {
-        const userInfo = await faceitJS.getUserInfo(accessToken);
+        const userInfo = await faceitJS.getUserInfo(req.session.accessToken);
         res.json(userInfo);
     } catch (error) {
         console.error('Dashboard error:', error);
