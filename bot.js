@@ -37,7 +37,7 @@ const validators = {
     CLIENT_SECRET: (secret) => patterns.CLIENT_SECRET.test(secret),
     REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
     HUB_ID: (id) => patterns.HUB_ID.test(id),
-    DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0 // Add validator for DISCORD_TOKEN
+    DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0
 };
 
 for (const varName of requiredEnvVars) {
@@ -105,6 +105,59 @@ app.use(express.urlencoded({ extended: true }));
 
 // Initialize Discord client
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+
+// Add login route
+app.get('/login', (req, res) => {
+    // Generate a random state parameter to prevent CSRF attacks
+    const state = crypto.randomBytes(16).toString('hex');
+    req.session.oauthState = state;
+
+    // Get the authorization URL from FaceitJS
+    const authUrl = faceitJS.getAuthorizationUrl(state);
+    res.redirect(authUrl);
+});
+
+// Add callback route
+app.get('/callback', async (req, res) => {
+    const { code, state } = req.query;
+    const storedState = req.session.oauthState;
+
+    // Verify state parameter to prevent CSRF attacks
+    if (!state || !storedState || state !== storedState) {
+        logger.error('Invalid state parameter');
+        return res.status(400).send('Invalid state parameter');
+    }
+
+    try {
+        // Exchange the authorization code for tokens
+        const response = await faceitJS.oauthInstance.post('/auth/v1/oauth/token', null, {
+            params: {
+                grant_type: 'authorization_code',
+                code: code,
+                client_id: process.env.CLIENT_ID,
+                client_secret: process.env.CLIENT_SECRET,
+                redirect_uri: process.env.REDIRECT_URI
+            },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        });
+
+        // Store tokens in session
+        req.session.accessToken = response.data.access_token;
+        req.session.refreshToken = response.data.refresh_token;
+
+        // Update FaceitJS instance with the new tokens
+        faceitJS.accessToken = response.data.access_token;
+        faceitJS.refreshToken = response.data.refresh_token;
+
+        logger.info('Successfully authenticated with FACEIT');
+        res.send('Authentication successful! You can close this window.');
+    } catch (error) {
+        logger.error('Error during OAuth callback:', error);
+        res.status(500).send('Authentication failed');
+    }
+});
 
 // Handle match state changes
 faceitJS.onMatchStateChange(async (match) => {
