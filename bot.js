@@ -1,63 +1,116 @@
-import express from 'express';
-import session from 'express-session';
-import RedisStore from 'connect-redis';
-import { createClient } from 'redis';
+import { Client, GatewayIntentBits } from 'discord.js';
 import { FaceitJS } from './FaceitJS.js';
-import crypto from 'crypto';
 import dotenv from 'dotenv';
+import { env } from 'node:process';
 
+// Load environment variables
 dotenv.config();
 
-// Initialize Express
-const app = express();
-const port = process.env.PORT || 3000;
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
 
-// Initialize Redis client
-const redisClient = createClient({
-    url: process.env.REDIS_URL,
-    socket: {
-        tls: true,
-        rejectUnauthorized: false
+const faceit = new FaceitJS();
+const rehostVotes = new Map(); // Store rehost votes per match
+const REQUIRED_VOTES = 6; // Number of votes needed for rehost
+
+client.on('ready', () => {
+    console.log(`Logged in as ${client.user.tag}`);
+    faceit.initialize().catch(console.error);
+});
+
+// Handle match state changes
+faceit.onMatchStateChange(async (match) => {
+    if (match.state === 'CONFIGURING') {
+        const players = await faceit.getPlayersInMatch(match.id);
+        const welcomeMessage = `Welcome to the match! Map veto will begin shortly. Type !cancel to check for elo differential or !rehost if you're experiencing technical issues.`;
+
+        // Send welcome message to each player
+        for (const player of players) {
+            try {
+                await faceit.sendChatMessage(player.id, welcomeMessage);
+            } catch (error) {
+                console.error(`Failed to send welcome message to ${player.nickname}:`, error);
+            }
+        }
     }
 });
 
-// Redis event handlers
-redisClient.on('error', (err) => console.error('Redis Client Error:', err));
-redisClient.on('connect', () => console.log('Redis Client Connected'));
+// Handle chat commands
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
 
-// Connect to Redis
-await redisClient.connect();
+    const command = message.content.toLowerCase();
+    const matchId = await getCurrentMatchId(message.author.id);
 
-// Initialize FaceitJS instance
-const faceitJS = new FaceitJS();
+    if (!matchId) {
+        message.reply('You must be in an active match to use this command.');
+        return;
+    }
 
-// Session middleware configuration
-const sessionMiddleware = session({
-    store: new RedisStore({
-        client: redisClient,
-        prefix: 'faceit:sess:',
-        ttl: 86400 // 1 day
-    }),
-    secret: process.env.SESSION_SECRET,
-    name: 'sessionId',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    if (command === '!cancel') {
+        try {
+            const players = await faceit.getPlayersInMatch(matchId);
+            const team1Avg = await calculateTeamAvgElo(players.slice(0, 5));
+            const team2Avg = await calculateTeamAvgElo(players.slice(5, 10));
+            const eloDiff = Math.abs(team1Avg - team2Avg);
+
+            if (eloDiff >= 70) {
+                await faceit.cancelMatch(matchId);
+                message.reply(`Match cancelled due to elo differential of ${eloDiff}.`);
+            } else {
+                message.reply(`Cannot cancel match. Elo differential (${eloDiff}) is less than 70.`);
+            }
+        } catch (error) {
+            console.error('Error handling cancel command:', error);
+            message.reply('Failed to process cancel request.');
+        }
+    }
+
+    if (command === '!rehost') {
+        try {
+            let votes = rehostVotes.get(matchId) || new Set();
+            votes.add(message.author.id);
+            rehostVotes.set(matchId, votes);
+
+            if (votes.size >= REQUIRED_VOTES) {
+                await faceit.rehostMatch(matchId);
+                rehostVotes.delete(matchId);
+                message.reply('Match is being rehosted.');
+            } else {
+                message.reply(`Rehost vote registered (${votes.size}/${REQUIRED_VOTES} votes needed).`);
+            }
+        } catch (error) {
+            console.error('Error handling rehost command:', error);
+            message.reply('Failed to process rehost request.');
+        }
     }
 });
 
-// Apply middleware (only once)
-app.use(sessionMiddleware);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+async function calculateTeamAvgElo(players) {
+    const elos = await Promise.all(players.map(player => faceit.getPlayerElo(player.id)));
+    return elos.reduce((sum, elo) => sum + elo, 0) / players.length;
+}
 
-// Start server
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+// This function needs to be implemented based on your database structure
+async function getCurrentMatchId(userId) {
+    // TODO: Implement the logic to get the current match ID for a Discord user
+    // This could involve querying a database that maps Discord IDs to FACEIT matches
+    console.log(`Getting match ID for user: ${userId}`);
+    return null;
+}
+
+// Error handling
+client.on('error', console.error);
+
+// Handle unhandled promise rejections
+globalThis.process?.on('unhandledRejection', (error) => {
+    console.error('Unhandled promise rejection:', error);
 });
 
-export default app;
+// Login to Discord
+client.login(env.DISCORD_TOKEN);
