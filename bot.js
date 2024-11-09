@@ -43,18 +43,18 @@ const validators = {
 for (const varName of requiredEnvVars) {
     const value = process.env[varName];
     if (!value) {
-        console.error(`Missing required environment variable: ${varName}`);
+        logger.error(`Missing required environment variable: ${varName}`);
         process.exit(1);
     }
 
     if (!validators[varName](value)) {
-        console.error(`Invalid format for ${varName}: ${value}`);
-        console.error(`Expected format: ${patterns[varName]}`);
+        logger.error(`Invalid format for ${varName}: ${value}`);
+        logger.error(`Expected format: ${patterns[varName]}`);
         process.exit(1);
     }
 }
 
-console.log('Environment variables validated successfully');
+logger.info('Environment variables validated successfully');
 
 // Initialize Express
 const app = express();
@@ -80,23 +80,14 @@ const redisClient = createClient({
             logger.error('Redis maximum retry attempts reached');
             return new Error('Maximum retry attempts reached');
         }
-        // Exponential backoff
         return Math.min(options.attempt * 100, 3000);
     }
 });
 
-// Redis event handlers with improved logging
-redisClient.on('error', (err) => {
-    logger.error('Redis Client Error:', err);
-});
-
-redisClient.on('connect', () => {
-    logger.info('Redis Client Connected');
-});
-
-redisClient.on('reconnecting', () => {
-    logger.info('Redis Client Reconnecting');
-});
+// Redis event handlers
+redisClient.on('error', (err) => logger.error('Redis Client Error:', err));
+redisClient.on('connect', () => logger.info('Redis Client Connected'));
+redisClient.on('reconnecting', () => logger.info('Redis Client Reconnecting'));
 
 // Connect to Redis
 await redisClient.connect().catch(err => {
@@ -108,33 +99,32 @@ await redisClient.connect().catch(err => {
 const faceitJS = new FaceitJS();
 
 // Force production mode for Heroku
-const isProduction = true; // Heroku always runs in production
+const isProduction = true;
 
-// Session middleware configuration with improved security
+// Session middleware configuration
 const sessionMiddleware = session({
     store: new RedisStore({
         client: redisClient,
         prefix: 'faceit:sess:',
-        ttl: 86400, // 1 day
-        disableTouch: false // Enable touch to prevent premature expiration
+        ttl: 86400,
+        disableTouch: false
     }),
     secret: process.env.SESSION_SECRET,
-    name: 'faceit_session', // Custom name to mask session implementation
+    name: 'faceit_session',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: isProduction, // Always true for Heroku (HTTPS)
+        secure: isProduction,
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
-        sameSite: 'none', // Required for cross-site cookies in production
-        domain: isProduction ? '.herokuapp.com' : undefined // Set domain for production
+        maxAge: 24 * 60 * 60 * 1000,
+        sameSite: 'none',
+        domain: isProduction ? '.herokuapp.com' : undefined
     },
-    rolling: true // Extend session lifetime on activity
+    rolling: true
 });
 
 // Apply middleware
 app.use((req, res, next) => {
-    // Log incoming requests
     logger.info(`${req.method} ${req.path} - IP: ${req.ip}`);
     next();
 });
@@ -146,11 +136,16 @@ app.use(express.urlencoded({ extended: true }));
 // Initialize Discord client
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-// Add login route with improved logging
+// Add login route
 app.get('/login', (req, res) => {
     try {
-        // Generate a random state parameter
-        const state = crypto.randomBytes(32).toString('hex'); // Increased from 16 to 32 bytes
+        const state = crypto.randomBytes(32).toString('hex');
+
+        // Store state in Redis with short TTL
+        redisClient.set(`oauth:state:${state}`, 'pending', {
+            EX: 300 // 5 minutes expiry
+        });
+
         req.session.oauthState = state;
 
         // Ensure session is saved before redirect
@@ -160,7 +155,7 @@ app.get('/login', (req, res) => {
                 return res.status(500).send('Internal server error');
             }
 
-            logger.info(`Login initiated - Session ID: ${req.session.id}`);
+            logger.info(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
             const authUrl = faceitJS.getAuthorizationUrl(state);
             res.redirect(authUrl);
         });
@@ -170,26 +165,30 @@ app.get('/login', (req, res) => {
     }
 });
 
-// Add callback route with improved error handling
+// Add callback route
 app.get('/callback', async (req, res) => {
     const { code, state } = req.query;
     const storedState = req.session.oauthState;
 
-    logger.info(`Callback received - Session ID: ${req.session.id}`);
-    logger.debug(`Stored state: ${storedState}, Received state: ${state}`);
-
-    // Verify state parameter
-    if (!state || !storedState) {
-        logger.error('Missing state parameter');
-        return res.status(400).send('Missing state parameter');
-    }
-
-    if (state !== storedState) {
-        logger.error(`State mismatch - Expected: ${storedState}, Received: ${state}`);
-        return res.status(400).send('Invalid state parameter');
-    }
+    logger.info(`Callback received - Session ID: ${req.session.id}, State: ${state}`);
 
     try {
+        // Verify state exists in Redis
+        const redisState = await redisClient.get(`oauth:state:${state}`);
+        if (!redisState) {
+            logger.error('State not found in Redis');
+            return res.status(400).send('Invalid or expired state parameter');
+        }
+
+        // Verify state parameter
+        if (!state || !storedState || state !== storedState) {
+            logger.error(`State mismatch - Session: ${storedState}, Redis: ${redisState}, Received: ${state}`);
+            return res.status(400).send('Invalid state parameter');
+        }
+
+        // Delete used state from Redis
+        await redisClient.del(`oauth:state:${state}`);
+
         // Exchange the authorization code for tokens
         const response = await faceitJS.oauthInstance.post('/auth/v1/oauth/token', null, {
             params: {
@@ -232,8 +231,40 @@ app.get('/callback', async (req, res) => {
 faceitJS.onMatchStateChange(async (match) => {
     try {
         logger.info(`Match ${match.id} state changed to ${match.state}`);
-        // For now, just log the match state change
-        // We can implement player notifications later when we have the required API methods
+
+        // Get match details including chat room info
+        const matchDetails = await faceitJS.getMatchDetails(match.id);
+        const roomDetails = await faceitJS.getRoomDetails(match.id);
+
+        // Get recent messages
+        const messages = await faceitJS.getRoomMessages(match.id, '', 10);
+
+        logger.info(`Match ${match.id} details:`, {
+            state: match.state,
+            room: roomDetails,
+            messageCount: messages.length
+        });
+
+        // Send notification to match room based on state
+        let notification = '';
+        switch (match.state) {
+            case 'READY':
+                notification = 'Match is ready! Please join the server.';
+                break;
+            case 'ONGOING':
+                notification = 'Match has started! Good luck and have fun!';
+                break;
+            case 'FINISHED':
+                notification = 'Match has ended. Thanks for playing!';
+                break;
+            case 'CANCELLED':
+                notification = 'Match has been cancelled.';
+                break;
+        }
+
+        if (notification) {
+            await faceitJS.sendRoomMessage(match.id, notification);
+        }
     } catch (error) {
         logger.error('Error handling match state change:', error);
     }
@@ -245,12 +276,62 @@ client.on('messageCreate', async (message) => {
 
     const command = message.content.toLowerCase();
 
-    // For now, just acknowledge commands
-    // We can implement the full functionality once we have the required API methods
-    if (command === '!cancel') {
-        message.reply('Cancel command received. This feature will be implemented soon.');
-    } else if (command === '!rehost') {
-        message.reply('Rehost command received. This feature will be implemented soon.');
+    try {
+        if (command === '!cancel') {
+            // Get the active match from the hub
+            const matches = await faceitJS.getHubMatches(process.env.HUB_ID, 'ongoing');
+            const activeMatch = matches[0]; // Get the most recent ongoing match
+
+            if (activeMatch) {
+                // Get match details before cancelling
+                const matchDetails = await faceitJS.getMatchDetails(activeMatch.match_id);
+
+                // Cancel the match
+                await faceitJS.cancelMatch(activeMatch.match_id);
+
+                // Send notification to Discord
+                message.reply(`Match ${activeMatch.match_id} cancelled successfully.`);
+
+                // Send notification to match room
+                await faceitJS.sendRoomMessage(activeMatch.match_id,
+                    `Match has been cancelled by admin (${message.author.username}).`
+                );
+
+                logger.info(`Match ${activeMatch.match_id} cancelled by ${message.author.username}`, {
+                    matchDetails
+                });
+            } else {
+                message.reply('No active matches found in the hub.');
+            }
+        } else if (command === '!rehost') {
+            const matches = await faceitJS.getHubMatches(process.env.HUB_ID, 'ongoing');
+            const activeMatch = matches[0];
+
+            if (activeMatch) {
+                // Get match details before rehosting
+                const matchDetails = await faceitJS.getMatchDetails(activeMatch.match_id);
+
+                // Rehost the match
+                await faceitJS.rehostMatch(activeMatch.match_id);
+
+                // Send notification to Discord
+                message.reply(`Match ${activeMatch.match_id} rehosted successfully.`);
+
+                // Send notification to match room
+                await faceitJS.sendRoomMessage(activeMatch.match_id,
+                    `Match has been rehosted by admin (${message.author.username}).`
+                );
+
+                logger.info(`Match ${activeMatch.match_id} rehosted by ${message.author.username}`, {
+                    matchDetails
+                });
+            } else {
+                message.reply('No active matches found in the hub.');
+            }
+        }
+    } catch (error) {
+        logger.error('Error handling command:', error);
+        message.reply('An error occurred while processing the command.');
     }
 });
 
@@ -267,7 +348,6 @@ process.on('unhandledRejection', (error) => {
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
     logger.error('Uncaught exception:', error);
-    // Don't exit the process, just log the error
 });
 
 // Login to Discord

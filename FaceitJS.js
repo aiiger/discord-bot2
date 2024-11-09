@@ -8,6 +8,7 @@ export class FaceitJS extends EventEmitter {
     constructor() {
         super();
         this.apiBase = 'https://open.faceit.com/data/v4';
+        this.chatApiBase = 'https://api.faceit.com/chat/v1';
         this.tokenEndpoint = 'https://api.faceit.com/auth/v1/oauth/token';
         this.clientId = process.env.CLIENT_ID;
         this.clientSecret = process.env.CLIENT_SECRET;
@@ -18,7 +19,7 @@ export class FaceitJS extends EventEmitter {
         this.accessToken = null;
         this.refreshToken = null;
 
-        // Create two axios instances - one for OAuth flows and one for Data API
+        // Create instances for different API endpoints
         this.oauthInstance = axios.create({
             baseURL: 'https://api.faceit.com',
             headers: {
@@ -36,10 +37,20 @@ export class FaceitJS extends EventEmitter {
             }
         });
 
+        // Chat API instance with OAuth token auth
+        this.chatApiInstance = axios.create({
+            baseURL: this.chatApiBase,
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
         this.setupInterceptors();
     }
 
     setupInterceptors() {
+        // OAuth instance interceptors
         this.oauthInstance.interceptors.request.use(
             (config) => {
                 if (this.accessToken) {
@@ -53,40 +64,148 @@ export class FaceitJS extends EventEmitter {
             (error) => Promise.reject(error)
         );
 
+        // Chat API instance interceptors
+        this.chatApiInstance.interceptors.request.use(
+            (config) => {
+                if (this.accessToken) {
+                    config.headers.Authorization = `Bearer ${this.accessToken}`;
+                }
+                return config;
+            },
+            (error) => Promise.reject(error)
+        );
+
+        // Common response interceptor
+        const responseInterceptor = async (error) => {
+            const originalRequest = error.config;
+
+            if (error.response?.status === 401 && this.refreshToken && !originalRequest._retry) {
+                originalRequest._retry = true;
+                try {
+                    await this.refreshAccessToken();
+                    originalRequest.headers.Authorization = `Bearer ${this.accessToken}`;
+                    return axios(originalRequest);
+                } catch (refreshError) {
+                    throw refreshError;
+                }
+            }
+
+            return Promise.reject(error);
+        };
+
         this.oauthInstance.interceptors.response.use(
             (response) => response,
-            async (error) => {
-                const originalRequest = error.config;
+            responseInterceptor
+        );
 
-                if (error.response?.status === 401 && this.refreshToken && !originalRequest._retry) {
-                    originalRequest._retry = true;
-                    try {
-                        await this.refreshAccessToken();
-                        originalRequest.headers.Authorization = `Bearer ${this.accessToken}`;
-                        return this.oauthInstance(originalRequest);
-                    } catch (refreshError) {
-                        throw refreshError;
-                    }
-                }
-
-                return Promise.reject(error);
-            }
+        this.chatApiInstance.interceptors.response.use(
+            (response) => response,
+            responseInterceptor
         );
     }
 
-    async initialize() {
-        if (!this.hubId) {
-            throw new Error('HUB_ID environment variable is not set');
-        }
+    // Hub Methods
+    async getHubDetails(hubId, expanded = []) {
+        try {
+            const params = new URLSearchParams();
+            if (expanded.length > 0) {
+                params.append('expanded', expanded.join(','));
+            }
 
-        if (!this.apiKey) {
-            throw new Error('FACEIT_API_KEY environment variable is not set');
+            const response = await this.dataApiInstance.get(`/hubs/${hubId}?${params.toString()}`);
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to get hub details: ${error.message}`);
         }
-
-        await this.startPolling();
-        return true;
     }
 
+    async getHubMatches(hubId, type = 'ongoing', offset = 0, limit = 20) {
+        try {
+            const params = new URLSearchParams({
+                type,
+                offset: offset.toString(),
+                limit: limit.toString()
+            });
+
+            const response = await this.dataApiInstance.get(`/hubs/${hubId}/matches?${params.toString()}`);
+            return response.data.items;
+        } catch (error) {
+            throw new Error(`Failed to get hub matches: ${error.message}`);
+        }
+    }
+
+    // Match Methods
+    async getMatchDetails(matchId) {
+        try {
+            const response = await this.dataApiInstance.get(`/matches/${matchId}`);
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to get match details: ${error.message}`);
+        }
+    }
+
+    async getMatchStats(matchId) {
+        try {
+            const response = await this.dataApiInstance.get(`/matches/${matchId}/stats`);
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to get match stats: ${error.message}`);
+        }
+    }
+
+    async rehostMatch(matchId) {
+        try {
+            const response = await this.dataApiInstance.post(`/matches/${matchId}/rehost`);
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to rehost match: ${error.message}`);
+        }
+    }
+
+    async cancelMatch(matchId) {
+        try {
+            const response = await this.dataApiInstance.post(`/matches/${matchId}/cancel`);
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to cancel match: ${error.message}`);
+        }
+    }
+
+    // Chat Methods
+    async getRoomDetails(roomId) {
+        try {
+            const response = await this.chatApiInstance.get(`/rooms/${roomId}`);
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to get room details: ${error.message}`);
+        }
+    }
+
+    async getRoomMessages(roomId, before = '', limit = 50) {
+        try {
+            const params = new URLSearchParams();
+            if (before) params.append('before', before);
+            if (limit) params.append('limit', limit.toString());
+
+            const response = await this.chatApiInstance.get(`/rooms/${roomId}/messages?${params.toString()}`);
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to get room messages: ${error.message}`);
+        }
+    }
+
+    async sendRoomMessage(roomId, message) {
+        try {
+            const response = await this.chatApiInstance.post(`/rooms/${roomId}/messages`, {
+                message: message
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to send room message: ${error.message}`);
+        }
+    }
+
+    // Authentication Methods
     async authenticateWithClientCredentials() {
         try {
             const response = await this.oauthInstance.post('/auth/v1/oauth/token',
@@ -126,92 +245,6 @@ export class FaceitJS extends EventEmitter {
         }
     }
 
-    async getMatchDetails(matchId) {
-        try {
-            const response = await this.dataApiInstance.get(`/matches/${matchId}`);
-            return response.data;
-        } catch (error) {
-            throw new Error(`Failed to get match details: ${error.message}`);
-        }
-    }
-
-    async getPlayersInMatch(matchId) {
-        try {
-            const response = await this.dataApiInstance.get(`/matches/${matchId}/players`);
-            return response.data.players || [];
-        } catch (error) {
-            throw new Error(`Failed to get players in match: ${error.message}`);
-        }
-    }
-
-    async sendChatMessage(playerId, message) {
-        try {
-            const response = await this.dataApiInstance.post('/chat/messages', {
-                to: playerId,
-                message: message
-            });
-            return response.data;
-        } catch (error) {
-            throw new Error(`Failed to send chat message: ${error.message}`);
-        }
-    }
-
-    async rehostMatch(matchId) {
-        try {
-            const response = await this.dataApiInstance.post(`/matches/${matchId}/rehost`);
-            return response.data;
-        } catch (error) {
-            throw new Error(`Failed to rehost match: ${error.message}`);
-        }
-    }
-
-    async cancelMatch(matchId) {
-        try {
-            const response = await this.dataApiInstance.post(`/matches/${matchId}/cancel`);
-            return response.data;
-        } catch (error) {
-            throw new Error(`Failed to cancel match: ${error.message}`);
-        }
-    }
-
-    startPolling() {
-        this.previousMatchStates = {};
-
-        setInterval(async () => {
-            try {
-                const activeMatches = await this.getHubMatches(this.hubId);
-                activeMatches.forEach(match => {
-                    const prevState = this.previousMatchStates[match.id];
-                    if (prevState && prevState !== match.state) {
-                        this.emit('matchStateChange', match);
-                    }
-                    this.previousMatchStates[match.id] = match.state;
-                });
-            } catch (error) {
-                console.error('Polling error:', error);
-            }
-        }, 60000);
-    }
-
-    onMatchStateChange(callback) {
-        this.on('matchStateChange', callback);
-    }
-
-    async getHubMatches(hubId) {
-        try {
-            const response = await this.dataApiInstance.get(`/hubs/${hubId}/matches`, {
-                params: {
-                    offset: 0,
-                    limit: 20,
-                    status: 'ONGOING'
-                }
-            });
-            return response.data.items;
-        } catch (error) {
-            throw new Error(`Failed to get hub matches: ${error.message}`);
-        }
-    }
-
     getAuthorizationUrl(state) {
         const params = new URLSearchParams({
             response_type: 'code',
@@ -222,5 +255,33 @@ export class FaceitJS extends EventEmitter {
         });
 
         return `https://accounts.faceit.com/oauth/authorize?${params.toString()}`;
+    }
+
+    // Match State Polling
+    startPolling() {
+        this.previousMatchStates = {};
+
+        setInterval(async () => {
+            try {
+                const activeMatches = await this.getHubMatches(this.hubId, 'ongoing');
+                for (const match of activeMatches) {
+                    const prevState = this.previousMatchStates[match.match_id];
+                    if (prevState && prevState !== match.status) {
+                        this.emit('matchStateChange', {
+                            id: match.match_id,
+                            state: match.status,
+                            details: await this.getMatchDetails(match.match_id)
+                        });
+                    }
+                    this.previousMatchStates[match.match_id] = match.status;
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
+            }
+        }, 60000); // Poll every minute
+    }
+
+    onMatchStateChange(callback) {
+        this.on('matchStateChange', callback);
     }
 }
