@@ -16,6 +16,7 @@
     "express": "^4.21.1",
     "express-session": "^1.18.1",
     "redis": "^4.7.0",
-    "winston": "^3.8.2"
+    "winston": "^3.8.2",
+    "discord.js": "^14.6.0"
   }
 }
