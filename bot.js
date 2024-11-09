@@ -1,3 +1,4 @@
+// FACEIT OAuth2 Bot with PKCE Support
 import express from 'express';
 import session from 'express-session';
 import RedisStore from 'connect-redis';
@@ -187,7 +188,7 @@ app.get('/callback', async (req, res) => {
         const stateData = await redisClient.get(`oauth:state:${state}`);
         if (!stateData) {
             logger.error('State not found in Redis');
-            return res.status(400).send('Invalid or expired state parameter');
+            return res.status(400).send('Invalid or expired state parameter. Please try logging in again.');
         }
 
         const { codeVerifier, sessionId } = JSON.parse(stateData);
@@ -196,7 +197,7 @@ app.get('/callback', async (req, res) => {
         // Verify state parameter
         if (!state || state !== req.session.oauthState) {
             logger.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
-            return res.status(400).send('Invalid state parameter');
+            return res.status(400).send('Invalid state parameter. Please try logging in again.');
         }
 
         // Delete used state from Redis
@@ -222,7 +223,7 @@ app.get('/callback', async (req, res) => {
     } catch (error) {
         logger.error('Error during OAuth callback:', error.message);
         logger.error('Full error:', error);
-        res.status(500).send('Authentication failed');
+        res.status(500).send('Authentication failed. Please try logging in again.');
     }
 });
 
