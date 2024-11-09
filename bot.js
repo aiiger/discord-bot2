@@ -60,45 +60,85 @@ console.log('Environment variables validated successfully');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Initialize Redis client
+// Initialize Redis client with retry strategy
 const redisClient = createClient({
     url: process.env.REDIS_URL,
     socket: {
         tls: true,
         rejectUnauthorized: false
+    },
+    retry_strategy: function (options) {
+        if (options.error && options.error.code === 'ECONNREFUSED') {
+            logger.error('Redis connection refused');
+            return new Error('The server refused the connection');
+        }
+        if (options.total_retry_time > 1000 * 60 * 60) {
+            logger.error('Redis retry time exhausted');
+            return new Error('Retry time exhausted');
+        }
+        if (options.attempt > 10) {
+            logger.error('Redis maximum retry attempts reached');
+            return new Error('Maximum retry attempts reached');
+        }
+        // Exponential backoff
+        return Math.min(options.attempt * 100, 3000);
     }
 });
 
-// Redis event handlers
-redisClient.on('error', (err) => console.error('Redis Client Error:', err));
-redisClient.on('connect', () => console.log('Redis Client Connected'));
+// Redis event handlers with improved logging
+redisClient.on('error', (err) => {
+    logger.error('Redis Client Error:', err);
+});
+
+redisClient.on('connect', () => {
+    logger.info('Redis Client Connected');
+});
+
+redisClient.on('reconnecting', () => {
+    logger.info('Redis Client Reconnecting');
+});
 
 // Connect to Redis
-await redisClient.connect();
+await redisClient.connect().catch(err => {
+    logger.error('Failed to connect to Redis:', err);
+    process.exit(1);
+});
 
 // Initialize FaceitJS instance
 const faceitJS = new FaceitJS();
 
-// Session middleware configuration
+// Force production mode for Heroku
+const isProduction = true; // Heroku always runs in production
+
+// Session middleware configuration with improved security
 const sessionMiddleware = session({
     store: new RedisStore({
         client: redisClient,
         prefix: 'faceit:sess:',
-        ttl: 86400 // 1 day
+        ttl: 86400, // 1 day
+        disableTouch: false // Enable touch to prevent premature expiration
     }),
     secret: process.env.SESSION_SECRET,
-    name: 'sessionId',
+    name: 'faceit_session', // Custom name to mask session implementation
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction, // Always true for Heroku (HTTPS)
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-    }
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
+        sameSite: 'none', // Required for cross-site cookies in production
+        domain: isProduction ? '.herokuapp.com' : undefined // Set domain for production
+    },
+    rolling: true // Extend session lifetime on activity
 });
 
-// Apply middleware (only once)
+// Apply middleware
+app.use((req, res, next) => {
+    // Log incoming requests
+    logger.info(`${req.method} ${req.path} - IP: ${req.ip}`);
+    next();
+});
+
 app.use(sessionMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -106,25 +146,46 @@ app.use(express.urlencoded({ extended: true }));
 // Initialize Discord client
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-// Add login route
+// Add login route with improved logging
 app.get('/login', (req, res) => {
-    // Generate a random state parameter to prevent CSRF attacks
-    const state = crypto.randomBytes(16).toString('hex');
-    req.session.oauthState = state;
+    try {
+        // Generate a random state parameter
+        const state = crypto.randomBytes(32).toString('hex'); // Increased from 16 to 32 bytes
+        req.session.oauthState = state;
 
-    // Get the authorization URL from FaceitJS
-    const authUrl = faceitJS.getAuthorizationUrl(state);
-    res.redirect(authUrl);
+        // Ensure session is saved before redirect
+        req.session.save((err) => {
+            if (err) {
+                logger.error('Failed to save session:', err);
+                return res.status(500).send('Internal server error');
+            }
+
+            logger.info(`Login initiated - Session ID: ${req.session.id}`);
+            const authUrl = faceitJS.getAuthorizationUrl(state);
+            res.redirect(authUrl);
+        });
+    } catch (error) {
+        logger.error('Error in login route:', error);
+        res.status(500).send('Internal server error');
+    }
 });
 
-// Add callback route
+// Add callback route with improved error handling
 app.get('/callback', async (req, res) => {
     const { code, state } = req.query;
     const storedState = req.session.oauthState;
 
-    // Verify state parameter to prevent CSRF attacks
-    if (!state || !storedState || state !== storedState) {
-        logger.error('Invalid state parameter');
+    logger.info(`Callback received - Session ID: ${req.session.id}`);
+    logger.debug(`Stored state: ${storedState}, Received state: ${state}`);
+
+    // Verify state parameter
+    if (!state || !storedState) {
+        logger.error('Missing state parameter');
+        return res.status(400).send('Missing state parameter');
+    }
+
+    if (state !== storedState) {
+        logger.error(`State mismatch - Expected: ${storedState}, Received: ${state}`);
         return res.status(400).send('Invalid state parameter');
     }
 
@@ -147,12 +208,20 @@ app.get('/callback', async (req, res) => {
         req.session.accessToken = response.data.access_token;
         req.session.refreshToken = response.data.refresh_token;
 
-        // Update FaceitJS instance with the new tokens
-        faceitJS.accessToken = response.data.access_token;
-        faceitJS.refreshToken = response.data.refresh_token;
+        // Ensure session is saved before sending response
+        req.session.save((err) => {
+            if (err) {
+                logger.error('Failed to save session with tokens:', err);
+                return res.status(500).send('Internal server error');
+            }
 
-        logger.info('Successfully authenticated with FACEIT');
-        res.send('Authentication successful! You can close this window.');
+            // Update FaceitJS instance with the new tokens
+            faceitJS.accessToken = response.data.access_token;
+            faceitJS.refreshToken = response.data.refresh_token;
+
+            logger.info('Successfully authenticated with FACEIT');
+            res.send('Authentication successful! You can close this window.');
+        });
     } catch (error) {
         logger.error('Error during OAuth callback:', error);
         res.status(500).send('Authentication failed');
@@ -208,7 +277,7 @@ client.login(process.env.DISCORD_TOKEN).catch(error => {
 
 // Start server
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+    logger.info(`Server running on port ${port}`);
 });
 
 export default app;
