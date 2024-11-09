@@ -137,12 +137,13 @@ app.use(express.urlencoded({ extended: true }));
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 // Add login route
-app.get('/login', (req, res) => {
+app.get('/login', async (req, res) => {
     try {
         const state = crypto.randomBytes(32).toString('hex');
+        const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
 
-        // Store state in Redis with short TTL
-        redisClient.set(`oauth:state:${state}`, 'pending', {
+        // Store state and code verifier in Redis with short TTL
+        await redisClient.set(`oauth:state:${state}`, codeVerifier, {
             EX: 300 // 5 minutes expiry
         });
 
@@ -156,8 +157,7 @@ app.get('/login', (req, res) => {
             }
 
             logger.info(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
-            const authUrl = faceitJS.getAuthorizationUrl(state);
-            res.redirect(authUrl);
+            res.redirect(url);
         });
     } catch (error) {
         logger.error('Error in login route:', error);
@@ -173,16 +173,16 @@ app.get('/callback', async (req, res) => {
     logger.info(`Callback received - Session ID: ${req.session.id}, State: ${state}`);
 
     try {
-        // Verify state exists in Redis
-        const redisState = await redisClient.get(`oauth:state:${state}`);
-        if (!redisState) {
+        // Verify state exists in Redis and get code verifier
+        const codeVerifier = await redisClient.get(`oauth:state:${state}`);
+        if (!codeVerifier) {
             logger.error('State not found in Redis');
             return res.status(400).send('Invalid or expired state parameter');
         }
 
         // Verify state parameter
         if (!state || !storedState || state !== storedState) {
-            logger.error(`State mismatch - Session: ${storedState}, Redis: ${redisState}, Received: ${state}`);
+            logger.error(`State mismatch - Session: ${storedState}, Redis: ${codeVerifier}, Received: ${state}`);
             return res.status(400).send('Invalid state parameter');
         }
 
@@ -190,22 +190,11 @@ app.get('/callback', async (req, res) => {
         await redisClient.del(`oauth:state:${state}`);
 
         // Exchange the authorization code for tokens
-        const response = await faceitJS.oauthInstance.post('/auth/v1/oauth/token', null, {
-            params: {
-                grant_type: 'authorization_code',
-                code: code,
-                client_id: process.env.CLIENT_ID,
-                client_secret: process.env.CLIENT_SECRET,
-                redirect_uri: process.env.REDIRECT_URI
-            },
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-        });
+        const tokens = await faceitJS.exchangeCodeForToken(code, codeVerifier);
 
         // Store tokens in session
-        req.session.accessToken = response.data.access_token;
-        req.session.refreshToken = response.data.refresh_token;
+        req.session.accessToken = tokens.access_token;
+        req.session.refreshToken = tokens.refresh_token;
 
         // Ensure session is saved before sending response
         req.session.save((err) => {
@@ -213,10 +202,6 @@ app.get('/callback', async (req, res) => {
                 logger.error('Failed to save session with tokens:', err);
                 return res.status(500).send('Internal server error');
             }
-
-            // Update FaceitJS instance with the new tokens
-            faceitJS.accessToken = response.data.access_token;
-            faceitJS.refreshToken = response.data.refresh_token;
 
             logger.info('Successfully authenticated with FACEIT');
             res.send('Authentication successful! You can close this window.');
