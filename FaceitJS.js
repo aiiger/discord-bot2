@@ -15,6 +15,7 @@ class FaceitJS extends EventEmitter {
         this.clientSecret = env.CLIENT_SECRET;
         this.redirectUri = env.REDIRECT_URI;
         this.hubId = env.HUB_ID;
+        this.apiKey = env.FACEIT_API_KEY;
 
         this.accessToken = null;
         this.refreshToken = null;
@@ -28,12 +29,12 @@ class FaceitJS extends EventEmitter {
             }
         });
 
-        // Data API instance with direct API key auth
+        // Data API instance with API key auth
         this.dataApiInstance = axios.create({
             baseURL: this.apiBase,
             headers: {
                 'Accept': 'application/json',
-                'Authorization': `Bearer ${this.clientSecret}` // Using client secret as API key
+                'Authorization': `Bearer ${this.apiKey}`
             }
         });
 
@@ -82,8 +83,8 @@ class FaceitJS extends EventEmitter {
             throw new Error('HUB_ID environment variable is not set');
         }
 
-        if (!this.clientSecret) {
-            throw new Error('CLIENT_SECRET (API key) is not set');
+        if (!this.apiKey) {
+            throw new Error('FACEIT_API_KEY environment variable is not set');
         }
 
         await this.startPolling();
