@@ -1,7 +1,7 @@
 {
-  "name": "your-app-name",
+  "name": "faceit-bot",
   "version": "1.0.0",
-  "description": "Your app description",
+  "type": "module",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
@@ -17,9 +17,6 @@
     "redis": "^4.7.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.14.0",
-    "eslint": "^9.14.0",
-    "eslint-plugin-vue": "^9.30.0",
-    "globals": "^15.12.0"
+    "eslint": "^9.14.0"
   }
 }
