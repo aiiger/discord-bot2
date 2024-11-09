@@ -142,33 +142,33 @@ app.get('/auth', (req, res) => {
 });
 
 app.get('/callback', async (req, res) => {
-  const authorizationCode = req.query.code; // Get the code from the query parameters
+    const authorizationCode = req.query.code; // Get the code from the query parameters
 
-  try {
-      // Exchange the authorization code for an access token
-      const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', null, {
-          params: {
-              grant_type: 'authorization_code',
-              code: authorizationCode,
-              redirect_uri: process.env.REDIRECT_URI,
-              client_id: process.env.CLIENT_ID,
-              client_secret: process.env.CLIENT_SECRET,
-          },
-          headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-          },
-      });
+    try {
+        // Exchange the authorization code for an access token
+        const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', null, {
+            params: {
+                grant_type: 'authorization_code',
+                code: authorizationCode,
+                redirect_uri: process.env.REDIRECT_URI,
+                client_id: process.env.CLIENT_ID,
+                client_secret: process.env.CLIENT_SECRET,
+            },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        });
 
-      // Store the tokens (access token and refresh token)
-      const accessToken = response.data.access_token;
-      const refreshToken = response.data.refresh_token;
+        // Store the tokens (access token and refresh token)
+        const accessToken = response.data.access_token;
+        const refreshToken = response.data.refresh_token;
 
-      // Use these tokens to make authenticated API requests
-      res.send('Authentication successful! Tokens received.');
-  } catch (error) {
-      console.error('Error exchanging authorization code:', error.message);
-      res.status(500).send('Authentication failed.');
-  }
+        // Use these tokens to make authenticated API requests
+        res.send('Authentication successful! Tokens received.');
+    } catch (error) {
+        console.error('Error exchanging authorization code:', error.message);
+        res.status(500).send('Authentication failed.');
+    }
 });
 
 // Match state monitoring
@@ -176,7 +176,7 @@ faceitJS.onMatchStateChange(async (match) => {
     if (match.state === 'CONFIGURING' && !greetedMatches.has(match.id)) {
         await sendMessageToAll(match.id, 'Config phase started. Use !rehost or !cancel to vote. You have 5 minutes.');
         greetedMatches.add(match.id);
-        
+
         setTimeout(() => {
             if (votes[match.id]) {
                 delete votes[match.id];
