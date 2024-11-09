@@ -60,75 +60,45 @@ logger.info('Environment variables validated successfully');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Initialize Redis client with retry strategy
+// Initialize Redis client
 const redisClient = createClient({
     url: process.env.REDIS_URL,
     socket: {
         tls: true,
         rejectUnauthorized: false
-    },
-    retry_strategy: function (options) {
-        if (options.error && options.error.code === 'ECONNREFUSED') {
-            logger.error('Redis connection refused');
-            return new Error('The server refused the connection');
-        }
-        if (options.total_retry_time > 1000 * 60 * 60) {
-            logger.error('Redis retry time exhausted');
-            return new Error('Retry time exhausted');
-        }
-        if (options.attempt > 10) {
-            logger.error('Redis maximum retry attempts reached');
-            return new Error('Maximum retry attempts reached');
-        }
-        return Math.min(options.attempt * 100, 3000);
     }
 });
 
 // Redis event handlers
 redisClient.on('error', (err) => logger.error('Redis Client Error:', err));
 redisClient.on('connect', () => logger.info('Redis Client Connected'));
-redisClient.on('reconnecting', () => logger.info('Redis Client Reconnecting'));
 
 // Connect to Redis
-await redisClient.connect().catch(err => {
-    logger.error('Failed to connect to Redis:', err);
-    process.exit(1);
-});
+await redisClient.connect();
 
 // Initialize FaceitJS instance
 const faceitJS = new FaceitJS();
-
-// Force production mode for Heroku
-const isProduction = true;
 
 // Session middleware configuration
 const sessionMiddleware = session({
     store: new RedisStore({
         client: redisClient,
         prefix: 'faceit:sess:',
-        ttl: 86400,
-        disableTouch: false
+        ttl: 86400 // 1 day
     }),
     secret: process.env.SESSION_SECRET,
-    name: 'faceit_session',
+    name: 'sessionId',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: isProduction,
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'none',
-        domain: isProduction ? '.herokuapp.com' : undefined
-    },
-    rolling: true
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    }
 });
 
-// Apply middleware
-app.use((req, res, next) => {
-    logger.info(`${req.method} ${req.path} - IP: ${req.ip}`);
-    next();
-});
-
+// Apply middleware (only once)
 app.use(sessionMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -203,27 +173,13 @@ app.get('/callback', async (req, res) => {
             }
         });
 
-        // Store tokens in session
-        req.session.accessToken = response.data.access_token;
-        req.session.refreshToken = response.data.refresh_token;
+        faceitJS.accessToken = response.data.access_token;
+        faceitJS.refreshToken = response.data.refresh_token;
 
-        // Ensure session is saved before sending response
-        req.session.save((err) => {
-            if (err) {
-                logger.error('Failed to save session with tokens:', err);
-                return res.status(500).send('Internal server error');
-            }
-
-            // Update FaceitJS instance with the new tokens
-            faceitJS.accessToken = response.data.access_token;
-            faceitJS.refreshToken = response.data.refresh_token;
-
-            logger.info('Successfully authenticated with FACEIT');
-            res.send('Authentication successful! You can close this window.');
-        });
+        res.redirect('/dashboard');
     } catch (error) {
-        logger.error('Error during OAuth callback:', error);
-        res.status(500).send('Authentication failed');
+        logger.error('Error in callback route:', error);
+        res.status(500).send('Internal server error');
     }
 });
 
@@ -231,40 +187,8 @@ app.get('/callback', async (req, res) => {
 faceitJS.onMatchStateChange(async (match) => {
     try {
         logger.info(`Match ${match.id} state changed to ${match.state}`);
-
-        // Get match details including chat room info
-        const matchDetails = await faceitJS.getMatchDetails(match.id);
-        const roomDetails = await faceitJS.getRoomDetails(match.id);
-
-        // Get recent messages
-        const messages = await faceitJS.getRoomMessages(match.id, '', 10);
-
-        logger.info(`Match ${match.id} details:`, {
-            state: match.state,
-            room: roomDetails,
-            messageCount: messages.length
-        });
-
-        // Send notification to match room based on state
-        let notification = '';
-        switch (match.state) {
-            case 'READY':
-                notification = 'Match is ready! Please join the server.';
-                break;
-            case 'ONGOING':
-                notification = 'Match has started! Good luck and have fun!';
-                break;
-            case 'FINISHED':
-                notification = 'Match has ended. Thanks for playing!';
-                break;
-            case 'CANCELLED':
-                notification = 'Match has been cancelled.';
-                break;
-        }
-
-        if (notification) {
-            await faceitJS.sendRoomMessage(match.id, notification);
-        }
+        // For now, just log the match state change
+        // We can implement player notifications later when we have the required API methods
     } catch (error) {
         logger.error('Error handling match state change:', error);
     }
@@ -276,62 +200,12 @@ client.on('messageCreate', async (message) => {
 
     const command = message.content.toLowerCase();
 
-    try {
-        if (command === '!cancel') {
-            // Get the active match from the hub
-            const matches = await faceitJS.getHubMatches(process.env.HUB_ID, 'ongoing');
-            const activeMatch = matches[0]; // Get the most recent ongoing match
-
-            if (activeMatch) {
-                // Get match details before cancelling
-                const matchDetails = await faceitJS.getMatchDetails(activeMatch.match_id);
-
-                // Cancel the match
-                await faceitJS.cancelMatch(activeMatch.match_id);
-
-                // Send notification to Discord
-                message.reply(`Match ${activeMatch.match_id} cancelled successfully.`);
-
-                // Send notification to match room
-                await faceitJS.sendRoomMessage(activeMatch.match_id,
-                    `Match has been cancelled by admin (${message.author.username}).`
-                );
-
-                logger.info(`Match ${activeMatch.match_id} cancelled by ${message.author.username}`, {
-                    matchDetails
-                });
-            } else {
-                message.reply('No active matches found in the hub.');
-            }
-        } else if (command === '!rehost') {
-            const matches = await faceitJS.getHubMatches(process.env.HUB_ID, 'ongoing');
-            const activeMatch = matches[0];
-
-            if (activeMatch) {
-                // Get match details before rehosting
-                const matchDetails = await faceitJS.getMatchDetails(activeMatch.match_id);
-
-                // Rehost the match
-                await faceitJS.rehostMatch(activeMatch.match_id);
-
-                // Send notification to Discord
-                message.reply(`Match ${activeMatch.match_id} rehosted successfully.`);
-
-                // Send notification to match room
-                await faceitJS.sendRoomMessage(activeMatch.match_id,
-                    `Match has been rehosted by admin (${message.author.username}).`
-                );
-
-                logger.info(`Match ${activeMatch.match_id} rehosted by ${message.author.username}`, {
-                    matchDetails
-                });
-            } else {
-                message.reply('No active matches found in the hub.');
-            }
-        }
-    } catch (error) {
-        logger.error('Error handling command:', error);
-        message.reply('An error occurred while processing the command.');
+    // For now, just acknowledge commands
+    // We can implement the full functionality once we have the required API methods
+    if (command === '!cancel') {
+        message.reply('Cancel command received. This feature will be implemented soon.');
+    } else if (command === '!rehost') {
+        message.reply('Rehost command received. This feature will be implemented soon.');
     }
 });
 
@@ -348,6 +222,7 @@ process.on('unhandledRejection', (error) => {
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
     logger.error('Uncaught exception:', error);
+    // Don't exit the process, just log the error
 });
 
 // Login to Discord
@@ -357,7 +232,7 @@ client.login(process.env.DISCORD_TOKEN).catch(error => {
 
 // Start server
 app.listen(port, () => {
-    logger.info(`Server running on port ${port}`);
+    console.log(`Server running on port ${port}`);
 });
 
 export default app;
