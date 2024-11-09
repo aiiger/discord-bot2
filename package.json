@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Your app description",
   "main": "bot.js",
-  "type": "module",
   "scripts": {
     "start": "node bot.js"
   },
