@@ -1,4 +1,3 @@
-// bot.js
 import express from 'express';
 import session from 'express-session';
 import RedisStore from 'connect-redis';
@@ -9,54 +8,20 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Validation patterns
-const patterns = {
-    REDIS_URL: /^rediss:\/\/:[\w-]+@[\w.-]+:\d+$/,
-    SESSION_SECRET: /^[a-f0-9]{128}$/,
-    CLIENT_ID: /^[\w-]{36}$/,
-    CLIENT_SECRET: /^[\w]{40}$/,
-    REDIRECT_URI: /^https:\/\/[\w.-]+\.herokuapp\.com\/callback$/,
-    HUB_ID: /^[\w-]{36}$/
-};
+// Initialize Express
+const app = express();
+const port = process.env.PORT || 3000;
 
-// Validation functions
-const validators = {
-    REDIS_URL: (url) => patterns.REDIS_URL.test(url),
-    SESSION_SECRET: (secret) => patterns.SESSION_SECRET.test(secret),
-    CLIENT_ID: (id) => patterns.CLIENT_ID.test(id),
-    CLIENT_SECRET: (secret) => patterns.CLIENT_SECRET.test(secret),
-    REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
-    HUB_ID: (id) => patterns.HUB_ID.test(id)
-};
-
-// Validate environment variables
-const requiredEnvVars = [
-    'REDIS_URL',
-    'SESSION_SECRET',
-    'CLIENT_ID',
-    'CLIENT_SECRET',
-    'REDIRECT_URI',
-    'HUB_ID'
-];
-
-// Validate each variable
-for (const varName of requiredEnvVars) {
-    const value = process.env[varName];
-    if (!value) {
-        console.error(`Missing required environment variable: ${varName}`);
-        process.exit(1);
+// Initialize Redis client
+const redisClient = createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+        tls: true,
+        rejectUnauthorized: false
     }
+});
 
-    if (!validators[varName](value)) {
-        console.error(`Invalid format for ${varName}: ${value}`);
-        console.error(`Expected format: ${patterns[varName]}`);
-        process.exit(1);
-    }
-}
-
-console.log('Environment variables validated successfully');
-
-// Handle Redis events
+// Redis event handlers
 redisClient.on('error', (err) => console.error('Redis Client Error:', err));
 redisClient.on('connect', () => console.log('Redis Client Connected'));
 
@@ -66,7 +31,7 @@ await redisClient.connect();
 // Initialize FaceitJS instance
 const faceitJS = new FaceitJS();
 
-// Session middleware setup
+// Session middleware configuration
 const sessionMiddleware = session({
     store: new RedisStore({
         client: redisClient,
@@ -85,14 +50,14 @@ const sessionMiddleware = session({
     }
 });
 
-// Middleware
+// Apply middleware (only once)
 app.use(sessionMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rest of your code remains the same...
-
-// Start the server
+// Start server
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
+
+export default app;
