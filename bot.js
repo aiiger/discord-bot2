@@ -1,11 +1,35 @@
 // bot.js
-const express = require('express');
-const session = require('express-session');
-const RedisStore = require('connect-redis').default;
-const { createClient } = require('redis');
-const { FaceitJS } = require('./FaceitJS');
+import express from 'express';
+import session from 'express-session';
+import RedisStore from 'connect-redis';
+import { createClient } from 'redis';
+import { FaceitJS } from './FaceitJS.js';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
 
-// Validate required environment variables
+dotenv.config();
+
+// Validation patterns
+const patterns = {
+    REDIS_URL: /^rediss:\/\/:[\w-]+@[\w.-]+:\d+$/,
+    SESSION_SECRET: /^[a-f0-9]{128}$/,
+    CLIENT_ID: /^[\w-]{36}$/,
+    CLIENT_SECRET: /^[\w]{40}$/,
+    REDIRECT_URI: /^https:\/\/[\w.-]+\.herokuapp\.com\/callback$/,
+    HUB_ID: /^[\w-]{36}$/
+};
+
+// Validation functions
+const validators = {
+    REDIS_URL: (url) => patterns.REDIS_URL.test(url),
+    SESSION_SECRET: (secret) => patterns.SESSION_SECRET.test(secret),
+    CLIENT_ID: (id) => patterns.CLIENT_ID.test(id),
+    CLIENT_SECRET: (secret) => patterns.CLIENT_SECRET.test(secret),
+    REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
+    HUB_ID: (id) => patterns.HUB_ID.test(id)
+};
+
+// Validate environment variables
 const requiredEnvVars = [
     'REDIS_URL',
     'SESSION_SECRET',
@@ -15,28 +39,29 @@ const requiredEnvVars = [
     'HUB_ID'
 ];
 
+// Validate each variable
 for (const varName of requiredEnvVars) {
-    if (!process.env[varName]) {
+    const value = process.env[varName];
+    if (!value) {
         console.error(`Missing required environment variable: ${varName}`);
+        process.exit(1);
+    }
+
+    if (!validators[varName](value)) {
+        console.error(`Invalid format for ${varName}: ${value}`);
+        console.error(`Expected format: ${patterns[varName]}`);
         process.exit(1);
     }
 }
 
-const app = express();
-const port = process.env.PORT || 3000;
-
-// Initialize Redis client
-const redisClient = createClient({
-    url: process.env.REDIS_URL,
-    socket: {
-        tls: true,
-        rejectUnauthorized: false
-    }
-});
+console.log('Environment variables validated successfully');
 
 // Handle Redis events
 redisClient.on('error', (err) => console.error('Redis Client Error:', err));
 redisClient.on('connect', () => console.log('Redis Client Connected'));
+
+// Connect to Redis
+await redisClient.connect();
 
 // Initialize FaceitJS instance
 const faceitJS = new FaceitJS();
@@ -65,150 +90,9 @@ app.use(sessionMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Constants
-const CONFIG_TIME_LIMIT = 5 * 60 * 1000;
-const votes = {};
-const greetedMatches = new Set();
+// Rest of your code remains the same...
 
-// Helper functions
-const sendMessage = (playerId, messageText) => faceitJS.sendChatMessage(playerId, messageText);
-
-const sendMessageToAll = async (matchId, message) => {
-    try {
-        const players = await faceitJS.getPlayersInMatch(matchId);
-        await Promise.all(players.map(player => sendMessage(player.id, message)));
-    } catch (error) {
-        console.error(`Error sending message to all players in match ${matchId}:`, error);
-    }
-};
-
-const handleVote = async (playerId, voteType, matchId) => {
-    if (!votes[matchId]) {
-        votes[matchId] = {
-            rehost: { agree: 0, total: 0 },
-            cancel: { agree: 0, total: 0 }
-        };
-    }
-
-    const match = await faceitJS.getMatchDetails(matchId);
-    if (match.state !== 'CONFIGURING') {
-        throw new Error('Voting only allowed during config phase');
-    }
-
-    votes[matchId][voteType].total += 1;
-    votes[matchId][voteType].agree += 1;
-
-    if (votes[matchId][voteType].agree >= 6) {
-        if (voteType === 'rehost') {
-            await rehostMatch(matchId);
-        } else if (voteType === 'cancel') {
-            await cancelMatch(matchId);
-        }
-    }
-};
-
-const rehostMatch = async (matchId) => {
-    try {
-        await faceitJS.rehostMatch(matchId);
-        await sendMessageToAll(matchId, 'Match is being rehosted.');
-        delete votes[matchId];
-    } catch (error) {
-        console.error('Rehost error:', error);
-        throw error;
-    }
-};
-
-const cancelMatch = async (matchId) => {
-    try {
-        await faceitJS.cancelMatch(matchId);
-        await sendMessageToAll(matchId, 'Match has been cancelled.');
-        delete votes[matchId];
-    } catch (error) {
-        console.error('Cancel error:', error);
-        throw error;
-    }
-};
-
-// OAuth routes
-app.get('/', (req, res) => {
-    res.send('<a href="/auth">Login with FACEIT</a>');
+// Start the server
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
 });
-
-app.get('/auth', (req, res) => {
-    const state = crypto.randomBytes(32).toString('hex');
-    req.session.state = state;
-    const authUrl = faceitJS.getAuthorizationUrl(state);
-    res.redirect(authUrl);
-});
-
-app.get('/callback', async (req, res) => {
-    const authorizationCode = req.query.code; // Get the code from the query parameters
-
-    try {
-        // Exchange the authorization code for an access token
-        const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', null, {
-            params: {
-                grant_type: 'authorization_code',
-                code: authorizationCode,
-                redirect_uri: process.env.REDIRECT_URI,
-                client_id: process.env.CLIENT_ID,
-                client_secret: process.env.CLIENT_SECRET,
-            },
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        });
-
-        // Store the tokens (access token and refresh token)
-        const accessToken = response.data.access_token;
-        const refreshToken = response.data.refresh_token;
-
-        // Use these tokens to make authenticated API requests
-        res.send('Authentication successful! Tokens received.');
-    } catch (error) {
-        console.error('Error exchanging authorization code:', error.message);
-        res.status(500).send('Authentication failed.');
-    }
-});
-
-// Match state monitoring
-faceitJS.onMatchStateChange(async (match) => {
-    if (match.state === 'CONFIGURING' && !greetedMatches.has(match.id)) {
-        await sendMessageToAll(match.id, 'Config phase started. Use !rehost or !cancel to vote. You have 5 minutes.');
-        greetedMatches.add(match.id);
-
-        setTimeout(() => {
-            if (votes[match.id]) {
-                delete votes[match.id];
-            }
-            greetedMatches.delete(match.id);
-        }, CONFIG_TIME_LIMIT);
-    }
-});
-
-// Voting route
-app.post('/vote', async (req, res) => {
-    try {
-        const { playerId, voteType, matchId } = req.body;
-        await handleVote(playerId, voteType, matchId);
-        res.status(200).send('Vote registered');
-    } catch (error) {
-        res.status(400).send(error.message);
-    }
-});
-
-// Start the server and initialize components
-const startServer = async () => {
-    try {
-        await redisClient.connect();
-        await faceitJS.initialize();
-        app.listen(port);
-    } catch (error) {
-        console.error('Error starting server:', error);
-        process.exit(1);
-    }
-};
-
-startServer();
-
-module.exports = app;
