@@ -142,19 +142,33 @@ app.get('/auth', (req, res) => {
 });
 
 app.get('/callback', async (req, res) => {
-    try {
-        const { code, state } = req.query;
-        
-        if (state !== req.session.state) {
-            return res.status(400).send('Invalid state parameter');
-        }
+  const authorizationCode = req.query.code; // Get the code from the query parameters
 
-        await faceitJS.exchangeAuthorizationCode(code);
-        res.redirect('/dashboard');
-    } catch (error) {
-        console.error('Callback error:', error);
-        res.status(500).send('Authentication failed');
-    }
+  try {
+      // Exchange the authorization code for an access token
+      const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', null, {
+          params: {
+              grant_type: 'authorization_code',
+              code: authorizationCode,
+              redirect_uri: process.env.REDIRECT_URI,
+              client_id: process.env.CLIENT_ID,
+              client_secret: process.env.CLIENT_SECRET,
+          },
+          headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+          },
+      });
+
+      // Store the tokens (access token and refresh token)
+      const accessToken = response.data.access_token;
+      const refreshToken = response.data.refresh_token;
+
+      // Use these tokens to make authenticated API requests
+      res.send('Authentication successful! Tokens received.');
+  } catch (error) {
+      console.error('Error exchanging authorization code:', error.message);
+      res.status(500).send('Authentication failed.');
+  }
 });
 
 // Match state monitoring
@@ -183,20 +197,14 @@ app.post('/vote', async (req, res) => {
     }
 });
 
-// Server startup
+// Start the server and initialize components
 const startServer = async () => {
     try {
         await redisClient.connect();
-        console.log('Redis connected');
-        
         await faceitJS.initialize();
-        console.log('FaceitJS initialized');
-        
-        app.listen(port, () => {
-            console.log(`Server running on port ${port}`);
-        });
+        app.listen(port);
     } catch (error) {
-        console.error('Failed to start server:', error);
+        console.error('Error starting server:', error);
         process.exit(1);
     }
 };

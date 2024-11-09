@@ -5,6 +5,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET || !process.env.REDIRECT_URI || !process.env.HUB_ID) {
+    throw new Error('Missing required environment variables');
+}
+
 export class FaceitJS extends EventEmitter {
     constructor() {
         super();
@@ -19,12 +23,12 @@ export class FaceitJS extends EventEmitter {
         this.accessToken = null;
         this.refreshToken = null;
 
-        this.axiosInstance = axios.create({
-            baseURL: this.baseApiUrl,
+        const axiosInstance = axios.create({
+            baseURL: 'https://open.faceit.com/data/v4',
             headers: {
+                'Authorization': `Bearer ${accessToken}`,
                 'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
+            },
         });
 
         this.axiosInstance.interceptors.request.use(
@@ -62,27 +66,31 @@ export class FaceitJS extends EventEmitter {
         this.startPolling();
     }
 
-    async exchangeAuthorizationCode(authorizationCode) {
+    async function refreshAccessToken(refreshToken) {
         try {
-            const response = await axios.post(this.tokenEndpoint, null, {
+            const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', null, {
                 params: {
-                    grant_type: 'authorization_code',
-                    code: authorizationCode,
-                    redirect_uri: this.redirectUri,
-                    client_id: this.clientId,
-                    client_secret: this.clientSecret,
+                    grant_type: 'refresh_token',
+                    refresh_token: refreshToken,
+                    client_id: process.env.CLIENT_ID,
+                    client_secret: process.env.CLIENT_SECRET,
                 },
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                }
+                },
             });
-            this.accessToken = response.data.access_token;
-            this.refreshToken = response.data.refresh_token;
-            return response.data;
+    
+            // Update tokens
+            const newAccessToken = response.data.access_token;
+            const newRefreshToken = response.data.refresh_token;
+    
+            console.log('Tokens refreshed successfully!');
+            return { newAccessToken, newRefreshToken };
         } catch (error) {
-            throw new Error(`Failed to exchange authorization code: ${error.message}`);
+            console.error('Error refreshing access token:', error.message);
         }
     }
+    
 
     async refreshAccessToken() {
         try {
@@ -104,7 +112,9 @@ export class FaceitJS extends EventEmitter {
             throw new Error(`Failed to refresh access token: ${error.message}`);
         }
     }
-
+    
+        },
+    });
     async getMatchDetails(matchId) {
         try {
             const response = await this.axiosInstance.get(`/matches/${matchId}`);
