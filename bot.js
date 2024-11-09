@@ -36,7 +36,8 @@ const validators = {
     CLIENT_ID: (id) => patterns.CLIENT_ID.test(id),
     CLIENT_SECRET: (secret) => patterns.CLIENT_SECRET.test(secret),
     REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
-    HUB_ID: (id) => patterns.HUB_ID.test(id)
+    HUB_ID: (id) => patterns.HUB_ID.test(id),
+    DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0 // Add validator for DISCORD_TOKEN
 };
 
 for (const varName of requiredEnvVars) {
