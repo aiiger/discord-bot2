@@ -1,21 +1,19 @@
 import axios from 'axios';
 import { EventEmitter } from 'events';
 import dotenv from 'dotenv';
-import { env } from 'node:process';
-import logger from './logger.js';
 
 dotenv.config();
 
-class FaceitJS extends EventEmitter {
+export class FaceitJS extends EventEmitter {
     constructor() {
         super();
         this.apiBase = 'https://open.faceit.com/data/v4';
         this.tokenEndpoint = 'https://api.faceit.com/auth/v1/oauth/token';
-        this.clientId = env.CLIENT_ID;
-        this.clientSecret = env.CLIENT_SECRET;
-        this.redirectUri = env.REDIRECT_URI;
-        this.hubId = env.HUB_ID;
-        this.apiKey = env.FACEIT_API_KEY;
+        this.clientId = process.env.CLIENT_ID;
+        this.clientSecret = process.env.CLIENT_SECRET;
+        this.redirectUri = process.env.REDIRECT_URI;
+        this.hubId = process.env.HUB_ID;
+        this.apiKey = process.env.FACEIT_API_KEY;
 
         this.accessToken = null;
         this.refreshToken = null;
@@ -42,7 +40,6 @@ class FaceitJS extends EventEmitter {
     }
 
     setupInterceptors() {
-        // OAuth instance interceptors
         this.oauthInstance.interceptors.request.use(
             (config) => {
                 if (this.accessToken) {
@@ -68,7 +65,6 @@ class FaceitJS extends EventEmitter {
                         originalRequest.headers.Authorization = `Bearer ${this.accessToken}`;
                         return this.oauthInstance(originalRequest);
                     } catch (refreshError) {
-                        logger.error('Failed to refresh token:', refreshError);
                         throw refreshError;
                     }
                 }
@@ -105,8 +101,7 @@ class FaceitJS extends EventEmitter {
             this.accessToken = response.data.access_token;
             return response.data;
         } catch (error) {
-            logger.error('Client credentials authentication failed:', error.message);
-            throw error;
+            throw new Error(`Client credentials authentication failed: ${error.message}`);
         }
     }
 
@@ -127,9 +122,79 @@ class FaceitJS extends EventEmitter {
             this.refreshToken = response.data.refresh_token;
             return response.data;
         } catch (error) {
-            logger.error('Failed to refresh access token:', error.message);
-            throw error;
+            throw new Error(`Failed to refresh access token: ${error.message}`);
         }
+    }
+
+    async getMatchDetails(matchId) {
+        try {
+            const response = await this.dataApiInstance.get(`/matches/${matchId}`);
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to get match details: ${error.message}`);
+        }
+    }
+
+    async getPlayersInMatch(matchId) {
+        try {
+            const response = await this.dataApiInstance.get(`/matches/${matchId}/players`);
+            return response.data.players || [];
+        } catch (error) {
+            throw new Error(`Failed to get players in match: ${error.message}`);
+        }
+    }
+
+    async sendChatMessage(playerId, message) {
+        try {
+            const response = await this.dataApiInstance.post('/chat/messages', {
+                to: playerId,
+                message: message
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to send chat message: ${error.message}`);
+        }
+    }
+
+    async rehostMatch(matchId) {
+        try {
+            const response = await this.dataApiInstance.post(`/matches/${matchId}/rehost`);
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to rehost match: ${error.message}`);
+        }
+    }
+
+    async cancelMatch(matchId) {
+        try {
+            const response = await this.dataApiInstance.post(`/matches/${matchId}/cancel`);
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to cancel match: ${error.message}`);
+        }
+    }
+
+    startPolling() {
+        this.previousMatchStates = {};
+
+        setInterval(async () => {
+            try {
+                const activeMatches = await this.getHubMatches(this.hubId);
+                activeMatches.forEach(match => {
+                    const prevState = this.previousMatchStates[match.id];
+                    if (prevState && prevState !== match.state) {
+                        this.emit('matchStateChange', match);
+                    }
+                    this.previousMatchStates[match.id] = match.state;
+                });
+            } catch (error) {
+                console.error('Polling error:', error);
+            }
+        }, 60000);
+    }
+
+    onMatchStateChange(callback) {
+        this.on('matchStateChange', callback);
     }
 
     async getHubMatches(hubId) {
@@ -143,32 +208,8 @@ class FaceitJS extends EventEmitter {
             });
             return response.data.items;
         } catch (error) {
-            logger.error(`Failed to get hub matches for hub ${hubId}:`, error.message);
             throw new Error(`Failed to get hub matches: ${error.message}`);
         }
-    }
-
-    startPolling() {
-        this.previousMatchStates = {};
-
-        setInterval(async () => {
-            try {
-                const activeMatches = await this.getHubMatches(this.hubId);
-                for (const match of activeMatches) {
-                    const prevState = this.previousMatchStates[match.id];
-                    if (prevState && prevState !== match.state) {
-                        this.emit('matchStateChange', match);
-                    }
-                    this.previousMatchStates[match.id] = match.state;
-                }
-            } catch (error) {
-                logger.error('Polling error:', error);
-            }
-        }, 60000);
-    }
-
-    onMatchStateChange(callback) {
-        this.on('matchStateChange', callback);
     }
 
     getAuthorizationUrl(state) {
@@ -176,12 +217,10 @@ class FaceitJS extends EventEmitter {
             response_type: 'code',
             client_id: this.clientId,
             redirect_uri: this.redirectUri,
-            scope: 'openid profile email',
+            scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read',
             state: state
         });
 
         return `https://accounts.faceit.com/oauth/authorize?${params.toString()}`;
     }
 }
-
-export { FaceitJS };
