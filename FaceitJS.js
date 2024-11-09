@@ -5,7 +5,7 @@ import { env } from 'node:process';
 
 dotenv.config();
 
-export class FaceitJS extends EventEmitter {
+class FaceitJS extends EventEmitter {
     constructor() {
         super();
         this.apiBase = 'https://open.faceit.com/data/v4';
@@ -64,7 +64,8 @@ export class FaceitJS extends EventEmitter {
         if (!this.hubId) {
             throw new Error('HUB_ID environment variable is not set');
         }
-        this.startPolling();
+        await this.startPolling();
+        return true;
     }
 
     async refreshAccessToken() {
@@ -195,3 +196,5 @@ export class FaceitJS extends EventEmitter {
         return `https://accounts.faceit.com/oauth/authorize?${params.toString()}`;
     }
 }
+
+export { FaceitJS };

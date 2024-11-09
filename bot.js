@@ -2,9 +2,24 @@ import { Client, GatewayIntentBits } from 'discord.js';
 import { FaceitJS } from './FaceitJS.js';
 import dotenv from 'dotenv';
 import { env } from 'node:process';
+import express from 'express';
 
 // Load environment variables
 dotenv.config();
+
+// Create Express app
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Basic route to keep the app alive
+app.get('/', (req, res) => {
+    res.send('Bot is running!');
+});
+
+// Start Express server
+app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+});
 
 const client = new Client({
     intents: [
