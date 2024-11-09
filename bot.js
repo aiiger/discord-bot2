@@ -111,14 +111,13 @@ const sessionMiddleware = session({
     }),
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     cookie: {
         secure: isProduction,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'none',
-        domain: isProduction ? '.herokuapp.com' : undefined
+        sameSite: 'lax'
     },
     rolling: true
 });
@@ -136,14 +135,24 @@ app.use(express.urlencoded({ extended: true }));
 // Initialize Discord client
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
+// Add home route
+app.get('/', (req, res) => {
+    res.send('<a href="/login">Login with FACEIT</a>');
+});
+
 // Add login route
 app.get('/login', async (req, res) => {
     try {
         const state = crypto.randomBytes(32).toString('hex');
         const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
 
+        logger.info(`Generated state: ${state} and code verifier for session: ${req.session.id}`);
+
         // Store state and code verifier in Redis with short TTL
-        await redisClient.set(`oauth:state:${state}`, codeVerifier, {
+        await redisClient.set(`oauth:state:${state}`, JSON.stringify({
+            codeVerifier,
+            sessionId: req.session.id
+        }), {
             EX: 300 // 5 minutes expiry
         });
 
@@ -168,21 +177,25 @@ app.get('/login', async (req, res) => {
 // Add callback route
 app.get('/callback', async (req, res) => {
     const { code, state } = req.query;
-    const storedState = req.session.oauthState;
 
-    logger.info(`Callback received - Session ID: ${req.session.id}, State: ${state}`);
+    logger.info(`Callback received - Session ID: ${req.session.id}`);
+    logger.info(`State from query: ${state}`);
+    logger.info(`State from session: ${req.session.oauthState}`);
 
     try {
         // Verify state exists in Redis and get code verifier
-        const codeVerifier = await redisClient.get(`oauth:state:${state}`);
-        if (!codeVerifier) {
+        const stateData = await redisClient.get(`oauth:state:${state}`);
+        if (!stateData) {
             logger.error('State not found in Redis');
             return res.status(400).send('Invalid or expired state parameter');
         }
 
+        const { codeVerifier, sessionId } = JSON.parse(stateData);
+        logger.info(`Retrieved state data - Session ID: ${sessionId}, Code Verifier present: ${!!codeVerifier}`);
+
         // Verify state parameter
-        if (!state || !storedState || state !== storedState) {
-            logger.error(`State mismatch - Session: ${storedState}, Redis: ${codeVerifier}, Received: ${state}`);
+        if (!state || state !== req.session.oauthState) {
+            logger.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
             return res.status(400).send('Invalid state parameter');
         }
 
@@ -207,7 +220,8 @@ app.get('/callback', async (req, res) => {
             res.send('Authentication successful! You can close this window.');
         });
     } catch (error) {
-        logger.error('Error during OAuth callback:', error);
+        logger.error('Error during OAuth callback:', error.message);
+        logger.error('Full error:', error);
         res.status(500).send('Authentication failed');
     }
 });
