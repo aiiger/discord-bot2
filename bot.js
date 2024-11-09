@@ -6,6 +6,7 @@ import { FaceitJS } from './FaceitJS.js';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import logger from './logger.js';
+import { Client, GatewayIntentBits } from 'discord.js';
 
 dotenv.config();
 
@@ -16,7 +17,8 @@ const requiredEnvVars = [
     'CLIENT_ID',
     'CLIENT_SECRET',
     'REDIRECT_URI',
-    'HUB_ID'
+    'HUB_ID',
+    'DISCORD_TOKEN'
 ];
 
 const patterns = {
@@ -99,6 +101,9 @@ const sessionMiddleware = session({
 app.use(sessionMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Initialize Discord client
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 // Handle match state changes
 faceitJS.onMatchStateChange(async (match) => {
