@@ -1,52 +1,46 @@
-const express = require('express');
 const session = require('express-session');
-const crypto = require('crypto');
 const RedisStore = require('connect-redis').default;
 const { createClient } = require('redis');
-const FaceitJS = require('./FaceitJS');
 
-const app = express();
-const port = process.env.PORT || 3000;
-const faceitJS = new FaceitJS();
+// Initialize Redis client
+const { createClient } = require('redis');
 
-// Configure Redis client
 const redisClient = createClient({
-  url: process.env.REDIS_URL,
-  socket: {
-    tls: true,
-    rejectUnauthorized: false
-  }
+    url: process.env.REDIS_URL,
+    socket: {
+        tls: true,
+        rejectUnauthorized: false
+    }
 });
 
-redisClient.on('error', (err) => console.error('Redis Client Error:', err));
-redisClient.on('connect', () => console.log('Redis Client Connected'));
+// Connect to Redis
+(async () => {
+    try {
+        await redisClient.connect();
+        console.log('Redis connected');
+    } catch (error) {
+        console.error('Redis connection error:', error);
+        process.exit(1);
+    }
+})();
 
-const initializeRedis = async () => {
-  try {
-    await redisClient.connect();
-    console.log('Redis connected');
-  } catch (error) {
-    console.error('Redis connection error:', error);
-    process.exit(1);
-  }
-};
-
+// Session middleware setup with 'secret' option
 const sessionMiddleware = session({
-  store: new RedisStore({
-    client: redisClient,
-    prefix: 'faceit:sess:',
-    ttl: 86400
-  }),
-  secret: process.env.SESSION_SECRET,
-  name: 'sessionId',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-  }
+    store: new RedisStore({
+        client: redisClient,
+        prefix: 'faceit:sess:',
+        ttl: 86400 // 1 day
+    }),
+    secret: process.env.SESSION_SECRET, // Ensure SESSION_SECRET is set
+    name: 'sessionId',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    }
 });
 
 app.use(sessionMiddleware);
