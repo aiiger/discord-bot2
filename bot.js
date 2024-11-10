@@ -4,6 +4,23 @@ import logger from './logger.js';
 import express from 'express';
 import helmet from 'helmet';
 
+// Validate required environment variables
+const requiredEnvVars = ['FACEIT_API_KEY', 'HUB_ID'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+    logger.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+    process.exit(1);
+}
+
+// Log environment variables (without sensitive values)
+logger.info('Environment:', {
+    NODE_ENV: process.env.NODE_ENV,
+    REDIS_URL: process.env.REDIS_URL ? 'Set' : 'Not Set',
+    FACEIT_API_KEY: process.env.FACEIT_API_KEY ? 'Set' : 'Not Set',
+    HUB_ID: process.env.HUB_ID ? 'Set' : 'Not Set'
+});
+
 // Create Express app to handle webhooks
 const app = express();
 
@@ -25,14 +42,90 @@ app.get('/', (req, res) => {
         status: 'ok',
         activeMatches: matchStates.size,
         greetedMatches: greetedMatches.size,
-        rehostVotes: rehostVotes.size
+        rehostVotes: rehostVotes.size,
+        uptime: process.uptime()
     });
 });
 
-// Handle match state changes
-faceitJS.on('matchStateChange', async (match) => {
+// Error handling middleware
+app.use((err, req, res, next) => {
+    logger.error('Express error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+});
+
+// Function to start monitoring matches
+async function startMatchMonitoring() {
     try {
-        logger.info(`Match ${match.id} state changed from ${match.previousState} to ${match.state}`);
+        // Validate API access first
+        const isValid = await faceitJS.validateAccess();
+        if (!isValid) {
+            throw new Error('Failed to validate API access');
+        }
+
+        logger.info('Starting match monitoring...');
+
+        // Poll for matches every 30 seconds
+        setInterval(async () => {
+            try {
+                const matches = await faceitJS.getHubMatches(process.env.HUB_ID);
+                if (!matches || !matches.items) {
+                    logger.warn('No matches found in response');
+                    return;
+                }
+
+                logger.debug(`Found ${matches.items.length} matches in hub`);
+
+                // Process each match
+                for (const match of matches.items) {
+                    const previousState = matchStates.get(match.match_id);
+                    const currentState = match.status;
+
+                    // If state changed or new match
+                    if (previousState !== currentState) {
+                        logger.info(`Match ${match.match_id} state changed: ${previousState || 'NEW'} -> ${currentState}`);
+
+                        try {
+                            await handleMatchStateChange({
+                                id: match.match_id,
+                                previousState: previousState || 'NEW',
+                                state: currentState,
+                                details: match
+                            });
+                        } catch (error) {
+                            logger.error(`Error handling match ${match.match_id}:`, error);
+                        }
+                    }
+                }
+
+                // Clean up old matches
+                for (const [matchId, state] of matchStates) {
+                    const matchExists = matches.items.some(m => m.match_id === matchId);
+                    if (!matchExists) {
+                        matchStates.delete(matchId);
+                        logger.info(`Removed match ${matchId} from tracking`);
+                    }
+                }
+            } catch (error) {
+                logger.error('Error polling matches:', error);
+                if (error.response) {
+                    logger.error('Response details:', {
+                        status: error.response.status,
+                        data: error.response.data,
+                        headers: error.response.headers
+                    });
+                }
+            }
+        }, 30000); // Poll every 30 seconds
+
+    } catch (error) {
+        logger.error('Error in match monitoring:', error);
+        // Don't exit, let the process continue
+    }
+}
+
+// Handle match state changes
+async function handleMatchStateChange(match) {
+    try {
         matchStates.set(match.id, match.state);
 
         // Get match details including chat room info
@@ -95,11 +188,15 @@ faceitJS.on('matchStateChange', async (match) => {
     } catch (error) {
         logger.error('Error handling match state change:', error);
         if (error.response) {
-            logger.error('Response status:', error.response.status);
-            logger.error('Response data:', error.response.data);
+            logger.error('Response details:', {
+                status: error.response.status,
+                data: error.response.data,
+                headers: error.response.headers
+            });
         }
+        throw error;
     }
-});
+}
 
 // Handle uncaught errors
 process.on('uncaughtException', (error) => {
@@ -110,14 +207,6 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
     logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
     // Don't exit, let the process continue
-});
-
-// Log startup and configuration
-logger.info('Environment:', {
-    NODE_ENV: process.env.NODE_ENV,
-    REDIS_URL: process.env.REDIS_URL ? 'Set' : 'Not Set',
-    FACEIT_API_KEY: process.env.FACEIT_API_KEY ? 'Set' : 'Not Set',
-    HUB_ID: process.env.HUB_ID ? 'Set' : 'Not Set'
 });
 
 // Start Express server
@@ -137,11 +226,15 @@ process.on('SIGTERM', () => {
     });
 });
 
+// Start match monitoring
+startMatchMonitoring();
+
 // Keep the process alive and log status periodically
 setInterval(() => {
     logger.info('Bot Status:', {
         activeMatches: matchStates.size,
         greetedMatches: greetedMatches.size,
-        rehostVotes: rehostVotes.size
+        rehostVotes: rehostVotes.size,
+        uptime: process.uptime()
     });
 }, 300000); // Log every 5 minutes
