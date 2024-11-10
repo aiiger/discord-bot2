@@ -172,17 +172,20 @@ app.get('/callback', async (req, res) => {
 // Handle match state changes
 faceitJS.on('matchStateChange', async (match) => {
     try {
-        logger.info(`Match ${match.id} state changed to ${match.state}`);
+        logger.info(`Match ${match.id} state changed from ${match.previousState} to ${match.state}`);
         matchStates.set(match.id, match.state);
 
         // Get match details including chat room info
         const matchDetails = await faceitJS.getMatchDetails(match.id);
+        logger.info(`Retrieved details for match ${match.id}`);
 
         // Send greeting when match starts
         if (match.state === 'READY') {
             const players = matchDetails.teams.faction1.roster.concat(matchDetails.teams.faction2.roster);
             const playerNames = players.map(p => p.nickname).join(', ');
             const greeting = `Welcome to the match, ${playerNames}! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.`;
+
+            logger.info(`Sending greeting message for match ${match.id}`);
             await faceitJS.sendRoomMessage(match.id, greeting);
             logger.info(`Sent greeting message for match ${match.id}`);
         }
@@ -206,8 +209,9 @@ faceitJS.on('matchStateChange', async (match) => {
         }
 
         if (notification) {
+            logger.info(`Sending state change notification for match ${match.id}: ${notification}`);
             await faceitJS.sendRoomMessage(match.id, notification);
-            logger.info(`Sent state change notification for match ${match.id}: ${notification}`);
+            logger.info(`Sent state change notification for match ${match.id}`);
         }
     } catch (error) {
         logger.error('Error handling match state change:', error);

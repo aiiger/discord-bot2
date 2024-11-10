@@ -339,20 +339,31 @@ export class FaceitJS extends EventEmitter {
 
     // Event handling for match state changes
     startPolling() {
+        console.log('Starting match state polling...');
         this.previousMatchStates = new Map();
 
         setInterval(async () => {
             try {
+                console.log('Polling for match updates...');
                 const activeMatches = await this.getHubMatches(this.hubId);
-                activeMatches.forEach(match => {
-                    const prevState = this.previousMatchStates.get(match.id);
+                console.log(`Found ${activeMatches.length} active matches`);
+
+                for (const match of activeMatches) {
+                    const prevState = this.previousMatchStates.get(match.match_id);
+                    console.log(`Match ${match.match_id}: Current state = ${match.state}, Previous state = ${prevState}`);
+
                     if (prevState && prevState !== match.state) {
-                        this.emit('matchStateChange', match);
+                        console.log(`Emitting state change event for match ${match.match_id}: ${prevState} -> ${match.state}`);
+                        this.emit('matchStateChange', {
+                            id: match.match_id,
+                            state: match.state,
+                            previousState: prevState
+                        });
                     }
-                    this.previousMatchStates.set(match.id, match.state);
-                });
+                    this.previousMatchStates.set(match.match_id, match.state);
+                }
             } catch (error) {
-                console.error('Polling error:', error);
+                console.error('Error during match polling:', error);
             }
         }, 60000); // Poll every minute
     }
