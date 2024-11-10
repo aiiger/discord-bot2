@@ -24,7 +24,7 @@ const requiredEnvVars = [
 ];
 
 const patterns = {
-    REDIS_URL: /^redis(s)?:\/\/:[\w-]+@[\w.-]+:\d+$/,
+    REDIS_URL: /^redis(s)?:\/\/(?:[^:]+:[^@]+@)?[\w.-]+:\d+$/,
     SESSION_SECRET: /^[a-f0-9]{128}$/,
     CLIENT_ID: /^[\w-]{36}$/,
     CLIENT_SECRET: /^[\w]{40}$/,
