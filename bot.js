@@ -24,7 +24,7 @@ const requiredEnvVars = [
 ];
 
 const patterns = {
-    REDIS_URL: /^rediss:\/\/:[\w-]+@[\w.-]+:\d+$/,
+    REDIS_URL: /^redis(s)?:\/\/:[\w-]+@[\w.-]+:\d+$/,
     SESSION_SECRET: /^[a-f0-9]{128}$/,
     CLIENT_ID: /^[\w-]{36}$/,
     CLIENT_SECRET: /^[\w]{40}$/,
@@ -68,7 +68,7 @@ const port = process.env.PORT || 3000;
 const redisClient = createClient({
     url: process.env.REDIS_URL,
     socket: {
-        tls: true,
+        tls: process.env.REDIS_URL.startsWith('rediss://'),
         rejectUnauthorized: false
     },
     retry_strategy: function (options) {
