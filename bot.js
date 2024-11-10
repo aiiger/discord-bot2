@@ -27,7 +27,8 @@ const requiredEnvVars = [
     'DISCORD_TOKEN',
     'FACEIT_API_KEY',
     'REDIS_URL',
-    'ALLOWED_CHANNEL_ID'
+    'ALLOWED_CHANNEL_ID',
+    'MATCH_MANAGER_ROLE'
 ];
 
 const patterns = {
@@ -48,7 +49,8 @@ const validators = {
     DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0,
     FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key),
     REDIS_URL: (url) => typeof url === 'string' && url.startsWith('redis://'),
-    ALLOWED_CHANNEL_ID: (id) => /^[\w]{18}$/.test(id) // Discord channel IDs are typically 18 digits
+    ALLOWED_CHANNEL_ID: (id) => /^[\w]{18}$/.test(id), // Discord channel IDs are typically 18 digits
+    MATCH_MANAGER_ROLE: (role) => typeof role === 'string' && role.length > 0
 };
 
 for (const varName of requiredEnvVars) {
@@ -310,79 +312,82 @@ client.on('messageCreate', async (message) => {
 
     const command = message.content.toLowerCase();
 
-    // Optional: Restrict commands to a specific channel
+    // Restrict commands to a specific channel
     const allowedChannelId = process.env.ALLOWED_CHANNEL_ID;
     if (allowedChannelId && message.channel.id !== allowedChannelId) {
         return;
     }
 
-    // Optional: Restrict commands to users with a specific role
-    const requiredRoleName = 'Match Manager'; // Change as needed
+    // Restrict commands to users with a specific role
+    const requiredRoleName = process.env.MATCH_MANAGER_ROLE; // Ensure this is set in .env
     if (requiredRoleName && !message.member.roles.cache.some(role => role.name === requiredRoleName)) {
         return;
     }
 
     try {
-        // Get the active match
-        const matches = await limitedGetHubMatches(process.env.HUB_ID, 'ongoing');
-        const activeMatch = matches[0];
+        // Apply rate limiting to command handling
+        await limitedCommandHandler(async () => {
+            // Get the active match
+            const matches = await limitedGetHubMatches(process.env.HUB_ID, 'ongoing');
+            const activeMatch = matches[0];
 
-        if (!activeMatch) {
-            message.reply('No active matches found in the hub.');
-            return;
-        }
-
-        const matchDetails = await limitedGetMatchDetails(activeMatch.match_id);
-        const matchState = await redisClient.get(`matchState:${activeMatch.match_id}`) || matchDetails.status;
-
-        if (!isValidMatchPhase(matchState)) {
-            message.reply('Commands can only be used during configuration phase or in matchroom lobby.');
-            return;
-        }
-
-        if (command === '!cancel') {
-            // Calculate team average ELOs
-            const team1AvgElo = calculateTeamAvgElo(matchDetails.teams.faction1);
-            const team2AvgElo = calculateTeamAvgElo(matchDetails.teams.faction2);
-            const eloDiff = Math.abs(team1AvgElo - team2AvgElo);
-
-            if (eloDiff >= 70) {
-                // Cancel the match
-                await limitedCancelMatch(activeMatch.match_id);
-                message.reply(`Match cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`);
-                await limitedSendRoomMessage(activeMatch.match_id,
-                    `Match has been cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`
-                );
-                logger.info(`Match ${activeMatch.match_id} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
-            } else {
-                message.reply(`Cannot cancel match. ELO difference (${eloDiff.toFixed(0)}) is less than 70.`);
-                logger.info(`Cancel request denied for match ${activeMatch.match_id} - ELO difference ${eloDiff.toFixed(0)} < 70`);
+            if (!activeMatch) {
+                message.reply('No active matches found in the hub.');
+                return;
             }
-        } else if (command === '!rehost') {
-            const playerId = message.author.id;
 
-            // Add vote
-            const currentVotes = await addRehostVote(activeMatch.match_id, playerId);
-            const requiredVotes = 6;
+            const matchDetails = await limitedGetMatchDetails(activeMatch.match_id);
+            const matchState = await redisClient.get(`matchState:${activeMatch.match_id}`) || matchDetails.status;
 
-            if (currentVotes >= requiredVotes) {
-                // Rehost the match
-                await limitedRehostMatch(activeMatch.match_id);
-                message.reply(`Match ${activeMatch.match_id} rehosted successfully (${currentVotes}/10 votes).`);
-                await limitedSendRoomMessage(activeMatch.match_id,
-                    `Match has been rehosted (${currentVotes}/10 votes).`
-                );
-                // Clear votes after successful rehost
-                await redisClient.del(`rehostVotes:${activeMatch.match_id}`);
-                logger.info(`Match ${activeMatch.match_id} rehosted with ${currentVotes} votes`);
-            } else {
-                message.reply(`Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`);
-                await limitedSendRoomMessage(activeMatch.match_id,
-                    `Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`
-                );
-                logger.info(`Rehost vote recorded for match ${activeMatch.match_id} (${currentVotes}/${requiredVotes})`);
+            if (!isValidMatchPhase(matchState)) {
+                message.reply('Commands can only be used during configuration phase or in matchroom lobby.');
+                return;
             }
-        }
+
+            if (command === '!cancel') {
+                // Calculate team average ELOs
+                const team1AvgElo = calculateTeamAvgElo(matchDetails.teams.faction1);
+                const team2AvgElo = calculateTeamAvgElo(matchDetails.teams.faction2);
+                const eloDiff = Math.abs(team1AvgElo - team2AvgElo);
+
+                if (eloDiff >= 70) {
+                    // Cancel the match
+                    await limitedCancelMatch(activeMatch.match_id);
+                    message.reply(`Match cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`);
+                    await limitedSendRoomMessage(activeMatch.match_id,
+                        `Match has been cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`
+                    );
+                    logger.info(`Match ${activeMatch.match_id} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
+                } else {
+                    message.reply(`Cannot cancel match. ELO difference (${eloDiff.toFixed(0)}) is less than 70.`);
+                    logger.info(`Cancel request denied for match ${activeMatch.match_id} - ELO difference ${eloDiff.toFixed(0)} < 70`);
+                }
+            } else if (command === '!rehost') {
+                const playerId = message.author.id;
+
+                // Add vote
+                const currentVotes = await addRehostVote(activeMatch.match_id, playerId);
+                const requiredVotes = 6;
+
+                if (currentVotes >= requiredVotes) {
+                    // Rehost the match
+                    await limitedRehostMatch(activeMatch.match_id);
+                    message.reply(`Match ${activeMatch.match_id} rehosted successfully (${currentVotes}/10 votes).`);
+                    await limitedSendRoomMessage(activeMatch.match_id,
+                        `Match has been rehosted (${currentVotes}/10 votes).`
+                    );
+                    // Clear votes after successful rehost
+                    await redisClient.del(`rehostVotes:${activeMatch.match_id}`);
+                    logger.info(`Match ${activeMatch.match_id} rehosted with ${currentVotes} votes`);
+                } else {
+                    message.reply(`Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`);
+                    await limitedSendRoomMessage(activeMatch.match_id,
+                        `Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`
+                    );
+                    logger.info(`Rehost vote recorded for match ${activeMatch.match_id} (${currentVotes}/${requiredVotes})`);
+                }
+            }
+        });
     } catch (error) {
         logger.error('Error handling command:', error);
         message.reply('An error occurred while processing the command.');
