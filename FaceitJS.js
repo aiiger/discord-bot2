@@ -155,6 +155,28 @@ class FaceitJS extends EventEmitter {
         }
     }
 
+    async cancelMatch(matchId) {
+        try {
+            const response = await this.apiInstance.delete(`/matches/${matchId}`);
+            logger.info(`Successfully cancelled match ${matchId}`);
+            return response.data;
+        } catch (error) {
+            logger.error(`Failed to cancel match ${matchId}:`, error);
+            throw error;
+        }
+    }
+
+    async rehostMatch(matchId) {
+        try {
+            const response = await this.apiInstance.post(`/matches/${matchId}/rehost`);
+            logger.info(`Successfully rehosted match ${matchId}`);
+            return response.data;
+        } catch (error) {
+            logger.error(`Failed to rehost match ${matchId}:`, error);
+            throw error;
+        }
+    }
+
     // Start monitoring matches in the hub
     async startMonitoring(hubId) {
         try {
