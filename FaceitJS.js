@@ -12,6 +12,7 @@ export class FaceitJS extends EventEmitter {
         this.apiBase = 'https://open.faceit.com/data/v4';
         this.chatApiBase = 'https://api.faceit.com/chat/v1';
         this.tokenEndpoint = 'https://api.faceit.com/auth/v1/oauth/token';
+        this.authEndpoint = 'https://accounts.faceit.com/oauth/authorize';
         this.clientId = process.env.CLIENT_ID;
         this.clientSecret = process.env.CLIENT_SECRET;
         this.redirectUri = process.env.REDIRECT_URI;
@@ -125,6 +126,54 @@ export class FaceitJS extends EventEmitter {
         const hash = crypto.createHash('sha256');
         hash.update(verifier);
         return hash.digest('base64url');
+    }
+
+    // OAuth2 PKCE Authorization
+    async getAuthorizationUrl(state) {
+        const codeVerifier = this.generateCodeVerifier();
+        const codeChallenge = this.generateCodeChallenge(codeVerifier);
+
+        const params = new URLSearchParams({
+            response_type: 'code',
+            client_id: this.clientId,
+            redirect_uri: this.redirectUri,
+            scope: 'openid profile email',
+            state: state,
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256'
+        });
+
+        return {
+            url: `${this.authEndpoint}?${params.toString()}`,
+            codeVerifier
+        };
+    }
+
+    async exchangeCodeForToken(code, codeVerifier) {
+        try {
+            const params = new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: this.redirectUri,
+                client_id: this.clientId,
+                client_secret: this.clientSecret,
+                code_verifier: codeVerifier
+            });
+
+            const response = await this.oauthInstance.post('/auth/v1/oauth/token', params.toString(), {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            });
+
+            this.accessToken = response.data.access_token;
+            this.refreshToken = response.data.refresh_token;
+
+            return response.data;
+        } catch (error) {
+            console.error('Failed to exchange code for token:', error);
+            throw new Error(`Failed to exchange code for token: ${error.message}`);
+        }
     }
 
     // Hub Methods
@@ -251,7 +300,6 @@ export class FaceitJS extends EventEmitter {
                 }
             );
             this.accessToken = response.data.access_token;
-            // Note: Client Credentials flow may not return a refresh token
             this.refreshToken = response.data.refresh_token || null;
             console.log('Authenticated with client credentials.');
             return response.data;
@@ -291,25 +339,21 @@ export class FaceitJS extends EventEmitter {
 
     // Event handling for match state changes
     startPolling() {
-        this.previousMatchStates = {};
+        this.previousMatchStates = new Map();
 
         setInterval(async () => {
             try {
                 const activeMatches = await this.getHubMatches(this.hubId);
                 activeMatches.forEach(match => {
-                    const prevState = this.previousMatchStates[match.id];
+                    const prevState = this.previousMatchStates.get(match.id);
                     if (prevState && prevState !== match.state) {
                         this.emit('matchStateChange', match);
                     }
-                    this.previousMatchStates[match.id] = match.state;
+                    this.previousMatchStates.set(match.id, match.state);
                 });
             } catch (error) {
                 console.error('Polling error:', error);
             }
-        }, 60000);
-    }
-
-    onMatchStateChange(callback) {
-        this.on('matchStateChange', callback);
+        }, 60000); // Poll every minute
     }
 }
