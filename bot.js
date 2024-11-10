@@ -1,449 +1,338 @@
-// bot.js
-
-// Import Dependencies
 import express from 'express';
-import session from 'express-session';
-import Redis from 'redis';
-import connectRedis from 'connect-redis';
-import { FaceitJS } from './FaceitJS.js';
-import crypto from 'crypto';
+import axios from 'axios';
 import dotenv from 'dotenv';
-import logger from './logger.js';
-import { Client, GatewayIntentBits } from 'discord.js';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import Bottleneck from 'bottleneck';
+import qs from 'qs';
 
-// Load Environment Variables
+// Load environment variables
 dotenv.config();
 
-// Validate required environment variables
-const requiredEnvVars = [
-    'SESSION_SECRET',
-    'CLIENT_ID',
-    'CLIENT_SECRET',
-    'REDIRECT_URI',
-    'HUB_ID',
-    'DISCORD_TOKEN',
-    'FACEIT_API_KEY',
-    'REDIS_URL',
-    'ALLOWED_CHANNEL_ID',
-    'MATCH_MANAGER_ROLE'
-];
+// Constants
+const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
+const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
+const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID || '';
+const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET || '';
+const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID || '';
 
-const patterns = {
-    SESSION_SECRET: /^[a-f0-9]{128}$/,
-    CLIENT_ID: /^[\w-]{36}$/,
-    CLIENT_SECRET: /^[\w]{40}$/,
-    REDIRECT_URI: /^https:\/\/[\w.-]+\.herokuapp\.com\/callback$/,
-    HUB_ID: /^[\w-]{36}$/,
-    FACEIT_API_KEY: /^[\w-]{36}$/
-};
+if (!FACEIT_CLIENT_ID || !FACEIT_CLIENT_SECRET || !FACEIT_HUB_ID) {
+    console.error('Missing required environment variables. Please set FACEIT_CLIENT_ID, FACEIT_CLIENT_SECRET, and FACEIT_HUB_ID.');
+    process.exit(1);
+}
 
-const validators = {
-    SESSION_SECRET: (secret) => patterns.SESSION_SECRET.test(secret),
-    CLIENT_ID: (id) => patterns.CLIENT_ID.test(id),
-    CLIENT_SECRET: (secret) => patterns.CLIENT_SECRET.test(secret),
-    REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
-    HUB_ID: (id) => patterns.HUB_ID.test(id),
-    DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0,
-    FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key),
-    REDIS_URL: (url) => typeof url === 'string' && url.startsWith('redis://'),
-    ALLOWED_CHANNEL_ID: (id) => /^[\w]{18}$/.test(id), // Discord channel IDs are typically 18 digits
-    MATCH_MANAGER_ROLE: (role) => typeof role === 'string' && role.length > 0
-};
+// Track match states
+const matchStates = new Map();
 
-for (const varName of requiredEnvVars) {
-    const value = process.env[varName];
-    if (!value) {
-        logger.error(`Missing required environment variable: ${varName}`);
-        process.exit(1);
+class MatchState {
+    constructor(matchId, chatRoomId) {
+        this.matchId = matchId;
+        this.chatRoomId = chatRoomId;
+        this.rehostVotes = new Set();
+        this.cancelVotes = new Set();
+        this.hasGreeted = false;
     }
 
-    if (validators[varName] && !validators[varName](value)) {
-        logger.error(`Invalid format for ${varName}: ${value}`);
-        logger.error(`Expected format: ${patterns[varName] || 'Custom format'}`);
-        process.exit(1);
+    addRehostVote(userId) {
+        this.rehostVotes.add(userId);
+    }
+
+    addCancelVote(userId) {
+        this.cancelVotes.add(userId);
+    }
+
+    getRehostVoteCount() {
+        return this.rehostVotes.size;
+    }
+
+    getCancelVoteCount() {
+        return this.cancelVotes.size;
+    }
+
+    clearVotes() {
+        this.rehostVotes.clear();
+        this.cancelVotes.clear();
     }
 }
 
-logger.info('Environment variables validated successfully');
+// Function to get access token
+async function getAccessToken() {
+    try {
+        const data = qs.stringify({
+            grant_type: 'client_credentials',
+            client_id: FACEIT_CLIENT_ID,
+            client_secret: FACEIT_CLIENT_SECRET,
+        });
 
-// Initialize Express
+        const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', data, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        });
+
+        return response.data.access_token;
+    } catch (error) {
+        if (error.response) {
+            console.error('Error fetching access token:', error.response.data);
+        } else {
+            console.error('Error fetching access token:', error.message);
+        }
+        throw error;
+    }
+}
+
+// Function to create API clients with the access token
+async function createApiClients() {
+    const accessToken = await getAccessToken();
+
+    const faceitDataApi = axios.create({
+        baseURL: 'https://open.faceit.com/data/v4',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`
+        }
+    });
+
+    const faceitChatApi = axios.create({
+        baseURL: 'https://open.faceit.com/chat/v1',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`
+        }
+    });
+
+    return { faceitDataApi, faceitChatApi };
+}
+
+// Send message to match room
+async function sendMatchMessage(faceitChatApi, chatRoomId, message) {
+    try {
+        await faceitChatApi.post(`/rooms/${chatRoomId}/messages`, { message });
+        console.log(`Message sent to room ${chatRoomId}: ${message}`);
+    } catch (error) {
+        console.error(`Error sending message to room ${chatRoomId}:`, error.response?.data || error.message);
+    }
+}
+
+// Test API connection
+async function testApiConnection(faceitDataApi) {
+    try {
+        const response = await faceitDataApi.get('/hubs');
+        console.log('API connection successful:', response.data);
+    } catch (error) {
+        console.error('Error testing API connection:', error.response?.data || error.message);
+    }
+}
+
+async function getMatchDetails(faceitDataApi, matchId) {
+    try {
+        const response = await faceitDataApi.get(`/matches/${matchId}`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching match details for ${matchId}:`, error.response?.data || error.message);
+        throw error;
+    }
+}
+
+async function getHubMatches(faceitDataApi) {
+    try {
+        const response = await faceitDataApi.get(`/hubs/${FACEIT_HUB_ID}/matches?type=ongoing&offset=0&limit=20`);
+        return response.data.items || [];
+    } catch (error) {
+        console.error('Error fetching hub matches:', error.response?.data || error.message);
+        return [];
+    }
+}
+
+async function calculateTeamElos(matchDetails) {
+    try {
+        const faction1 = matchDetails.teams.faction1;
+        const faction2 = matchDetails.teams.faction2;
+
+        const faction1Rating = parseFloat(faction1.stats.rating);
+        const faction2Rating = parseFloat(faction2.stats.rating);
+
+        if (isNaN(faction1Rating) || isNaN(faction2Rating)) {
+            console.log('Invalid ratings detected, skipping match');
+            return null;
+        }
+
+        return {
+            faction1Rating,
+            faction2Rating,
+            ratingDiff: Math.abs(faction1Rating - faction2Rating)
+        };
+    } catch (error) {
+        console.error('Error calculating team ELOs:', error.message);
+        return null;
+    }
+}
+
+// Check if user is a player in the match
+function isPlayerInMatch(matchDetails, userId) {
+    const teams = matchDetails.teams || {};
+    const faction1Players = teams.faction1?.roster?.map(player => player.player_id) || [];
+    const faction2Players = teams.faction2?.roster?.map(player => player.player_id) || [];
+
+    return faction1Players.includes(userId) || faction2Players.includes(userId);
+}
+
+// Handle rehost command
+async function handleRehost(faceitChatApi, matchState, userId) {
+    console.log(`Processing rehost command. Match ID: ${matchState.matchId}, User ID: ${userId}`);
+
+    matchState.addRehostVote(userId);
+    const voteCount = matchState.getRehostVoteCount();
+
+    if (voteCount >= REHOST_VOTE_COUNT) {
+        console.log(`Rehost vote count reached for match ${matchState.matchId}. Sending rehost message.`);
+        await sendMatchMessage(faceitChatApi, matchState.chatRoomId, 'Rehost conditions met. Rehosting the match.');
+        matchState.clearVotes();
+    } else {
+        console.log(`Rehost vote added for match ${matchState.matchId}. Current count: ${voteCount}`);
+    }
+}
+
+// Handle cancel command
+async function handleCancel(faceitChatApi, matchState, userId) {
+    console.log(`Processing cancel command. Match ID: ${matchState.matchId}, User ID: ${userId}`);
+
+    matchState.addCancelVote(userId);
+    const voteCount = matchState.getCancelVoteCount();
+
+    if (voteCount >= REHOST_VOTE_COUNT) {
+        console.log(`Cancel vote count reached for match ${matchState.matchId}. Sending cancel message.`);
+        await sendMatchMessage(faceitChatApi, matchState.chatRoomId, 'Cancel conditions met. Cancelling the match.');
+        matchState.clearVotes();
+    } else {
+        console.log(`Cancel vote added for match ${matchState.matchId}. Current count: ${voteCount}`);
+    }
+}
+
+async function pollMatches(faceitDataApi, faceitChatApi) {
+    try {
+        const matches = await getHubMatches(faceitDataApi);
+        console.log(`\nProcessing ${matches.length} matches`);
+
+        for (const match of matches) {
+            const matchDetails = await getMatchDetails(faceitDataApi, match.match_id);
+            const elos = await calculateTeamElos(matchDetails);
+
+            if (elos && elos.ratingDiff > ELO_THRESHOLD) {
+                console.log(`High ELO difference detected for match ${match.match_id}`);
+                await sendMatchMessage(faceitChatApi, matchDetails.chat_room_id, `High ELO difference detected: ${elos.ratingDiff} points`);
+            }
+
+            let matchState = matchStates.get(match.match_id);
+
+            if (!matchState) {
+                matchState = new MatchState(match.match_id, matchDetails.chat_room_id);
+                matchStates.set(match.match_id, matchState);
+            }
+
+            if (matchDetails.status === 'VOTING' && !matchState.hasGreeted) {
+                await sendMatchMessage(faceitChatApi, matchDetails.chat_room_id, 'Welcome to the match! 🎮\nAvailable commands:\n!rehost - Vote to rehost the match\n!cancel - Vote to cancel the match');
+                matchState.hasGreeted = true;
+            }
+        }
+    } catch (error) {
+        console.error('Error polling matches:', error.message);
+    }
+}
+
+// Express server setup
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Initialize Redis for Session Store and Persistent Data
-const RedisStore = connectRedis(session);
-const redisClient = Redis.createClient({
-    url: process.env.REDIS_URL,
-    legacyMode: true
-});
+// Add JSON body parser middleware
+app.use(express.json());
 
-redisClient.connect().catch(console.error);
-
-// Session middleware configuration with Redis store
-const isProduction = process.env.NODE_ENV === 'production';
-
-const sessionMiddleware = session({
-    store: new RedisStore({ client: redisClient }),
-    secret: process.env.SESSION_SECRET,
-    name: 'faceit_session',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: isProduction,
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
-        sameSite: 'lax'
-    }
-});
-
-// Apply Security Middleware
-app.use(helmet());
-
-// Apply Rate Limiting to Express Routes
-const apiRateLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again after 15 minutes'
-});
-app.use(apiRateLimiter);
-
-// Apply Logging Middleware
-app.use((req, res, next) => {
-    logger.info(`${req.method} ${req.path} - IP: ${req.ip}`);
+// Request logging middleware
+app.use((req, _, next) => {
+    console.log('Incoming request:', req.method, req.url, req.body);
     next();
 });
 
-// Apply Session Middleware
-app.use(sessionMiddleware);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Serve Static Files (e.g., favicon)
-app.use(express.static('public'));
-
-// Initialize FaceitJS instance
-const faceitJS = new FaceitJS();
-
-// Initialize Bottleneck for FACEIT API Rate Limiting
-const faceitLimiter = new Bottleneck({
-    reservoir: 120, // Initial number of requests
-    reservoirRefreshAmount: 120, // Number of requests to add at each interval
-    reservoirRefreshInterval: 60 * 1000, // Refresh every minute
-    maxConcurrent: 5, // Maximum concurrent requests
-    minTime: 50 // Minimum time between requests in ms
+// Health check endpoint
+app.get('/health', async (_, res) => {
+    await createApiClients();
+    res.json({ status: 'healthy', activeMatches: matchStates.size, uptime: process.uptime() });
 });
 
-// Handle 429 responses by retrying after specified time
-faceitLimiter.on('failed', async (error, jobInfo) => {
-    const { retryCount } = jobInfo;
-    if (error.response && error.response.status === 429 && retryCount < 5) {
-        const retryAfter = error.response.headers['retry-after'];
-        const delay = retryAfter ? parseInt(retryAfter) * 1000 : 1000 * Math.pow(2, retryCount);
-        logger.warn(`Rate limited. Retrying job in ${delay} ms`);
-        return delay;
-    }
-});
-
-// Wrap FaceitJS API methods with the limiter
-const limitedGetHubMatches = faceitLimiter.wrap(faceitJS.getHubMatches.bind(faceitJS));
-const limitedGetMatchDetails = faceitLimiter.wrap(faceitJS.getMatchDetails.bind(faceitJS));
-const limitedSendRoomMessage = faceitLimiter.wrap(faceitJS.sendRoomMessage.bind(faceitJS));
-const limitedRehostMatch = faceitLimiter.wrap(faceitJS.rehostMatch.bind(faceitJS));
-const limitedCancelMatch = faceitLimiter.wrap(faceitJS.cancelMatch.bind(faceitJS));
-// Wrap other methods as needed
-
-// Initialize Discord client
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
-
-// Initialize Bottleneck for Discord Command Rate Limiting (optional)
-const commandLimiter = new Bottleneck({
-    reservoir: 60, // 60 commands per minute
-    reservoirRefreshAmount: 60,
-    reservoirRefreshInterval: 60 * 1000,
-    maxConcurrent: 1,
-    minTime: 100 // 100 ms between commands
-});
-
-// Wrap Discord command handler (if needed)
-const limitedCommandHandler = commandLimiter.wrap(async (handler) => {
-    await handler();
-});
-
-// Add home route
-app.get('/', (req, res) => {
-    res.send('<a href="/login">Login with FACEIT</a>');
-});
-
-// Add health check route
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
-});
-
-// Add login route
-app.get('/login', async (req, res) => {
+// FACEIT webhook callback endpoint
+app.post('/callback', async (req, res) => {
     try {
-        const state = crypto.randomBytes(32).toString('hex');
-        const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
+        const { faceitDataApi, faceitChatApi } = await createApiClients();
 
-        logger.info(`Generated state: ${state} and code verifier for session: ${req.session.id}`);
+        const eventData = req.body;
 
-        // Store state and code verifier in session
-        req.session.oauthState = state;
-        req.session.codeVerifier = codeVerifier;
-
-        logger.info(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
-        res.redirect(url);
-    } catch (error) {
-        logger.error('Error in login route:', error);
-        res.status(500).send('Internal server error');
-    }
-});
-
-// Add callback route
-app.get('/callback', async (req, res) => {
-    const { code, state } = req.query;
-
-    logger.info(`Callback received - Session ID: ${req.session.id}`);
-    logger.info(`State from query: ${state}`);
-    logger.info(`State from session: ${req.session.oauthState}`);
-
-    try {
-        // Retrieve state and codeVerifier from session
-        const storedState = req.session.oauthState;
-        const codeVerifier = req.session.codeVerifier;
-
-        if (!storedState || !codeVerifier) {
-            logger.error('Missing state or code verifier in session');
-            return res.status(400).send('Invalid session. Please try logging in again.');
+        if (!eventData || !eventData.event || !eventData.payload) {
+            return res.status(400).json({ error: 'Invalid payload' });
         }
 
-        // Verify state parameter
-        if (state !== storedState) {
-            logger.error(`State mismatch - Session State: ${storedState}, Received State: ${state}`);
-            return res.status(400).send('Invalid state parameter. Please try logging in again.');
+        if (eventData.event !== 'chat_message') {
+            return res.status(400).json({ error: 'Unsupported event type' });
         }
 
-        // Exchange the authorization code for tokens
-        const tokens = await faceitJS.exchangeCodeForToken(code, codeVerifier);
+        const messageContent = eventData.payload.content;
+        const userId = eventData.payload.actor_id;
+        const roomId = eventData.payload.room_id;
 
-        // Store tokens in session
-        req.session.accessToken = tokens.access_token;
-        req.session.refreshToken = tokens.refresh_token;
-
-        logger.info('Successfully authenticated with FACEIT');
-        res.send('Authentication successful! You can close this window.');
-    } catch (error) {
-        logger.error('Error during OAuth callback:', error.message);
-        logger.error('Full error:', error);
-        res.status(500).send('Authentication failed. Please try logging in again.');
-    }
-});
-
-// Handle match state changes
-faceitJS.onMatchStateChange(async (match) => {
-    try {
-        logger.info(`Match ${match.id} state changed to ${match.state}`);
-        await redisClient.set(`matchState:${match.id}`, match.state);
-
-        // Get match details including chat room info
-        const matchDetails = await limitedGetMatchDetails(match.id);
-
-        // Send greeting when match starts
-        if (match.state === 'READY') {
-            const players = matchDetails.teams.faction1.roster.concat(matchDetails.teams.faction2.roster);
-            const playerNames = players.map(p => p.nickname).join(', ');
-            const greeting = `Welcome to the match, ${playerNames}! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.`;
-            await limitedSendRoomMessage(match.id, greeting);
-            logger.info(`Sent greeting message for match ${match.id}`);
+        if (!messageContent || !userId || !roomId) {
+            return res.status(400).json({ error: 'Invalid payload data' });
         }
 
-        // Send other notifications based on state
-        let notification = '';
-        switch (match.state) {
-            case 'ONGOING':
-                notification = 'Match has started! Good luck and have fun!';
+        // Find the match state by chat room ID
+        let matchState;
+        for (let [, state] of matchStates.entries()) {
+            if (state.chatRoomId === roomId) {
+                matchState = state;
                 break;
-            case 'FINISHED':
-                notification = 'Match has ended. Thanks for playing!';
-                // Clear any existing votes for this match
-                await redisClient.del(`rehostVotes:${match.id}`);
-                break;
-            case 'CANCELLED':
-                notification = 'Match has been cancelled.';
-                // Clear any existing votes for this match
-                await redisClient.del(`rehostVotes:${match.id}`);
-                break;
-        }
-
-        if (notification) {
-            await limitedSendRoomMessage(match.id, notification);
-            logger.info(`Sent state change notification for match ${match.id}: ${notification}`);
-        }
-    } catch (error) {
-        logger.error('Error handling match state change:', error);
-    }
-});
-
-// Check if match is in configuration or lobby phase
-const isValidMatchPhase = (matchState) => {
-    return matchState === 'READY' || matchState === 'CONFIGURING';
-};
-
-// Calculate average ELO for a team
-const calculateTeamAvgElo = (team) => {
-    const totalElo = team.roster.reduce((sum, player) => sum + player.elo, 0);
-    return totalElo / team.roster.length;
-};
-
-// Function to add a rehost vote
-const addRehostVote = async (matchId, playerId) => {
-    const voteKey = `rehostVotes:${matchId}`;
-    await redisClient.sadd(voteKey, playerId);
-    const voteCount = await redisClient.scard(voteKey);
-    return voteCount;
-};
-
-// Handle chat commands
-client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-
-    const command = message.content.toLowerCase();
-
-    // Restrict commands to a specific channel
-    const allowedChannelId = process.env.ALLOWED_CHANNEL_ID;
-    if (allowedChannelId && message.channel.id !== allowedChannelId) {
-        return;
-    }
-
-    // Restrict commands to users with a specific role
-    const requiredRoleName = process.env.MATCH_MANAGER_ROLE; // Ensure this is set in .env
-    if (requiredRoleName && !message.member.roles.cache.some(role => role.name === requiredRoleName)) {
-        return;
-    }
-
-    try {
-        // Apply rate limiting to command handling
-        await limitedCommandHandler(async () => {
-            // Get the active match
-            const matches = await limitedGetHubMatches(process.env.HUB_ID, 'ongoing');
-            const activeMatch = matches[0];
-
-            if (!activeMatch) {
-                message.reply('No active matches found in the hub.');
-                return;
             }
+        }
 
-            const matchDetails = await limitedGetMatchDetails(activeMatch.match_id);
-            const matchState = await redisClient.get(`matchState:${activeMatch.match_id}`) || matchDetails.status;
-
-            if (!isValidMatchPhase(matchState)) {
-                message.reply('Commands can only be used during configuration phase or in matchroom lobby.');
-                return;
-            }
-
-            if (command === '!cancel') {
-                // Calculate team average ELOs
-                const team1AvgElo = calculateTeamAvgElo(matchDetails.teams.faction1);
-                const team2AvgElo = calculateTeamAvgElo(matchDetails.teams.faction2);
-                const eloDiff = Math.abs(team1AvgElo - team2AvgElo);
-
-                if (eloDiff >= 70) {
-                    // Cancel the match
-                    await limitedCancelMatch(activeMatch.match_id);
-                    message.reply(`Match cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`);
-                    await limitedSendRoomMessage(activeMatch.match_id,
-                        `Match has been cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`
-                    );
-                    logger.info(`Match ${activeMatch.match_id} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
-                } else {
-                    message.reply(`Cannot cancel match. ELO difference (${eloDiff.toFixed(0)}) is less than 70.`);
-                    logger.info(`Cancel request denied for match ${activeMatch.match_id} - ELO difference ${eloDiff.toFixed(0)} < 70`);
-                }
-            } else if (command === '!rehost') {
-                const playerId = message.author.id;
-
-                // Add vote
-                const currentVotes = await addRehostVote(activeMatch.match_id, playerId);
-                const requiredVotes = 6;
-
-                if (currentVotes >= requiredVotes) {
-                    // Rehost the match
-                    await limitedRehostMatch(activeMatch.match_id);
-                    message.reply(`Match ${activeMatch.match_id} rehosted successfully (${currentVotes}/10 votes).`);
-                    await limitedSendRoomMessage(activeMatch.match_id,
-                        `Match has been rehosted (${currentVotes}/10 votes).`
-                    );
-                    // Clear votes after successful rehost
-                    await redisClient.del(`rehostVotes:${activeMatch.match_id}`);
-                    logger.info(`Match ${activeMatch.match_id} rehosted with ${currentVotes} votes`);
-                } else {
-                    message.reply(`Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`);
-                    await limitedSendRoomMessage(activeMatch.match_id,
-                        `Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`
-                    );
-                    logger.info(`Rehost vote recorded for match ${activeMatch.match_id} (${currentVotes}/${requiredVotes})`);
+        if (!matchState) {
+            // Try to find the match based on the room ID
+            const matches = await getHubMatches(faceitDataApi);
+            for (const match of matches) {
+                const matchDetails = await getMatchDetails(faceitDataApi, match.match_id);
+                if (matchDetails.chat_room_id === roomId) {
+                    matchState = matchStates.get(match.match_id);
+                    if (!matchState) {
+                        matchState = new MatchState(match.match_id, roomId);
+                        matchStates.set(match.match_id, matchState);
+                    }
+                    break;
                 }
             }
-        });
+        }
+
+        if (!matchState) {
+            return res.status(400).json({ error: 'Match not found for the chat room' });
+        }
+
+        const matchDetails = await getMatchDetails(faceitDataApi, matchState.matchId);
+
+        if (!isPlayerInMatch(matchDetails, userId)) {
+            return res.status(403).json({ error: 'Only match players can vote' });
+        }
+
+        const message = messageContent.trim();
+
+        if (message === '!rehost') {
+            await handleRehost(faceitChatApi, matchState, userId);
+        } else if (message === '!cancel') {
+            await handleCancel(faceitChatApi, matchState, userId);
+        } else {
+            return res.status(200).json({ status: 'Message ignored' });
+        }
+
+        res.status(200).json({ status: 'success' });
     } catch (error) {
-        logger.error('Error handling command:', error);
-        message.reply('An error occurred while processing the command.');
+        console.error('Error handling callback:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Error handling
-client.on('error', (error) => {
-    logger.error('Discord client error:', error);
+// Start the server and test API connection
+app.listen(port, async () => {
+    const { faceitDataApi, faceitChatApi } = await createApiClients();
+    console.log(`Bot is running on port ${port}`);
+    await testApiConnection(faceitDataApi);
+    setInterval(() => pollMatches(faceitDataApi, faceitChatApi), 30000); // Poll matches every 30 seconds
 });
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (error) => {
-    logger.error('Unhandled promise rejection:', error);
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-    logger.error('Uncaught exception:', error);
-});
-
-// Login to Discord
-client.login(process.env.DISCORD_TOKEN)
-    .then(() => {
-        logger.info('Discord bot logged in successfully');
-        // Start match state polling after successful Discord login
-        faceitJS.startPolling();
-        logger.info('Started FACEIT match state polling');
-    })
-    .catch(error => {
-        logger.error('Failed to login to Discord:', error);
-    });
-
-// Start Express server
-const server = app.listen(port, () => {
-    logger.info(`Server running on port ${port}`);
-});
-
-// Graceful Shutdown
-const shutdown = () => {
-    logger.info('Shutting down server...');
-    server.close(() => {
-        logger.info('HTTP server closed.');
-        client.destroy();
-        redisClient.quit();
-        process.exit(0);
-    });
-
-    // Force shutdown after 10 seconds
-    setTimeout(() => {
-        logger.error('Forcing shutdown.');
-        process.exit(1);
-    }, 10 * 1000);
-};
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
-
-export default app;
