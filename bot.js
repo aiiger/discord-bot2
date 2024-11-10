@@ -1,8 +1,6 @@
 // FACEIT OAuth2 Bot with PKCE Support
 import express from 'express';
 import session from 'express-session';
-import RedisStore from 'connect-redis';
-import { createClient } from 'redis';
 import { FaceitJS } from './FaceitJS.js';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
@@ -13,7 +11,6 @@ dotenv.config();
 
 // Validate required environment variables
 const requiredEnvVars = [
-    'REDIS_URL',
     'SESSION_SECRET',
     'CLIENT_ID',
     'CLIENT_SECRET',
@@ -24,7 +21,6 @@ const requiredEnvVars = [
 ];
 
 const patterns = {
-    REDIS_URL: /^redis(s)?:\/\/(?:[^:]+:[^@]+@)?[\w.-]+:\d+$/,
     SESSION_SECRET: /^[a-f0-9]{128}$/,
     CLIENT_ID: /^[\w-]{36}$/,
     CLIENT_SECRET: /^[\w]{40}$/,
@@ -34,7 +30,6 @@ const patterns = {
 };
 
 const validators = {
-    REDIS_URL: (url) => patterns.REDIS_URL.test(url),
     SESSION_SECRET: (secret) => patterns.SESSION_SECRET.test(secret),
     CLIENT_ID: (id) => patterns.CLIENT_ID.test(id),
     CLIENT_SECRET: (secret) => patterns.CLIENT_SECRET.test(secret),
@@ -64,55 +59,14 @@ logger.info('Environment variables validated successfully');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Initialize Redis client with retry strategy
-const redisClient = createClient({
-    url: process.env.REDIS_URL,
-    socket: {
-        tls: process.env.REDIS_URL.startsWith('rediss://'),
-        rejectUnauthorized: false
-    },
-    retry_strategy: function (options) {
-        if (options.error && options.error.code === 'ECONNREFUSED') {
-            logger.error('Redis connection refused');
-            return new Error('The server refused the connection');
-        }
-        if (options.total_retry_time > 1000 * 60 * 60) {
-            logger.error('Redis retry time exhausted');
-            return new Error('Retry time exhausted');
-        }
-        if (options.attempt > 10) {
-            logger.error('Redis maximum retry attempts reached');
-            return new Error('Maximum retry attempts reached');
-        }
-        return Math.min(options.attempt * 100, 3000);
-    }
-});
-
-// Redis event handlers
-redisClient.on('error', (err) => logger.error('Redis Client Error:', err));
-redisClient.on('connect', () => logger.info('Redis Client Connected'));
-redisClient.on('reconnecting', () => logger.info('Redis Client Reconnecting'));
-
-// Connect to Redis
-await redisClient.connect().catch(err => {
-    logger.error('Failed to connect to Redis:', err);
-    process.exit(1);
-});
-
 // Initialize FaceitJS instance
 const faceitJS = new FaceitJS();
 
 // Force production mode for Heroku
-const isProduction = true;
+const isProduction = process.env.NODE_ENV === 'production';
 
-// Session middleware configuration
+// Session middleware configuration with in-memory storage
 const sessionMiddleware = session({
-    store: new RedisStore({
-        client: redisClient,
-        prefix: 'faceit:sess:',
-        ttl: 86400,
-        disableTouch: false
-    }),
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
     resave: true,
@@ -156,15 +110,9 @@ app.get('/login', async (req, res) => {
 
         logger.info(`Generated state: ${state} and code verifier for session: ${req.session.id}`);
 
-        // Store state and code verifier in Redis with short TTL
-        await redisClient.set(`oauth:state:${state}`, JSON.stringify({
-            codeVerifier,
-            sessionId: req.session.id
-        }), {
-            EX: 300 // 5 minutes expiry
-        });
-
+        // Store state and code verifier in session
         req.session.oauthState = state;
+        req.session.codeVerifier = codeVerifier;
 
         // Ensure session is saved before redirect
         req.session.save((err) => {
@@ -191,27 +139,14 @@ app.get('/callback', async (req, res) => {
     logger.info(`State from session: ${req.session.oauthState}`);
 
     try {
-        // Verify state exists in Redis and get code verifier
-        const stateData = await redisClient.get(`oauth:state:${state}`);
-        if (!stateData) {
-            logger.error('State not found in Redis');
-            return res.status(400).send('Invalid or expired state parameter. Please try logging in again.');
-        }
-
-        const { codeVerifier, sessionId } = JSON.parse(stateData);
-        logger.info(`Retrieved state data - Session ID: ${sessionId}, Code Verifier present: ${!!codeVerifier}`);
-
         // Verify state parameter
         if (!state || state !== req.session.oauthState) {
             logger.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
             return res.status(400).send('Invalid state parameter. Please try logging in again.');
         }
 
-        // Delete used state from Redis
-        await redisClient.del(`oauth:state:${state}`);
-
         // Exchange the authorization code for tokens
-        const tokens = await faceitJS.exchangeCodeForToken(code, codeVerifier);
+        const tokens = await faceitJS.exchangeCodeForToken(code, req.session.codeVerifier);
 
         // Store tokens in session
         req.session.accessToken = tokens.access_token;
