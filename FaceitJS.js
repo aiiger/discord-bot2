@@ -1,3 +1,4 @@
+// FaceitJS.js
 import axios from 'axios';
 import { EventEmitter } from 'events';
 import dotenv from 'dotenv';
@@ -17,10 +18,18 @@ export class FaceitJS extends EventEmitter {
         this.hubId = process.env.HUB_ID;
         this.apiKey = process.env.FACEIT_API_KEY;
 
+        // Validate environment variables
+        const requiredEnv = ['CLIENT_ID', 'CLIENT_SECRET', 'REDIRECT_URI', 'HUB_ID', 'FACEIT_API_KEY'];
+        requiredEnv.forEach((envVar) => {
+            if (!process.env[envVar]) {
+                throw new Error(`Missing required environment variable: ${envVar}`);
+            }
+        });
+
         this.accessToken = null;
         this.refreshToken = null;
 
-        // Create instances for different API endpoints
+        // Create Axios instances for different API endpoints
         this.oauthInstance = axios.create({
             baseURL: 'https://api.faceit.com',
             headers: {
@@ -87,6 +96,7 @@ export class FaceitJS extends EventEmitter {
                     originalRequest.headers.Authorization = `Bearer ${this.accessToken}`;
                     return axios(originalRequest);
                 } catch (refreshError) {
+                    console.error('Token refresh failed:', refreshError);
                     throw refreshError;
                 }
             }
@@ -111,14 +121,14 @@ export class FaceitJS extends EventEmitter {
         return verifier;
     }
 
-    async generateCodeChallenge(verifier) {
+    generateCodeChallenge(verifier) {
         const hash = crypto.createHash('sha256');
         hash.update(verifier);
         return hash.digest('base64url');
     }
 
     // Hub Methods
-    async getHubDetails(hubId, expanded = []) {
+    async getHubDetails(hubId = this.hubId, expanded = []) {
         try {
             const params = new URLSearchParams();
             if (expanded.length > 0) {
@@ -128,11 +138,12 @@ export class FaceitJS extends EventEmitter {
             const response = await this.dataApiInstance.get(`/hubs/${hubId}?${params.toString()}`);
             return response.data;
         } catch (error) {
+            console.error('Failed to get hub details:', error);
             throw new Error(`Failed to get hub details: ${error.message}`);
         }
     }
 
-    async getHubMatches(hubId, type = 'ongoing', offset = 0, limit = 20) {
+    async getHubMatches(hubId = this.hubId, type = 'ongoing', offset = 0, limit = 20) {
         try {
             const params = new URLSearchParams({
                 type,
@@ -143,6 +154,7 @@ export class FaceitJS extends EventEmitter {
             const response = await this.dataApiInstance.get(`/hubs/${hubId}/matches?${params.toString()}`);
             return response.data.items;
         } catch (error) {
+            console.error('Failed to get hub matches:', error);
             throw new Error(`Failed to get hub matches: ${error.message}`);
         }
     }
@@ -153,6 +165,7 @@ export class FaceitJS extends EventEmitter {
             const response = await this.dataApiInstance.get(`/matches/${matchId}`);
             return response.data;
         } catch (error) {
+            console.error('Failed to get match details:', error);
             throw new Error(`Failed to get match details: ${error.message}`);
         }
     }
@@ -162,6 +175,7 @@ export class FaceitJS extends EventEmitter {
             const response = await this.dataApiInstance.get(`/matches/${matchId}/stats`);
             return response.data;
         } catch (error) {
+            console.error('Failed to get match stats:', error);
             throw new Error(`Failed to get match stats: ${error.message}`);
         }
     }
@@ -171,6 +185,7 @@ export class FaceitJS extends EventEmitter {
             const response = await this.dataApiInstance.post(`/matches/${matchId}/rehost`);
             return response.data;
         } catch (error) {
+            console.error('Failed to rehost match:', error);
             throw new Error(`Failed to rehost match: ${error.message}`);
         }
     }
@@ -180,6 +195,7 @@ export class FaceitJS extends EventEmitter {
             const response = await this.dataApiInstance.post(`/matches/${matchId}/cancel`);
             return response.data;
         } catch (error) {
+            console.error('Failed to cancel match:', error);
             throw new Error(`Failed to cancel match: ${error.message}`);
         }
     }
@@ -190,6 +206,7 @@ export class FaceitJS extends EventEmitter {
             const response = await this.chatApiInstance.get(`/rooms/${roomId}`);
             return response.data;
         } catch (error) {
+            console.error('Failed to get room details:', error);
             throw new Error(`Failed to get room details: ${error.message}`);
         }
     }
@@ -203,6 +220,7 @@ export class FaceitJS extends EventEmitter {
             const response = await this.chatApiInstance.get(`/rooms/${roomId}/messages?${params.toString()}`);
             return response.data;
         } catch (error) {
+            console.error('Failed to get room messages:', error);
             throw new Error(`Failed to get room messages: ${error.message}`);
         }
     }
@@ -214,6 +232,7 @@ export class FaceitJS extends EventEmitter {
             });
             return response.data;
         } catch (error) {
+            console.error('Failed to send room message:', error);
             throw new Error(`Failed to send room message: ${error.message}`);
         }
     }
@@ -221,7 +240,8 @@ export class FaceitJS extends EventEmitter {
     // Authentication Methods
     async authenticateWithClientCredentials() {
         try {
-            const response = await this.oauthInstance.post('/auth/v1/oauth/token',
+            const response = await this.oauthInstance.post(
+                '/auth/v1/oauth/token',
                 'grant_type=client_credentials',
                 {
                     headers: {
@@ -231,13 +251,21 @@ export class FaceitJS extends EventEmitter {
                 }
             );
             this.accessToken = response.data.access_token;
+            // Note: Client Credentials flow may not return a refresh token
+            this.refreshToken = response.data.refresh_token || null;
+            console.log('Authenticated with client credentials.');
             return response.data;
         } catch (error) {
+            console.error('Client credentials authentication failed:', error);
             throw new Error(`Client credentials authentication failed: ${error.message}`);
         }
     }
 
     async refreshAccessToken() {
+        if (!this.refreshToken) {
+            throw new Error('No refresh token available.');
+        }
+
         try {
             const params = new URLSearchParams({
                 grant_type: 'refresh_token',
@@ -253,8 +281,10 @@ export class FaceitJS extends EventEmitter {
             });
             this.accessToken = response.data.access_token;
             this.refreshToken = response.data.refresh_token;
+            console.log('Access token refreshed.');
             return response.data;
         } catch (error) {
+            console.error('Failed to refresh access token:', error);
             throw new Error(`Failed to refresh access token: ${error.message}`);
         }
     }
@@ -278,13 +308,15 @@ export class FaceitJS extends EventEmitter {
 
             this.accessToken = response.data.access_token;
             this.refreshToken = response.data.refresh_token;
+            console.log('Exchanged code for token.');
             return response.data;
         } catch (error) {
+            console.error('Failed to exchange code for token:', error);
             throw new Error(`Failed to exchange code for token: ${error.message}`);
         }
     }
 
-    getAuthorizationUrl(state) {
+    async getAuthorizationUrl(state) {
         const codeVerifier = this.generateCodeVerifier();
         const codeChallenge = this.generateCodeChallenge(codeVerifier);
 
@@ -302,12 +334,12 @@ export class FaceitJS extends EventEmitter {
         return { url, codeVerifier };
     }
 
-    startPolling() {
+    startPolling(interval = 60000) { // Default to 60 seconds
         this.previousMatchStates = {};
 
-        setInterval(async () => {
+        const poll = async () => {
             try {
-                const activeMatches = await this.getHubMatches(this.hubId);
+                const activeMatches = await this.getHubMatches();
                 activeMatches.forEach(match => {
                     const prevState = this.previousMatchStates[match.id];
                     if (prevState && prevState !== match.state) {
@@ -317,8 +349,12 @@ export class FaceitJS extends EventEmitter {
                 });
             } catch (error) {
                 console.error('Polling error:', error);
+            } finally {
+                setTimeout(poll, interval); // Schedule next poll
             }
-        }, 60000);
+        };
+
+        poll(); // Initial call
     }
 
     onMatchStateChange(callback) {

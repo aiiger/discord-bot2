@@ -1,12 +1,20 @@
-// FACEIT OAuth2 Bot with PKCE Support
+// bot.js
+
+// Import Dependencies
 import express from 'express';
 import session from 'express-session';
+import Redis from 'redis';
+import connectRedis from 'connect-redis';
 import { FaceitJS } from './FaceitJS.js';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import logger from './logger.js';
 import { Client, GatewayIntentBits } from 'discord.js';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import Bottleneck from 'bottleneck';
 
+// Load Environment Variables
 dotenv.config();
 
 // Validate required environment variables
@@ -17,7 +25,9 @@ const requiredEnvVars = [
     'REDIRECT_URI',
     'HUB_ID',
     'DISCORD_TOKEN',
-    'FACEIT_API_KEY'
+    'FACEIT_API_KEY',
+    'REDIS_URL',
+    'ALLOWED_CHANNEL_ID'
 ];
 
 const patterns = {
@@ -36,7 +46,9 @@ const validators = {
     REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
     HUB_ID: (id) => patterns.HUB_ID.test(id),
     DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0,
-    FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key)
+    FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key),
+    REDIS_URL: (url) => typeof url === 'string' && url.startsWith('redis://'),
+    ALLOWED_CHANNEL_ID: (id) => /^[\w]{18}$/.test(id) // Discord channel IDs are typically 18 digits
 };
 
 for (const varName of requiredEnvVars) {
@@ -48,7 +60,7 @@ for (const varName of requiredEnvVars) {
 
     if (validators[varName] && !validators[varName](value)) {
         logger.error(`Invalid format for ${varName}: ${value}`);
-        logger.error(`Expected format: ${patterns[varName]}`);
+        logger.error(`Expected format: ${patterns[varName] || 'Custom format'}`);
         process.exit(1);
     }
 }
@@ -59,17 +71,20 @@ logger.info('Environment variables validated successfully');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Initialize FaceitJS instance
-const faceitJS = new FaceitJS();
+// Initialize Redis for Session Store and Persistent Data
+const RedisStore = connectRedis(session);
+const redisClient = Redis.createClient({
+    url: process.env.REDIS_URL,
+    legacyMode: true
+});
 
-// Development mode for local testing
+redisClient.connect().catch(console.error);
+
+// Session middleware configuration with Redis store
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Store for OAuth states and code verifiers
-const oauthStates = new Map();
-
-// Session middleware configuration with in-memory storage
 const sessionMiddleware = session({
+    store: new RedisStore({ client: redisClient }),
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
     resave: false,
@@ -77,31 +92,92 @@ const sessionMiddleware = session({
     cookie: {
         secure: isProduction,
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
         sameSite: 'lax'
     }
 });
 
-// Store for rehost votes and match states
-const rehostVotes = new Map(); // matchId -> Set of player IDs who voted
-const matchStates = new Map(); // matchId -> match state
+// Apply Security Middleware
+app.use(helmet());
 
-// Apply middleware
+// Apply Rate Limiting to Express Routes
+const apiRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again after 15 minutes'
+});
+app.use(apiRateLimiter);
+
+// Apply Logging Middleware
 app.use((req, res, next) => {
     logger.info(`${req.method} ${req.path} - IP: ${req.ip}`);
     next();
 });
 
+// Apply Session Middleware
 app.use(sessionMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve Static Files (e.g., favicon)
+app.use(express.static('public'));
+
+// Initialize FaceitJS instance
+const faceitJS = new FaceitJS();
+
+// Initialize Bottleneck for FACEIT API Rate Limiting
+const faceitLimiter = new Bottleneck({
+    reservoir: 120, // Initial number of requests
+    reservoirRefreshAmount: 120, // Number of requests to add at each interval
+    reservoirRefreshInterval: 60 * 1000, // Refresh every minute
+    maxConcurrent: 5, // Maximum concurrent requests
+    minTime: 50 // Minimum time between requests in ms
+});
+
+// Handle 429 responses by retrying after specified time
+faceitLimiter.on('failed', async (error, jobInfo) => {
+    const { retryCount } = jobInfo;
+    if (error.response && error.response.status === 429 && retryCount < 5) {
+        const retryAfter = error.response.headers['retry-after'];
+        const delay = retryAfter ? parseInt(retryAfter) * 1000 : 1000 * Math.pow(2, retryCount);
+        logger.warn(`Rate limited. Retrying job in ${delay} ms`);
+        return delay;
+    }
+});
+
+// Wrap FaceitJS API methods with the limiter
+const limitedGetHubMatches = faceitLimiter.wrap(faceitJS.getHubMatches.bind(faceitJS));
+const limitedGetMatchDetails = faceitLimiter.wrap(faceitJS.getMatchDetails.bind(faceitJS));
+const limitedSendRoomMessage = faceitLimiter.wrap(faceitJS.sendRoomMessage.bind(faceitJS));
+const limitedRehostMatch = faceitLimiter.wrap(faceitJS.rehostMatch.bind(faceitJS));
+const limitedCancelMatch = faceitLimiter.wrap(faceitJS.cancelMatch.bind(faceitJS));
+// Wrap other methods as needed
+
 // Initialize Discord client
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+
+// Initialize Bottleneck for Discord Command Rate Limiting (optional)
+const commandLimiter = new Bottleneck({
+    reservoir: 60, // 60 commands per minute
+    reservoirRefreshAmount: 60,
+    reservoirRefreshInterval: 60 * 1000,
+    maxConcurrent: 1,
+    minTime: 100 // 100 ms between commands
+});
+
+// Wrap Discord command handler (if needed)
+const limitedCommandHandler = commandLimiter.wrap(async (handler) => {
+    await handler();
+});
 
 // Add home route
 app.get('/', (req, res) => {
     res.send('<a href="/login">Login with FACEIT</a>');
+});
+
+// Add health check route
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok' });
 });
 
 // Add login route
@@ -112,22 +188,9 @@ app.get('/login', async (req, res) => {
 
         logger.info(`Generated state: ${state} and code verifier for session: ${req.session.id}`);
 
-        // Store state and code verifier in memory
-        oauthStates.set(state, {
-            codeVerifier,
-            sessionId: req.session.id,
-            timestamp: Date.now()
-        });
-
-        // Clean up old states (older than 5 minutes)
-        const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-        for (const [key, value] of oauthStates.entries()) {
-            if (value.timestamp < fiveMinutesAgo) {
-                oauthStates.delete(key);
-            }
-        }
-
+        // Store state and code verifier in session
         req.session.oauthState = state;
+        req.session.codeVerifier = codeVerifier;
 
         logger.info(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
         res.redirect(url);
@@ -146,24 +209,20 @@ app.get('/callback', async (req, res) => {
     logger.info(`State from session: ${req.session.oauthState}`);
 
     try {
-        // Verify state exists and get code verifier
-        const stateData = oauthStates.get(state);
-        if (!stateData) {
-            logger.error('State not found');
-            return res.status(400).send('Invalid or expired state parameter. Please try logging in again.');
-        }
+        // Retrieve state and codeVerifier from session
+        const storedState = req.session.oauthState;
+        const codeVerifier = req.session.codeVerifier;
 
-        const { codeVerifier, sessionId } = stateData;
-        logger.info(`Retrieved state data - Session ID: ${sessionId}, Code Verifier present: ${!!codeVerifier}`);
+        if (!storedState || !codeVerifier) {
+            logger.error('Missing state or code verifier in session');
+            return res.status(400).send('Invalid session. Please try logging in again.');
+        }
 
         // Verify state parameter
-        if (!state || state !== req.session.oauthState) {
-            logger.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
+        if (state !== storedState) {
+            logger.error(`State mismatch - Session State: ${storedState}, Received State: ${state}`);
             return res.status(400).send('Invalid state parameter. Please try logging in again.');
         }
-
-        // Delete used state
-        oauthStates.delete(state);
 
         // Exchange the authorization code for tokens
         const tokens = await faceitJS.exchangeCodeForToken(code, codeVerifier);
@@ -185,17 +244,17 @@ app.get('/callback', async (req, res) => {
 faceitJS.onMatchStateChange(async (match) => {
     try {
         logger.info(`Match ${match.id} state changed to ${match.state}`);
-        matchStates.set(match.id, match.state);
+        await redisClient.set(`matchState:${match.id}`, match.state);
 
         // Get match details including chat room info
-        const matchDetails = await faceitJS.getMatchDetails(match.id);
+        const matchDetails = await limitedGetMatchDetails(match.id);
 
         // Send greeting when match starts
         if (match.state === 'READY') {
             const players = matchDetails.teams.faction1.roster.concat(matchDetails.teams.faction2.roster);
             const playerNames = players.map(p => p.nickname).join(', ');
             const greeting = `Welcome to the match, ${playerNames}! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.`;
-            await faceitJS.sendRoomMessage(match.id, greeting);
+            await limitedSendRoomMessage(match.id, greeting);
             logger.info(`Sent greeting message for match ${match.id}`);
         }
 
@@ -208,17 +267,17 @@ faceitJS.onMatchStateChange(async (match) => {
             case 'FINISHED':
                 notification = 'Match has ended. Thanks for playing!';
                 // Clear any existing votes for this match
-                rehostVotes.delete(match.id);
+                await redisClient.del(`rehostVotes:${match.id}`);
                 break;
             case 'CANCELLED':
                 notification = 'Match has been cancelled.';
                 // Clear any existing votes for this match
-                rehostVotes.delete(match.id);
+                await redisClient.del(`rehostVotes:${match.id}`);
                 break;
         }
 
         if (notification) {
-            await faceitJS.sendRoomMessage(match.id, notification);
+            await limitedSendRoomMessage(match.id, notification);
             logger.info(`Sent state change notification for match ${match.id}: ${notification}`);
         }
     } catch (error) {
@@ -237,15 +296,35 @@ const calculateTeamAvgElo = (team) => {
     return totalElo / team.roster.length;
 };
 
+// Function to add a rehost vote
+const addRehostVote = async (matchId, playerId) => {
+    const voteKey = `rehostVotes:${matchId}`;
+    await redisClient.sadd(voteKey, playerId);
+    const voteCount = await redisClient.scard(voteKey);
+    return voteCount;
+};
+
 // Handle chat commands
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
     const command = message.content.toLowerCase();
 
+    // Optional: Restrict commands to a specific channel
+    const allowedChannelId = process.env.ALLOWED_CHANNEL_ID;
+    if (allowedChannelId && message.channel.id !== allowedChannelId) {
+        return;
+    }
+
+    // Optional: Restrict commands to users with a specific role
+    const requiredRoleName = 'Match Manager'; // Change as needed
+    if (requiredRoleName && !message.member.roles.cache.some(role => role.name === requiredRoleName)) {
+        return;
+    }
+
     try {
         // Get the active match
-        const matches = await faceitJS.getHubMatches(process.env.HUB_ID, 'ongoing');
+        const matches = await limitedGetHubMatches(process.env.HUB_ID, 'ongoing');
         const activeMatch = matches[0];
 
         if (!activeMatch) {
@@ -253,8 +332,8 @@ client.on('messageCreate', async (message) => {
             return;
         }
 
-        const matchDetails = await faceitJS.getMatchDetails(activeMatch.match_id);
-        const matchState = matchStates.get(activeMatch.match_id) || matchDetails.status;
+        const matchDetails = await limitedGetMatchDetails(activeMatch.match_id);
+        const matchState = await redisClient.get(`matchState:${activeMatch.match_id}`) || matchDetails.status;
 
         if (!isValidMatchPhase(matchState)) {
             message.reply('Commands can only be used during configuration phase or in matchroom lobby.');
@@ -269,9 +348,9 @@ client.on('messageCreate', async (message) => {
 
             if (eloDiff >= 70) {
                 // Cancel the match
-                await faceitJS.cancelMatch(activeMatch.match_id);
+                await limitedCancelMatch(activeMatch.match_id);
                 message.reply(`Match cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`);
-                await faceitJS.sendRoomMessage(activeMatch.match_id,
+                await limitedSendRoomMessage(activeMatch.match_id,
                     `Match has been cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`
                 );
                 logger.info(`Match ${activeMatch.match_id} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
@@ -282,37 +361,23 @@ client.on('messageCreate', async (message) => {
         } else if (command === '!rehost') {
             const playerId = message.author.id;
 
-            // Initialize vote set if it doesn't exist
-            if (!rehostVotes.has(activeMatch.match_id)) {
-                rehostVotes.set(activeMatch.match_id, new Set());
-            }
-
-            const votes = rehostVotes.get(activeMatch.match_id);
-
-            // Check if player already voted
-            if (votes.has(playerId)) {
-                message.reply('You have already voted for a rehost.');
-                return;
-            }
-
             // Add vote
-            votes.add(playerId);
-            const currentVotes = votes.size;
+            const currentVotes = await addRehostVote(activeMatch.match_id, playerId);
             const requiredVotes = 6;
 
             if (currentVotes >= requiredVotes) {
                 // Rehost the match
-                await faceitJS.rehostMatch(activeMatch.match_id);
+                await limitedRehostMatch(activeMatch.match_id);
                 message.reply(`Match ${activeMatch.match_id} rehosted successfully (${currentVotes}/10 votes).`);
-                await faceitJS.sendRoomMessage(activeMatch.match_id,
+                await limitedSendRoomMessage(activeMatch.match_id,
                     `Match has been rehosted (${currentVotes}/10 votes).`
                 );
                 // Clear votes after successful rehost
-                rehostVotes.delete(activeMatch.match_id);
+                await redisClient.del(`rehostVotes:${activeMatch.match_id}`);
                 logger.info(`Match ${activeMatch.match_id} rehosted with ${currentVotes} votes`);
             } else {
                 message.reply(`Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`);
-                await faceitJS.sendRoomMessage(activeMatch.match_id,
+                await limitedSendRoomMessage(activeMatch.match_id,
                     `Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`
                 );
                 logger.info(`Rehost vote recorded for match ${activeMatch.match_id} (${currentVotes}/${requiredVotes})`);
@@ -351,9 +416,29 @@ client.login(process.env.DISCORD_TOKEN)
         logger.error('Failed to login to Discord:', error);
     });
 
-// Start server
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+// Start Express server
+const server = app.listen(port, () => {
+    logger.info(`Server running on port ${port}`);
 });
+
+// Graceful Shutdown
+const shutdown = () => {
+    logger.info('Shutting down server...');
+    server.close(() => {
+        logger.info('HTTP server closed.');
+        client.destroy();
+        redisClient.quit();
+        process.exit(0);
+    });
+
+    // Force shutdown after 10 seconds
+    setTimeout(() => {
+        logger.error('Forcing shutdown.');
+        process.exit(1);
+    }, 10 * 1000);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 export default app;
