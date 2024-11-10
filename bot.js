@@ -1,6 +1,15 @@
 import 'dotenv/config';
 import FaceitJS from './FaceitJS.js';
 import logger from './logger.js';
+import express from 'express';
+import helmet from 'helmet';
+
+// Create Express app to handle webhooks
+const app = express();
+
+// Add security middleware
+app.use(helmet());
+app.use(express.json());
 
 // Initialize FACEIT API client with server-side API key
 const faceitJS = new FaceitJS(process.env.FACEIT_API_KEY);
@@ -9,6 +18,16 @@ const faceitJS = new FaceitJS(process.env.FACEIT_API_KEY);
 const matchStates = new Map();
 const rehostVotes = new Map();
 const greetedMatches = new Set();
+
+// Basic health check endpoint
+app.get('/', (req, res) => {
+    res.json({
+        status: 'ok',
+        activeMatches: matchStates.size,
+        greetedMatches: greetedMatches.size,
+        rehostVotes: rehostVotes.size
+    });
+});
 
 // Handle match state changes
 faceitJS.on('matchStateChange', async (match) => {
@@ -81,3 +100,48 @@ faceitJS.on('matchStateChange', async (match) => {
         }
     }
 });
+
+// Handle uncaught errors
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error);
+    // Don't exit, let the process continue
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    // Don't exit, let the process continue
+});
+
+// Log startup and configuration
+logger.info('Environment:', {
+    NODE_ENV: process.env.NODE_ENV,
+    REDIS_URL: process.env.REDIS_URL ? 'Set' : 'Not Set',
+    FACEIT_API_KEY: process.env.FACEIT_API_KEY ? 'Set' : 'Not Set',
+    HUB_ID: process.env.HUB_ID ? 'Set' : 'Not Set'
+});
+
+// Start Express server
+const PORT = process.env.PORT || 3000;
+const server = app.listen(PORT, () => {
+    logger.info(`FACEIT Bot started on port ${PORT}`);
+}).on('error', (error) => {
+    logger.error('Failed to start server:', error);
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+    logger.info('SIGTERM received. Shutting down gracefully...');
+    server.close(() => {
+        logger.info('Server closed. Exiting process.');
+        process.exit(0);
+    });
+});
+
+// Keep the process alive and log status periodically
+setInterval(() => {
+    logger.info('Bot Status:', {
+        activeMatches: matchStates.size,
+        greetedMatches: greetedMatches.size,
+        rehostVotes: rehostVotes.size
+    });
+}, 300000); // Log every 5 minutes

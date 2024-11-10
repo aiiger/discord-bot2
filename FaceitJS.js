@@ -38,6 +38,67 @@ class FaceitJS extends EventEmitter {
                 'accept': 'application/json'
             }
         });
+
+        // Start monitoring matches
+        this.monitorMatches();
+    }
+
+    // Monitor matches in the hub
+    async monitorMatches() {
+        const hubId = process.env.HUB_ID;
+        if (!hubId) {
+            throw new Error('HUB_ID not configured');
+        }
+
+        // Keep track of match states
+        const matchStates = new Map();
+
+        // Poll for matches every 30 seconds
+        setInterval(async () => {
+            try {
+                // Get all ongoing matches in the hub
+                const response = await this.apiInstance.get(`/hubs/${hubId}/matches`, {
+                    params: {
+                        type: 'ongoing',
+                        offset: 0,
+                        limit: 20
+                    }
+                });
+
+                const matches = response.data.items || [];
+
+                // Check each match
+                for (const match of matches) {
+                    const previousState = matchStates.get(match.match_id);
+                    const currentState = match.status;
+
+                    // If state changed or new match
+                    if (previousState !== currentState) {
+                        this.emit('matchStateChange', {
+                            id: match.match_id,
+                            previousState: previousState || 'NEW',
+                            state: currentState,
+                            details: match
+                        });
+                        matchStates.set(match.match_id, currentState);
+                    }
+                }
+
+                // Clean up old matches
+                for (const [matchId, state] of matchStates) {
+                    const matchExists = matches.some(m => m.match_id === matchId);
+                    if (!matchExists) {
+                        matchStates.delete(matchId);
+                    }
+                }
+            } catch (error) {
+                console.error('Error monitoring matches:', error);
+                if (error.response) {
+                    console.error('Response status:', error.response.status);
+                    console.error('Response data:', error.response.data);
+                }
+            }
+        }, 30000);
     }
 
     // Getter and setter methods
