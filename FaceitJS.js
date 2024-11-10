@@ -378,8 +378,9 @@ export class FaceitJS extends EventEmitter {
                     // Store initial state if not seen before
                     if (!prevState) {
                         this.previousMatchStates.set(match.match_id, currentState);
-                        if (currentState === 'READY') {
-                            console.log(`New match ${match.match_id} in READY state, emitting state change event`);
+                        // Emit event for initial CONFIGURING or READY state
+                        if (currentState === 'CONFIGURING' || currentState === 'READY') {
+                            console.log(`New match ${match.match_id} in ${currentState} state, emitting state change event`);
                             this.emit('matchStateChange', {
                                 id: match.match_id,
                                 state: currentState,
