@@ -9,12 +9,12 @@ dotenv.config();
 // Constants
 const ELO_THRESHOLD = parseInt(process.env.ELO_THRESHOLD) || 70;
 const REHOST_VOTE_COUNT = parseInt(process.env.REHOST_VOTE_COUNT) || 6;
-const FACEIT_CLIENT_ID = process.env.FACEIT_CLIENT_ID || '';
-const FACEIT_CLIENT_SECRET = process.env.FACEIT_CLIENT_SECRET || '';
-const FACEIT_HUB_ID = process.env.FACEIT_HUB_ID || '';
+const CLIENT_ID = process.env.CLIENT_ID || '';
+const CLIENT_SECRET = process.env.CLIENT_SECRET || '';
+const HUB_ID = process.env.HUB_ID || '';
 
-if (!FACEIT_CLIENT_ID || !FACEIT_CLIENT_SECRET || !FACEIT_HUB_ID) {
-    console.error('Missing required environment variables. Please set FACEIT_CLIENT_ID, FACEIT_CLIENT_SECRET, and FACEIT_HUB_ID.');
+if (!CLIENT_ID || !CLIENT_SECRET || !HUB_ID) {
+    console.error('Missing required environment variables. Please set CLIENT_ID, CLIENT_SECRET, and HUB_ID.');
     process.exit(1);
 }
 
@@ -57,8 +57,8 @@ async function getAccessToken() {
     try {
         const data = qs.stringify({
             grant_type: 'client_credentials',
-            client_id: FACEIT_CLIENT_ID,
-            client_secret: FACEIT_CLIENT_SECRET,
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
         });
 
         const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token', data, {
@@ -131,7 +131,7 @@ async function getMatchDetails(faceitDataApi, matchId) {
 
 async function getHubMatches(faceitDataApi) {
     try {
-        const response = await faceitDataApi.get(`/hubs/${FACEIT_HUB_ID}/matches?type=ongoing&offset=0&limit=20`);
+        const response = await faceitDataApi.get(`/hubs/${HUB_ID}/matches?type=ongoing&offset=0&limit=20`);
         return response.data.items || [];
     } catch (error) {
         console.error('Error fetching hub matches:', error.response?.data || error.message);
