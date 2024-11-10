@@ -353,7 +353,7 @@ client.login(process.env.DISCORD_TOKEN)
 
 // Start server
 app.listen(port, () => {
-    logger.info(`Server running on port ${port}`);
+    console.log(`Server running on port ${port}`);
 });
 
 export default app;

@@ -284,48 +284,41 @@ export class FaceitJS extends EventEmitter {
         }
     }
 
-    async getAuthorizationUrl(state) {
+    getAuthorizationUrl(state) {
         const codeVerifier = this.generateCodeVerifier();
-        const codeChallenge = await this.generateCodeChallenge(codeVerifier);
+        const codeChallenge = this.generateCodeChallenge(codeVerifier);
 
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: this.clientId,
             redirect_uri: this.redirectUri,
-            scope: 'openid profile email membership chat.messages.read chat.messages.write chat.rooms.read',
+            scope: 'openid profile email',
             state: state,
             code_challenge: codeChallenge,
             code_challenge_method: 'S256'
         });
 
-        return {
-            url: `https://accounts.faceit.com/oauth/authorize?${params.toString()}`,
-            codeVerifier
-        };
+        const url = `https://accounts.faceit.com/oauth/authorize?${params.toString()}`;
+        return { url, codeVerifier };
     }
 
-    // Match State Polling
     startPolling() {
         this.previousMatchStates = {};
 
         setInterval(async () => {
             try {
-                const activeMatches = await this.getHubMatches(this.hubId, 'ongoing');
-                for (const match of activeMatches) {
-                    const prevState = this.previousMatchStates[match.match_id];
-                    if (prevState && prevState !== match.status) {
-                        this.emit('matchStateChange', {
-                            id: match.match_id,
-                            state: match.status,
-                            details: await this.getMatchDetails(match.match_id)
-                        });
+                const activeMatches = await this.getHubMatches(this.hubId);
+                activeMatches.forEach(match => {
+                    const prevState = this.previousMatchStates[match.id];
+                    if (prevState && prevState !== match.state) {
+                        this.emit('matchStateChange', match);
                     }
-                    this.previousMatchStates[match.match_id] = match.status;
-                }
+                    this.previousMatchStates[match.id] = match.state;
+                });
             } catch (error) {
                 console.error('Polling error:', error);
             }
-        }, 60000); // Poll every minute
+        }, 60000);
     }
 
     onMatchStateChange(callback) {
