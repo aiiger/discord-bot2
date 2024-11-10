@@ -1,8 +1,9 @@
 export default function getHeaders(apiKey) {
-    let headers = {
-      accept: "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    };
-  
-  return headers;
+  return {
+    headers: {
+      'accept': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    }
+  };
 }

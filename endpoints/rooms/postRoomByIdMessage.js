@@ -1,40 +1,65 @@
-const axios = require("axios");
-const urlConstructorUtil = require("../../utils/urlConstructor.js");
-const getHeaders = require("../../utils/headers.js");
+import axios from 'axios';
+import urlConstructorUtil from '../../utils/urlConstructor.js';
+import getHeaders from '../../utils/headers.js';
+
 /*
-    Uses url https://open.faceit.com/chat/v1/rooms/asd
-    Method: GET
-    Parameters: - roomId : string
-    Description: 
+    Uses url https://api.faceit.com/chat/v1/rooms/{roomId}/messages
+    Method: POST
+    Parameters: 
+    - roomId: string
+    - body: message content
+    Description: Send a message to a room
 */
-module.exports = async function getRoomByIdMessages(roomId, body) {
-  let apiKey = this.getApiKeyServer();
-  let headers = getHeaders(apiKey);
+export default async function postRoomByIdMessage(roomId, body) {
+  const apiKey = this.getApiKeyServer();
+  const headers = getHeaders(apiKey);
 
-  let baseURL = "https://open.faceit.com/chat/v1/rooms";
+  const baseURL = "https://api.faceit.com/chat/v1/rooms";
 
-  //get url
-  let url = urlConstructorUtil(
+  // Get url - construct as /rooms/{roomId}/messages
+  const url = urlConstructorUtil(
     baseURL,
-    [""],
+    ["", "messages"], // Empty string for roomId placeholder
     [roomId],
     [],
     [],
     {}
   );
 
-  let bodyMessage = {
-    body: `${body}`
-  }
+  // Updated message structure based on swagger docs
+  const bodyMessage = {
+    content: {
+      text: body,
+      type: "text",
+      metadata: {}
+    },
+    timestamp: new Date().toISOString()
+  };
 
-  console.log(url);
+  console.log('Sending message to:', url);
+  console.log('Message body:', bodyMessage);
+  console.log('Headers:', headers);
 
-  //try catch to make the call via axios
+  // Try catch to make the call via axios
   try {
-    let response = await axios.post(url, bodyMessage, headers);
+    const response = await axios({
+      method: 'post',
+      url: url,
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
+      data: bodyMessage
+    });
+
+    console.log('Message sent successfully');
     return response.data;
   } catch (err) {
-    //console.error(err.response.data)
-    return new Error(err.response.data);
+    console.error('Error sending message:', err.response?.data || err.message);
+    console.error('Full error:', err);
+    if (err.response?.data) {
+      throw new Error(JSON.stringify(err.response.data));
+    }
+    throw err;
   }
-};
+}
