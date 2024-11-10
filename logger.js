@@ -4,15 +4,13 @@ import winston from 'winston';
 const logger = winston.createLogger({
     level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
     format: winston.format.combine(
-        winston.format.timestamp(),
         winston.format.errors({ stack: true }),
         winston.format.splat(),
-        winston.format.json(),
-        winston.format.printf(({ timestamp, level, message, stack }) => {
+        winston.format.printf(({ level, message, stack }) => {
             if (stack) {
-                return `${timestamp} [${level}]: ${message}\n${stack}`;
+                return `[${level}]: ${message}\n${stack}`;
             }
-            return `${timestamp} [${level}]: ${message}`;
+            return `[${level}]: ${message}`;
         })
     ),
     transports: [
