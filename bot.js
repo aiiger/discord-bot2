@@ -170,7 +170,7 @@ app.get('/callback', async (req, res) => {
 });
 
 // Handle match state changes
-faceitJS.onMatchStateChange(async (match) => {
+faceitJS.on('matchStateChange', async (match) => {
     try {
         logger.info(`Match ${match.id} state changed to ${match.state}`);
         matchStates.set(match.id, match.state);

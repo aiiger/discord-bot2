@@ -288,4 +288,28 @@ export class FaceitJS extends EventEmitter {
             throw new Error(`Failed to refresh access token: ${error.message}`);
         }
     }
+
+    // Event handling for match state changes
+    startPolling() {
+        this.previousMatchStates = {};
+
+        setInterval(async () => {
+            try {
+                const activeMatches = await this.getHubMatches(this.hubId);
+                activeMatches.forEach(match => {
+                    const prevState = this.previousMatchStates[match.id];
+                    if (prevState && prevState !== match.state) {
+                        this.emit('matchStateChange', match);
+                    }
+                    this.previousMatchStates[match.id] = match.state;
+                });
+            } catch (error) {
+                console.error('Polling error:', error);
+            }
+        }, 60000);
+    }
+
+    onMatchStateChange(callback) {
+        this.on('matchStateChange', callback);
+    }
 }
