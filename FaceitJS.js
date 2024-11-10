@@ -201,7 +201,27 @@ export class FaceitJS extends EventEmitter {
             });
 
             const response = await this.dataApiInstance.get(`/hubs/${hubId}/matches?${params.toString()}`);
-            return response.data.items;
+            console.log('Hub matches API response:', JSON.stringify(response.data, null, 2));
+
+            // Get detailed match information for each match
+            const matches = await Promise.all(
+                response.data.items.map(async (match) => {
+                    try {
+                        const matchDetails = await this.getMatchDetails(match.match_id);
+                        console.log(`Match ${match.match_id} details:`, JSON.stringify(matchDetails, null, 2));
+                        return {
+                            ...match,
+                            status: matchDetails.status,
+                            teams: matchDetails.teams
+                        };
+                    } catch (error) {
+                        console.error(`Failed to get details for match ${match.match_id}:`, error);
+                        return match;
+                    }
+                })
+            );
+
+            return matches;
         } catch (error) {
             console.error('Failed to get hub matches:', error);
             throw new Error(`Failed to get hub matches: ${error.message}`);
@@ -212,6 +232,7 @@ export class FaceitJS extends EventEmitter {
     async getMatchDetails(matchId) {
         try {
             const response = await this.dataApiInstance.get(`/matches/${matchId}`);
+            console.log(`Match ${matchId} API response:`, JSON.stringify(response.data, null, 2));
             return response.data;
         } catch (error) {
             console.error('Failed to get match details:', error);
@@ -345,22 +366,39 @@ export class FaceitJS extends EventEmitter {
         setInterval(async () => {
             try {
                 console.log('Polling for match updates...');
-                const activeMatches = await this.getHubMatches(this.hubId);
-                console.log(`Found ${activeMatches.length} active matches`);
+                const matches = await this.getHubMatches(this.hubId);
+                console.log(`Found ${matches.length} active matches`);
 
-                for (const match of activeMatches) {
+                for (const match of matches) {
+                    const currentState = match.status;
                     const prevState = this.previousMatchStates.get(match.match_id);
-                    console.log(`Match ${match.match_id}: Current state = ${match.state}, Previous state = ${prevState}`);
 
-                    if (prevState && prevState !== match.state) {
-                        console.log(`Emitting state change event for match ${match.match_id}: ${prevState} -> ${match.state}`);
+                    console.log(`Match ${match.match_id}: Current state = ${currentState}, Previous state = ${prevState}`);
+
+                    // Store initial state if not seen before
+                    if (!prevState) {
+                        this.previousMatchStates.set(match.match_id, currentState);
+                        if (currentState === 'READY') {
+                            console.log(`New match ${match.match_id} in READY state, emitting state change event`);
+                            this.emit('matchStateChange', {
+                                id: match.match_id,
+                                state: currentState,
+                                previousState: null,
+                                teams: match.teams
+                            });
+                        }
+                    }
+                    // Emit state change if state has changed
+                    else if (prevState !== currentState) {
+                        console.log(`Emitting state change event for match ${match.match_id}: ${prevState} -> ${currentState}`);
                         this.emit('matchStateChange', {
                             id: match.match_id,
-                            state: match.state,
-                            previousState: prevState
+                            state: currentState,
+                            previousState: prevState,
+                            teams: match.teams
                         });
+                        this.previousMatchStates.set(match.match_id, currentState);
                     }
-                    this.previousMatchStates.set(match.match_id, match.state);
                 }
             } catch (error) {
                 console.error('Error during match polling:', error);
