@@ -124,6 +124,7 @@ const sessionMiddleware = session({
 // Store for rehost votes and match states
 const rehostVotes = new Map(); // matchId -> Set of player IDs who voted
 const matchStates = new Map(); // matchId -> match state
+const greetedMatches = new Set(); // Set of match IDs that have been greeted
 
 // Apply middleware
 app.use(helmet({
@@ -223,12 +224,13 @@ faceitJS.onMatchStateChange(async (match) => {
         // Get match details including chat room info
         const matchDetails = await faceitJS.getMatchDetails(match.id);
 
-        // Send greeting when match starts
-        if (match.state === 'READY') {
+        // Send greeting when match enters configuration (map veto) phase
+        if (match.state === 'CONFIGURING' && !greetedMatches.has(match.id)) {
             const players = matchDetails.teams.faction1.roster.concat(matchDetails.teams.faction2.roster);
             const playerNames = players.map(p => p.nickname).join(', ');
             const greeting = `Welcome to the match, ${playerNames}! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.`;
             await faceitJS.sendRoomMessage(match.id, greeting);
+            greetedMatches.add(match.id);
             logger.info(`Sent greeting message for match ${match.id}`);
         }
 
@@ -240,13 +242,15 @@ faceitJS.onMatchStateChange(async (match) => {
                 break;
             case 'FINISHED':
                 notification = 'Match has ended. Thanks for playing!';
-                // Clear any existing votes for this match
+                // Clear any existing votes and greeting status for this match
                 rehostVotes.delete(match.id);
+                greetedMatches.delete(match.id);
                 break;
             case 'CANCELLED':
                 notification = 'Match has been cancelled.';
-                // Clear any existing votes for this match
+                // Clear any existing votes and greeting status for this match
                 rehostVotes.delete(match.id);
+                greetedMatches.delete(match.id);
                 break;
         }
 
