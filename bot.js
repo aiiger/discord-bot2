@@ -46,6 +46,7 @@ const logger = {
 const rehostVotes = new Map(); // matchId -> Set of player IDs who voted
 const matchStates = new Map(); // matchId -> match state
 const greetedMatches = new Set(); // Set of match IDs that have been greeted
+const pendingMessages = new Map(); // Store pending messages while authenticating
 
 // Helper function to log lobby messages
 const sendLobbyMessage = async (matchId, message) => {
@@ -57,83 +58,6 @@ const sendLobbyMessage = async (matchId, message) => {
         throw error;
     }
 };
-
-// Test message function
-const testMessageSend = async (roomId) => {
-    try {
-        // First try to authenticate
-        const state = crypto.randomBytes(32).toString('hex');
-        const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
-        logger.info(`[TEST] Please authenticate first at: ${url}`);
-        logger.info(`[TEST] After authentication, the bot will try to send a message to room ${roomId}`);
-
-        // Store the test info to use after authentication
-        global.pendingTest = {
-            roomId,
-            state,
-            codeVerifier
-        };
-
-        return {
-            status: 'auth_required',
-            authUrl: url
-        };
-    } catch (error) {
-        logger.error(`[TEST] Failed to initialize test:`, error);
-        return {
-            status: 'error',
-            error: error.message
-        };
-    }
-};
-
-// Validate required environment variables
-const requiredEnvVars = [
-    'SESSION_SECRET',
-    'CLIENT_ID',
-    'CLIENT_SECRET',
-    'REDIRECT_URI',
-    'HUB_ID',
-    'DISCORD_TOKEN',
-    'FACEIT_API_KEY'
-];
-
-const patterns = {
-    SESSION_SECRET: /^[a-f0-9]{128}$/,
-    CLIENT_ID: /^[\w-]{36}$/,
-    CLIENT_SECRET: /^[\w]{40}$/,
-    REDIRECT_URI: /^https:\/\/[\w.-]+\.herokuapp\.com\/callback$/,
-    HUB_ID: /^[\w-]{36}$/,
-    FACEIT_API_KEY: /^[\w-]{36}$/
-};
-
-const validators = {
-    SESSION_SECRET: (secret) => patterns.SESSION_SECRET.test(secret),
-    CLIENT_ID: (id) => patterns.CLIENT_ID.test(id),
-    CLIENT_SECRET: (secret) => patterns.CLIENT_SECRET.test(secret),
-    REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
-    HUB_ID: (id) => patterns.HUB_ID.test(id),
-    DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0,
-    FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key)
-};
-
-for (const varName of requiredEnvVars) {
-    const value = process.env[varName];
-    if (!value) {
-        logger.error(`Missing required environment variable: ${varName}`);
-        process.exit(1);
-    }
-
-    if (!validators[varName](value)) {
-        logger.error(`Invalid format for ${varName}: ${value}`);
-        if (patterns[varName]) {
-            logger.error(`Expected format: ${patterns[varName]}`);
-        }
-        process.exit(1);
-    }
-}
-
-logger.info('Environment variables validated successfully');
 
 // Initialize Express
 const app = express();
@@ -217,7 +141,24 @@ client.on('messageCreate', async (message) => {
         const testMessage = args.slice(2).join(' ');
 
         try {
-            // Try to send the message
+            // Check if we have an access token
+            if (!faceitJS.accessToken) {
+                // Generate auth URL
+                const state = crypto.randomBytes(32).toString('hex');
+                const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
+
+                // Store the message details to send after authentication
+                pendingMessages.set(state, {
+                    matchId,
+                    message: testMessage,
+                    discordMessage: message
+                });
+
+                message.reply(`Please authenticate first by visiting: ${url}\nAfter authentication, the message will be sent automatically.`);
+                return;
+            }
+
+            // If we have an access token, send the message directly
             await faceitJS.sendRoomMessage(matchId, testMessage);
             message.reply(`Successfully sent message to match room ${matchId}`);
             logger.info(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
@@ -233,46 +174,40 @@ app.get('/', (req, res) => {
     res.send('<a href="/login">Login with FACEIT</a>');
 });
 
-// Test endpoint to send a message to a specific room
-app.get('/test-message/:roomId', async (req, res) => {
-    const { roomId } = req.params;
-    try {
-        const result = await testMessageSend(roomId);
-        if (result.status === 'auth_required') {
-            res.redirect(result.authUrl);
-        } else {
-            res.status(500).send('Failed to initialize test');
-        }
-    } catch (error) {
-        logger.error('Error in test endpoint:', error);
-        res.status(500).send('Error processing request');
-    }
-});
-
-// Add a callback endpoint for after authentication
-app.get('/test-callback', async (req, res) => {
+// Add callback route
+app.get('/callback', async (req, res) => {
     const { code, state } = req.query;
-    const pendingTest = global.pendingTest;
 
-    if (!pendingTest || state !== pendingTest.state) {
-        return res.status(400).send('Invalid state parameter');
-    }
+    logger.info(`Callback received - Session ID: ${req.session.id}`);
+    logger.info(`State from query: ${state}`);
 
     try {
         // Exchange the code for tokens
-        await faceitJS.exchangeCodeForToken(code, pendingTest.codeVerifier);
+        const pendingMessage = pendingMessages.get(state);
+        if (!pendingMessage) {
+            return res.status(400).send('Invalid state parameter or no pending message.');
+        }
 
-        // Now try to send the test message
-        const testMessage = "Bot test message - Hello! I am online and working. Commands available: !rehost (6/10 votes needed) and !cancel (checks ELO difference ≥ 70)";
-        await faceitJS.sendRoomMessage(pendingTest.roomId, testMessage);
+        // Get code verifier from the stored state
+        const codeVerifier = req.session.codeVerifier;
+        if (!codeVerifier) {
+            return res.status(400).send('Code verifier missing. Please try again.');
+        }
 
-        // Clear the pending test
-        global.pendingTest = null;
+        // Exchange the code for tokens
+        await faceitJS.exchangeCodeForToken(code, codeVerifier);
 
-        res.send('Test message sent successfully! You can close this window.');
+        // Send the pending message
+        await faceitJS.sendRoomMessage(pendingMessage.matchId, pendingMessage.message);
+        pendingMessage.discordMessage.reply(`Successfully sent message to match room ${pendingMessage.matchId}`);
+
+        // Clear the pending message
+        pendingMessages.delete(state);
+
+        res.send('Authentication successful and message sent! You can close this window.');
     } catch (error) {
-        logger.error('Error in test callback:', error);
-        res.status(500).send('Failed to send test message');
+        logger.error('Error during callback:', error);
+        res.status(500).send('Authentication failed. Please try again.');
     }
 });
 
@@ -282,10 +217,7 @@ app.get('/login', async (req, res) => {
         const state = crypto.randomBytes(32).toString('hex');
         const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
 
-        logger.info(`Generated state: ${state} and code verifier for session: ${req.session.id}`);
-
-        // Store state and code verifier in session
-        req.session.oauthState = state;
+        // Store code verifier in session
         req.session.codeVerifier = codeVerifier;
 
         logger.info(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
@@ -294,43 +226,6 @@ app.get('/login', async (req, res) => {
     } catch (error) {
         logger.error('Error in login route:', error);
         res.status(500).send('Internal server error');
-    }
-});
-
-// Add callback route
-app.get('/callback', async (req, res) => {
-    const { code, state } = req.query;
-
-    logger.info(`Callback received - Session ID: ${req.session.id}`);
-    logger.info(`State from query: ${state}`);
-    logger.info(`State from session: ${req.session.oauthState}`);
-    logger.info(`Code verifier from session: ${req.session.codeVerifier ? '[PRESENT]' : '[MISSING]'}`);
-
-    try {
-        // Verify state parameter
-        if (!state || state !== req.session.oauthState) {
-            logger.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
-            return res.status(400).send('Invalid state parameter. Please try logging in again.');
-        }
-
-        if (!req.session.codeVerifier) {
-            logger.error('Code verifier missing from session');
-            return res.status(400).send('Code verifier missing. Please try logging in again.');
-        }
-
-        // Exchange the authorization code for tokens
-        logger.info('Exchanging authorization code for tokens...');
-        const tokens = await faceitJS.exchangeCodeForToken(code, req.session.codeVerifier);
-
-        // Store tokens in session
-        req.session.accessToken = tokens.access_token;
-        req.session.refreshToken = tokens.refresh_token;
-
-        logger.info('Successfully authenticated with FACEIT');
-        res.send('Authentication successful! You can close this window.');
-    } catch (error) {
-        logger.error('Error during OAuth callback:', error);
-        res.status(500).send('Authentication failed. Please try logging in again.');
     }
 });
 
