@@ -166,14 +166,14 @@ export class FaceitJS extends EventEmitter {
     }
 
     // OAuth2 PKCE Methods
-    async getAuthorizationUrl(state) {
+    async getAuthorizationUrl(state, customRedirectUri = null) {
         const codeVerifier = this.generateCodeVerifier();
         const codeChallenge = this.generateCodeChallenge(codeVerifier);
 
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: this.clientId,
-            redirect_uri: this.redirectUri,
+            redirect_uri: customRedirectUri || this.redirectUri,
             scope: 'openid profile email',
             state: state,
             code_challenge: codeChallenge,
@@ -182,6 +182,7 @@ export class FaceitJS extends EventEmitter {
 
         const url = `https://accounts.faceit.com/authorize?${params.toString()}`;
         logger.info(`Generated authorization URL: ${url}`);
+        logger.info(`Using redirect URI: ${customRedirectUri || this.redirectUri}`);
 
         return {
             url,
@@ -189,7 +190,7 @@ export class FaceitJS extends EventEmitter {
         };
     }
 
-    async exchangeCodeForToken(code, codeVerifier) {
+    async exchangeCodeForToken(code, codeVerifier, customRedirectUri = null) {
         try {
             logger.info('Attempting to exchange authorization code for tokens');
             const params = new URLSearchParams({
@@ -197,7 +198,7 @@ export class FaceitJS extends EventEmitter {
                 code: code,
                 client_id: this.clientId,
                 client_secret: this.clientSecret,
-                redirect_uri: this.redirectUri,
+                redirect_uri: customRedirectUri || this.redirectUri,
                 code_verifier: codeVerifier
             });
 
