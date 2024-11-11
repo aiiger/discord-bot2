@@ -7,8 +7,14 @@ import dotenv from 'dotenv';
 import { Client, GatewayIntentBits } from 'discord.js';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+// Get directory name in ES module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize logger
 const logger = {
@@ -122,8 +128,12 @@ app.use(session(sessionConfig));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Set view engine
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Set view engine and views directory
 app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 // Handle Discord messages
 client.on('messageCreate', async (message) => {
