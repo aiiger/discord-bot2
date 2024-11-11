@@ -209,13 +209,18 @@ async function handleCallback(req, res) {
         // Exchange the code for tokens using the stored code verifier
         logger.info('Exchanging code for tokens...');
         const testRedirectUri = process.env.REDIRECT_URI.replace('/callback', '/test-callback');
-        await faceitJS.exchangeCodeForToken(code, pendingMessage.codeVerifier, testRedirectUri);
+        const tokens = await faceitJS.exchangeCodeForToken(code, pendingMessage.codeVerifier, testRedirectUri);
         logger.info('Successfully exchanged code for tokens');
 
-        // Send the pending message
-        logger.info(`Attempting to send message to room ${pendingMessage.matchId}`);
-        await faceitJS.sendRoomMessage(pendingMessage.matchId, pendingMessage.message);
-        logger.info('Message sent successfully');
+        // Extract the match ID without the prefix if it exists
+        const roomId = pendingMessage.matchId.includes('-') ? pendingMessage.matchId.split('-')[1] : pendingMessage.matchId;
+
+        // Send the pending message using the chat API directly
+        logger.info(`Attempting to send message to room ${roomId}`);
+        const response = await faceitJS.chatApiInstance.post(`/rooms/${roomId}/messages`, {
+            body: pendingMessage.message
+        });
+        logger.info('Message sent successfully:', response.data);
 
         // Notify on Discord
         await pendingMessage.discordMessage.reply(`Successfully sent message to match room ${pendingMessage.matchId}`);

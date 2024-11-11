@@ -11,9 +11,12 @@ import { FaceitJS } from '../../FaceitJS.js';
 export default async function postRoomByIdMessage(roomId, message) {
   try {
     const faceitJS = new FaceitJS();
-    const response = await faceitJS.sendRoomMessage(roomId, message);
+    // Send message directly without checking match state
+    const response = await faceitJS.chatApiInstance.post(`/rooms/${roomId}/messages`, {
+      body: message
+    });
     console.log('Message sent successfully');
-    return response;
+    return response.data;
   } catch (error) {
     console.error('Error sending message:', error.message);
     if (error.response?.data) {

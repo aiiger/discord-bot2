@@ -95,15 +95,15 @@ export class FaceitJS extends EventEmitter {
         // Chat API instance interceptors
         this.chatApiInstance.interceptors.request.use(
             (config) => {
+                // Ensure OAuth token is used for chat endpoints
                 if (this.accessToken) {
                     config.headers.Authorization = `Bearer ${this.accessToken}`;
-                } else if (this.apiKey) {
-                    config.headers.Authorization = `Bearer ${this.apiKey}`;
                 }
 
                 if (config.method === 'post' && config.url.includes('/messages')) {
                     logger.info(`[CHAT REQUEST] Sending message to ${config.url}`);
                     logger.info(`[CHAT CONTENT] ${JSON.stringify(config.data)}`);
+                    logger.info(`[CHAT HEADERS] ${JSON.stringify(config.headers)}`);
                 }
                 return config;
             },
@@ -174,7 +174,7 @@ export class FaceitJS extends EventEmitter {
             response_type: 'code',
             client_id: this.clientId,
             redirect_uri: customRedirectUri || this.redirectUri,
-            scope: 'openid profile email',
+            scope: 'openid profile email membership',  // Updated scopes based on supported scopes
             state: state,
             code_challenge: codeChallenge,
             code_challenge_method: 'S256'
@@ -334,6 +334,10 @@ export class FaceitJS extends EventEmitter {
 
     // Chat Methods
     async getRoomDetails(roomId) {
+        if (!this.accessToken) {
+            throw new Error('No access token available. Please authenticate first.');
+        }
+
         try {
             logger.info(`[CHAT] Getting details for room ${roomId}`);
             const response = await this.chatApiInstance.get(`/rooms/${roomId}`);
@@ -345,6 +349,10 @@ export class FaceitJS extends EventEmitter {
     }
 
     async getRoomMessages(roomId, before = '', limit = 50) {
+        if (!this.accessToken) {
+            throw new Error('No access token available. Please authenticate first.');
+        }
+
         try {
             const params = new URLSearchParams();
             if (before) params.append('before', before);
@@ -360,10 +368,18 @@ export class FaceitJS extends EventEmitter {
     }
 
     async sendRoomMessage(roomId, message) {
+        if (!this.accessToken) {
+            throw new Error('No access token available. Please authenticate first.');
+        }
+
         try {
+            // Validate room ID format
+            if (!roomId || typeof roomId !== 'string') {
+                throw new Error('Invalid room ID format');
+            }
+
             logger.info(`[CHAT SEND] Sending message to room ${roomId}: "${message}"`);
 
-            // Send message using the correct endpoint format and body parameter
             const response = await this.chatApiInstance.post(`/rooms/${roomId}/messages`, {
                 body: message
             });
@@ -371,7 +387,17 @@ export class FaceitJS extends EventEmitter {
             logger.info(`[CHAT SUCCESS] Message sent to room ${roomId}`);
             return response.data;
         } catch (error) {
+            // Enhanced error logging
             logger.error(`[CHAT ERROR] Failed to send message to room ${roomId}:`, error);
+
+            if (error.response?.status === 404) {
+                throw new Error(`Chat room ${roomId} not found`);
+            } else if (error.response?.status === 403) {
+                throw new Error(`Not authorized to send messages to room ${roomId}`);
+            } else if (error.response?.status === 500) {
+                throw new Error(`Server error while sending message to room ${roomId}`);
+            }
+
             throw error;
         }
     }
@@ -408,6 +434,11 @@ export class FaceitJS extends EventEmitter {
 
     // Poll chat messages for a room
     async pollRoomMessages(roomId) {
+        if (!this.accessToken) {
+            logger.error('[CHAT ERROR] No access token available for polling messages');
+            return;
+        }
+
         try {
             const lastTimestamp = this.lastMessageTimestamps.get(roomId) || '';
             const messages = await this.getRoomMessages(roomId, lastTimestamp);
