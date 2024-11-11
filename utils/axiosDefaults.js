@@ -3,9 +3,21 @@ import axios from 'axios';
 
 // Set default headers for all axios requests
 axios.defaults.headers.common['Accept'] = 'application/json';
+axios.defaults.headers.common['User-Agent'] = 'FACEIT-Bot/1.0';
+
+// Add headers to help with Cloudflare
+axios.defaults.headers.common['Accept-Encoding'] = 'gzip, deflate, br';
+axios.defaults.headers.common['Accept-Language'] = 'en-US,en;q=0.9';
+axios.defaults.headers.common['Cache-Control'] = 'no-cache';
+axios.defaults.headers.common['Pragma'] = 'no-cache';
+axios.defaults.headers.common['Sec-Fetch-Dest'] = 'document';
+axios.defaults.headers.common['Sec-Fetch-Mode'] = 'navigate';
+axios.defaults.headers.common['Sec-Fetch-Site'] = 'none';
+axios.defaults.headers.common['Sec-Fetch-User'] = '?1';
+axios.defaults.headers.common['Upgrade-Insecure-Requests'] = '1';
 
 // Set default timeout
-axios.defaults.timeout = 10000; // 10 seconds
+axios.defaults.timeout = 30000; // 30 seconds
 
 // Add response interceptor for better error handling
 axios.interceptors.response.use(

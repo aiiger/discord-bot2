@@ -42,6 +42,51 @@ const logger = {
     }
 };
 
+// Store for rehost votes and match states
+const rehostVotes = new Map(); // matchId -> Set of player IDs who voted
+const matchStates = new Map(); // matchId -> match state
+const greetedMatches = new Set(); // Set of match IDs that have been greeted
+
+// Helper function to log lobby messages
+const sendLobbyMessage = async (matchId, message) => {
+    try {
+        await faceitJS.sendRoomMessage(matchId, message);
+        logger.info(`[LOBBY MESSAGE] Match ${matchId}: "${message}"`);
+    } catch (error) {
+        logger.error(`Failed to send lobby message to match ${matchId}:`, error);
+        throw error;
+    }
+};
+
+// Test message function
+const testMessageSend = async (roomId) => {
+    try {
+        // First try to authenticate
+        const state = crypto.randomBytes(32).toString('hex');
+        const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
+        logger.info(`[TEST] Please authenticate first at: ${url}`);
+        logger.info(`[TEST] After authentication, the bot will try to send a message to room ${roomId}`);
+
+        // Store the test info to use after authentication
+        global.pendingTest = {
+            roomId,
+            state,
+            codeVerifier
+        };
+
+        return {
+            status: 'auth_required',
+            authUrl: url
+        };
+    } catch (error) {
+        logger.error(`[TEST] Failed to initialize test:`, error);
+        return {
+            status: 'error',
+            error: error.message
+        };
+    }
+};
+
 // Validate required environment variables
 const requiredEnvVars = [
     'SESSION_SECRET',
@@ -121,22 +166,6 @@ const sessionMiddleware = session({
     }
 });
 
-// Store for rehost votes and match states
-const rehostVotes = new Map(); // matchId -> Set of player IDs who voted
-const matchStates = new Map(); // matchId -> match state
-const greetedMatches = new Set(); // Set of match IDs that have been greeted
-
-// Helper function to log lobby messages
-const sendLobbyMessage = async (matchId, message) => {
-    try {
-        await faceitJS.sendRoomMessage(matchId, message);
-        logger.info(`[LOBBY MESSAGE] Match ${matchId}: "${message}"`);
-    } catch (error) {
-        logger.error(`Failed to send lobby message to match ${matchId}:`, error);
-        throw error; // Re-throw to handle in calling function
-    }
-};
-
 // Apply middleware
 app.use(helmet({
     contentSecurityPolicy: {
@@ -166,6 +195,49 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 app.get('/', (req, res) => {
     logger.info(`Home route accessed by IP: ${req.ip}`);
     res.send('<a href="/login">Login with FACEIT</a>');
+});
+
+// Test endpoint to send a message to a specific room
+app.get('/test-message/:roomId', async (req, res) => {
+    const { roomId } = req.params;
+    try {
+        const result = await testMessageSend(roomId);
+        if (result.status === 'auth_required') {
+            res.redirect(result.authUrl);
+        } else {
+            res.status(500).send('Failed to initialize test');
+        }
+    } catch (error) {
+        logger.error('Error in test endpoint:', error);
+        res.status(500).send('Error processing request');
+    }
+});
+
+// Add a callback endpoint for after authentication
+app.get('/test-callback', async (req, res) => {
+    const { code, state } = req.query;
+    const pendingTest = global.pendingTest;
+
+    if (!pendingTest || state !== pendingTest.state) {
+        return res.status(400).send('Invalid state parameter');
+    }
+
+    try {
+        // Exchange the code for tokens
+        await faceitJS.exchangeCodeForToken(code, pendingTest.codeVerifier);
+
+        // Now try to send the test message
+        const testMessage = "Bot test message - Hello! I am online and working. Commands available: !rehost (6/10 votes needed) and !cancel (checks ELO difference ≥ 70)";
+        await faceitJS.sendRoomMessage(pendingTest.roomId, testMessage);
+
+        // Clear the pending test
+        global.pendingTest = null;
+
+        res.send('Test message sent successfully! You can close this window.');
+    } catch (error) {
+        logger.error('Error in test callback:', error);
+        res.status(500).send('Failed to send test message');
+    }
 });
 
 // Add login route
@@ -229,7 +301,7 @@ app.get('/callback', async (req, res) => {
 // Handle match state changes
 faceitJS.onMatchStateChange(async (match) => {
     try {
-        logger.info(`Match ${match.id} state changed to ${match.state}`);
+        logger.info(`[MATCH STATE] Match ${match.id} state changed to ${match.state}`);
         matchStates.set(match.id, match.state);
 
         // Get match details including chat room info
@@ -285,27 +357,18 @@ const calculateTeamAvgElo = (team) => {
     return totalElo / team.roster.length;
 };
 
-// Handle chat commands
-client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-
-    const command = message.content.toLowerCase();
-
+// Handle FACEIT chat messages
+faceitJS.onRoomMessage(async (message, roomId) => {
     try {
-        // Get the active match
-        const matches = await faceitJS.getHubMatches(process.env.HUB_ID, 'ongoing');
-        const activeMatch = matches[0];
+        const command = message.text.toLowerCase();
+        const playerId = message.user_id;
 
-        if (!activeMatch) {
-            message.reply('No active matches found in the hub.');
-            return;
-        }
-
-        const matchDetails = await faceitJS.getMatchDetails(activeMatch.match_id);
-        const matchState = matchStates.get(activeMatch.match_id) || matchDetails.status;
+        // Get match details
+        const matchDetails = await faceitJS.getMatchDetails(roomId);
+        const matchState = matchStates.get(roomId) || matchDetails.state;
 
         if (!isValidMatchPhase(matchState)) {
-            message.reply('Commands can only be used during configuration phase or in matchroom lobby.');
+            await sendLobbyMessage(roomId, 'Commands can only be used during configuration phase or in matchroom lobby.');
             return;
         }
 
@@ -317,29 +380,24 @@ client.on('messageCreate', async (message) => {
 
             if (eloDiff >= 70) {
                 // Cancel the match
-                await faceitJS.cancelMatch(activeMatch.match_id);
-                message.reply(`Match cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`);
-                await sendLobbyMessage(activeMatch.match_id,
-                    `Match has been cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`
-                );
-                logger.info(`[MATCH CANCELLED] Match ${activeMatch.match_id} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
+                await faceitJS.cancelMatch(roomId);
+                await sendLobbyMessage(roomId, `Match has been cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`);
+                logger.info(`[MATCH CANCELLED] Match ${roomId} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
             } else {
-                message.reply(`Cannot cancel match. ELO difference (${eloDiff.toFixed(0)}) is less than 70.`);
-                logger.info(`[CANCEL DENIED] Match ${activeMatch.match_id} - ELO difference ${eloDiff.toFixed(0)} < 70`);
+                await sendLobbyMessage(roomId, `Cannot cancel match. ELO difference (${eloDiff.toFixed(0)}) is less than 70.`);
+                logger.info(`[CANCEL DENIED] Match ${roomId} - ELO difference ${eloDiff.toFixed(0)} < 70`);
             }
         } else if (command === '!rehost') {
-            const playerId = message.author.id;
-
             // Initialize vote set if it doesn't exist
-            if (!rehostVotes.has(activeMatch.match_id)) {
-                rehostVotes.set(activeMatch.match_id, new Set());
+            if (!rehostVotes.has(roomId)) {
+                rehostVotes.set(roomId, new Set());
             }
 
-            const votes = rehostVotes.get(activeMatch.match_id);
+            const votes = rehostVotes.get(roomId);
 
             // Check if player already voted
             if (votes.has(playerId)) {
-                message.reply('You have already voted for a rehost.');
+                await sendLobbyMessage(roomId, 'You have already voted for a rehost.');
                 return;
             }
 
@@ -350,25 +408,18 @@ client.on('messageCreate', async (message) => {
 
             if (currentVotes >= requiredVotes) {
                 // Rehost the match
-                await faceitJS.rehostMatch(activeMatch.match_id);
-                message.reply(`Match ${activeMatch.match_id} rehosted successfully (${currentVotes}/10 votes).`);
-                await sendLobbyMessage(activeMatch.match_id,
-                    `Match has been rehosted (${currentVotes}/10 votes).`
-                );
+                await faceitJS.rehostMatch(roomId);
+                await sendLobbyMessage(roomId, `Match has been rehosted (${currentVotes}/10 votes).`);
                 // Clear votes after successful rehost
-                rehostVotes.delete(activeMatch.match_id);
-                logger.info(`[MATCH REHOSTED] Match ${activeMatch.match_id} rehosted with ${currentVotes} votes`);
+                rehostVotes.delete(roomId);
+                logger.info(`[MATCH REHOSTED] Match ${roomId} rehosted with ${currentVotes} votes`);
             } else {
-                message.reply(`Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`);
-                await sendLobbyMessage(activeMatch.match_id,
-                    `Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`
-                );
-                logger.info(`[REHOST VOTE] Match ${activeMatch.match_id} - New vote recorded (${currentVotes}/${requiredVotes})`);
+                await sendLobbyMessage(roomId, `Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`);
+                logger.info(`[REHOST VOTE] Match ${roomId} - New vote recorded (${currentVotes}/${requiredVotes})`);
             }
         }
     } catch (error) {
-        logger.error('Error handling command:', error);
-        message.reply('An error occurred while processing the command.');
+        logger.error('Error handling FACEIT chat message:', error);
     }
 });
 

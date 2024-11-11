@@ -3,6 +3,7 @@ import axios from 'axios';
 import { EventEmitter } from 'events';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import getHeaders from './utils/headers.js';
 
 dotenv.config();
 
@@ -60,6 +61,7 @@ export class FaceitJS extends EventEmitter {
 
         this.accessToken = null;
         this.refreshToken = null;
+        this.lastMessageTimestamps = new Map();
 
         // Create Axios instances for different API endpoints
         this.oauthInstance = axios.create({
@@ -73,10 +75,7 @@ export class FaceitJS extends EventEmitter {
         // Data API instance with API key auth
         this.dataApiInstance = axios.create({
             baseURL: this.apiBase,
-            headers: {
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
-            }
+            ...getHeaders(this.apiKey)
         });
 
         // Chat API instance with OAuth token auth
@@ -98,8 +97,14 @@ export class FaceitJS extends EventEmitter {
             (config) => {
                 if (this.accessToken) {
                     config.headers.Authorization = `Bearer ${this.accessToken}`;
+                } else if (this.apiKey) {
+                    config.headers.Authorization = `Bearer ${this.apiKey}`;
                 }
-                logger.info(`Making request to ${config.url}`);
+
+                if (config.method === 'post' && config.url.includes('/messages')) {
+                    logger.info(`[CHAT REQUEST] Sending message to ${config.url}`);
+                    logger.info(`[CHAT CONTENT] ${JSON.stringify(config.data)}`);
+                }
                 return config;
             },
             (error) => {
@@ -130,7 +135,9 @@ export class FaceitJS extends EventEmitter {
 
         this.chatApiInstance.interceptors.response.use(
             (response) => {
-                logger.info(`Received response from ${response.config.url}`);
+                if (response.config.method === 'post' && response.config.url.includes('/messages')) {
+                    logger.info(`[CHAT SUCCESS] Message sent successfully to ${response.config.url}`);
+                }
                 return response;
             },
             responseInterceptor
@@ -242,7 +249,7 @@ export class FaceitJS extends EventEmitter {
                 params.append('expanded', expanded.join(','));
             }
 
-            logger.info(`Getting hub details for ${hubId}`);
+            logger.info(`[HUB] Getting details for hub ${hubId}`);
             const response = await this.dataApiInstance.get(`/hubs/${hubId}?${params.toString()}`);
             return response.data;
         } catch (error) {
@@ -259,8 +266,16 @@ export class FaceitJS extends EventEmitter {
                 limit: limit.toString()
             });
 
-            logger.info(`Getting ${type} matches for hub ${hubId}`);
+            logger.info(`[HUB] Getting ${type} matches for hub ${hubId}`);
             const response = await this.dataApiInstance.get(`/hubs/${hubId}/matches?${params.toString()}`);
+            if (response.data.items.length > 0) {
+                logger.info(`[HUB] Found ${response.data.items.length} ${type} matches`);
+                response.data.items.forEach(match => {
+                    logger.info(`[MATCH INFO] Match ${match.match_id} is in state: ${match.state}`);
+                });
+            } else {
+                logger.info(`[HUB] No ${type} matches found`);
+            }
             return response.data.items;
         } catch (error) {
             logger.error(`Failed to get hub matches for ${hubId}:`, error);
@@ -271,8 +286,9 @@ export class FaceitJS extends EventEmitter {
     // Match Methods
     async getMatchDetails(matchId) {
         try {
-            logger.info(`Getting details for match ${matchId}`);
+            logger.info(`[MATCH] Getting details for match ${matchId}`);
             const response = await this.dataApiInstance.get(`/matches/${matchId}`);
+            logger.info(`[MATCH] Match ${matchId} state: ${response.data.state}`);
             return response.data;
         } catch (error) {
             logger.error(`Failed to get match details for ${matchId}:`, error);
@@ -293,8 +309,9 @@ export class FaceitJS extends EventEmitter {
 
     async rehostMatch(matchId) {
         try {
-            logger.info(`Attempting to rehost match ${matchId}`);
+            logger.info(`[MATCH ACTION] Attempting to rehost match ${matchId}`);
             const response = await this.dataApiInstance.post(`/matches/${matchId}/rehost`);
+            logger.info(`[MATCH ACTION] Successfully rehosted match ${matchId}`);
             return response.data;
         } catch (error) {
             logger.error(`Failed to rehost match ${matchId}:`, error);
@@ -304,8 +321,9 @@ export class FaceitJS extends EventEmitter {
 
     async cancelMatch(matchId) {
         try {
-            logger.info(`Attempting to cancel match ${matchId}`);
+            logger.info(`[MATCH ACTION] Attempting to cancel match ${matchId}`);
             const response = await this.dataApiInstance.post(`/matches/${matchId}/cancel`);
+            logger.info(`[MATCH ACTION] Successfully cancelled match ${matchId}`);
             return response.data;
         } catch (error) {
             logger.error(`Failed to cancel match ${matchId}:`, error);
@@ -316,7 +334,7 @@ export class FaceitJS extends EventEmitter {
     // Chat Methods
     async getRoomDetails(roomId) {
         try {
-            logger.info(`Getting details for room ${roomId}`);
+            logger.info(`[CHAT] Getting details for room ${roomId}`);
             const response = await this.chatApiInstance.get(`/rooms/${roomId}`);
             return response.data;
         } catch (error) {
@@ -331,7 +349,7 @@ export class FaceitJS extends EventEmitter {
             if (before) params.append('before', before);
             if (limit) params.append('limit', limit.toString());
 
-            logger.info(`Getting messages for room ${roomId}`);
+            logger.info(`[CHAT] Getting messages for room ${roomId}`);
             const response = await this.chatApiInstance.get(`/rooms/${roomId}/messages?${params.toString()}`);
             return response.data;
         } catch (error) {
@@ -342,13 +360,20 @@ export class FaceitJS extends EventEmitter {
 
     async sendRoomMessage(roomId, message) {
         try {
-            logger.info(`Sending message to room ${roomId}`);
+            logger.info(`[CHAT SEND] Sending message to room ${roomId}: "${message}"`);
+
+            // First try to get room details to verify access
+            const roomDetails = await this.chatApiInstance.get(`/rooms/${roomId}`);
+            logger.info(`[CHAT] Room ${roomId} details retrieved successfully`);
+
             const response = await this.chatApiInstance.post(`/rooms/${roomId}/messages`, {
                 message: message
             });
+
+            logger.info(`[CHAT SUCCESS] Message sent to room ${roomId}`);
             return response.data;
         } catch (error) {
-            logger.error(`Failed to send room message to ${roomId}:`, error);
+            logger.error(`[CHAT ERROR] Failed to send message to room ${roomId}:`, error);
             throw error;
         }
     }
@@ -356,27 +381,63 @@ export class FaceitJS extends EventEmitter {
     // Event handling for match state changes
     startPolling() {
         this.previousMatchStates = {};
-        logger.info('Starting match state polling');
+        logger.info('[POLLING] Starting match state polling');
 
+        // Poll every 15 seconds
         setInterval(async () => {
             try {
                 const activeMatches = await this.getHubMatches(this.hubId);
                 activeMatches.forEach(match => {
                     const prevState = this.previousMatchStates[match.id];
-                    if (prevState && prevState !== match.state) {
-                        logger.info(`Match ${match.id} state changed from ${prevState} to ${match.state}`);
+                    if (!prevState) {
+                        logger.info(`[MATCH NEW] Found new match ${match.id} in state: ${match.state}`);
+                    } else if (prevState !== match.state) {
+                        logger.info(`[MATCH STATE] Match ${match.id} state changed from ${prevState} to ${match.state}`);
                         this.emit('matchStateChange', match);
                     }
                     this.previousMatchStates[match.id] = match.state;
+
+                    // Poll chat messages for this match
+                    if (match.chat_room_id) {
+                        this.pollRoomMessages(match.chat_room_id);
+                    }
                 });
             } catch (error) {
-                logger.error('Polling error:', error);
+                logger.error('[POLLING ERROR] Failed to poll matches:', error);
             }
-        }, 60000);
+        }, 15000);
+    }
+
+    // Poll chat messages for a room
+    async pollRoomMessages(roomId) {
+        try {
+            const lastTimestamp = this.lastMessageTimestamps.get(roomId) || '';
+            const messages = await this.getRoomMessages(roomId, lastTimestamp);
+
+            if (messages.messages && messages.messages.length > 0) {
+                // Update last message timestamp
+                this.lastMessageTimestamps.set(roomId, messages.messages[0].timestamp);
+
+                // Process new messages
+                messages.messages.reverse().forEach(message => {
+                    if (message.text.startsWith('!')) {
+                        logger.info(`[CHAT COMMAND] Room ${roomId}: ${message.text} from ${message.user_id}`);
+                        this.emit('roomMessage', message, roomId);
+                    }
+                });
+            }
+        } catch (error) {
+            logger.error(`[CHAT ERROR] Failed to poll messages for room ${roomId}:`, error);
+        }
     }
 
     onMatchStateChange(callback) {
         this.on('matchStateChange', callback);
-        logger.info('Registered match state change callback');
+        logger.info('[EVENT] Registered match state change callback');
+    }
+
+    onRoomMessage(callback) {
+        this.on('roomMessage', callback);
+        logger.info('[EVENT] Registered room message callback');
     }
 }
