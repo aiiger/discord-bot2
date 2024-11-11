@@ -64,13 +64,48 @@ const client = new Client({
     ]
 });
 
-// Helper function to log lobby messages
-const sendLobbyMessage = async (matchId, message) => {
+// Helper function to send messages to match room
+const sendLobbyMessage = async (roomId, message) => {
     try {
-        await faceitJS.sendRoomMessage(matchId, message);
-        logger.info(`[LOBBY MESSAGE] Match ${matchId}: "${message}"`);
+        await faceitJS.chatApiInstance.post(`/rooms/${roomId}/messages`, {
+            body: message
+        });
+        logger.info(`[LOBBY MESSAGE] Match ${roomId}: "${message}"`);
     } catch (error) {
-        logger.error(`Failed to send lobby message to match ${matchId}:`, error);
+        logger.error(`Failed to send lobby message to match ${roomId}:`, error);
+        throw error;
+    }
+};
+
+// Helper function to get match details
+const getMatchDetails = async (matchId) => {
+    try {
+        const response = await faceitJS.dataApiInstance.get(`/matches/${matchId}`);
+        return response.data;
+    } catch (error) {
+        logger.error(`Failed to get match details for ${matchId}:`, error);
+        throw error;
+    }
+};
+
+// Helper function to cancel match
+const cancelMatch = async (matchId) => {
+    try {
+        await faceitJS.dataApiInstance.put(`/matches/${matchId}/cancel`);
+        logger.info(`Successfully cancelled match ${matchId}`);
+    } catch (error) {
+        logger.error(`Failed to cancel match ${matchId}:`, error);
+        throw error;
+    }
+};
+
+// Helper function to rehost match
+const rehostMatch = async (matchId) => {
+    try {
+        await faceitJS.dataApiInstance.put(`/matches/${matchId}/rehost`);
+        logger.info(`Successfully rehosted match ${matchId}`);
+    } catch (error) {
+        logger.error(`Failed to rehost match ${matchId}:`, error);
         throw error;
     }
 };
@@ -124,14 +159,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // Handle Discord messages
 client.on('messageCreate', async (message) => {
-    // Ignore messages from bots
     if (message.author.bot) return;
 
-    // Check if message starts with !sendtest
     if (message.content.startsWith('!sendtest')) {
         const args = message.content.split(' ');
 
-        // Check if we have both matchId and message
         if (args.length < 3) {
             message.reply('Usage: !sendtest [matchId] [message]');
             return;
@@ -141,14 +173,11 @@ client.on('messageCreate', async (message) => {
         const testMessage = args.slice(2).join(' ');
 
         try {
-            // Check if we have an access token
             if (!faceitJS.accessToken) {
-                // Generate auth URL with test-callback
                 const state = crypto.randomBytes(32).toString('hex');
                 const testRedirectUri = process.env.REDIRECT_URI.replace('/callback', '/test-callback');
                 const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state, testRedirectUri);
 
-                // Store the message details to send after authentication
                 if (!pendingMessages.has(state)) {
                     pendingMessages.set(state, {
                         matchId,
@@ -163,14 +192,12 @@ client.on('messageCreate', async (message) => {
                         message: testMessage
                     });
 
-                    // Send authentication URL only once
                     message.reply(`Please authenticate first by visiting: ${url}\nAfter authentication, the message will be sent automatically.`);
                 }
                 return;
             }
 
-            // If we have an access token, send the message directly
-            await faceitJS.sendRoomMessage(matchId, testMessage);
+            await sendLobbyMessage(matchId, testMessage);
             message.reply(`Successfully sent message to match room ${matchId}`);
             logger.info(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
         } catch (error) {
@@ -194,7 +221,6 @@ async function handleCallback(req, res) {
     logger.info(`Code from query: ${code ? '[PRESENT]' : '[MISSING]'}`);
 
     try {
-        // Get pending message using state
         const pendingMessage = pendingMessages.get(state);
         if (!pendingMessage) {
             logger.error('No pending message found for state:', state);
@@ -206,27 +232,16 @@ async function handleCallback(req, res) {
             message: pendingMessage.message
         });
 
-        // Exchange the code for tokens using the stored code verifier
         logger.info('Exchanging code for tokens...');
         const testRedirectUri = process.env.REDIRECT_URI.replace('/callback', '/test-callback');
         const tokens = await faceitJS.exchangeCodeForToken(code, pendingMessage.codeVerifier, testRedirectUri);
         logger.info('Successfully exchanged code for tokens');
 
-        // Extract the match ID without the prefix if it exists
         const roomId = pendingMessage.matchId.includes('-') ? pendingMessage.matchId.split('-')[1] : pendingMessage.matchId;
 
-        // Send the pending message using the chat API directly
-        logger.info(`Attempting to send message to room ${roomId}`);
-        const response = await faceitJS.chatApiInstance.post(`/rooms/${roomId}/messages`, {
-            body: pendingMessage.message
-        });
-        logger.info('Message sent successfully:', response.data);
-
-        // Notify on Discord
+        await sendLobbyMessage(roomId, pendingMessage.message);
         await pendingMessage.discordMessage.reply(`Successfully sent message to match room ${pendingMessage.matchId}`);
-        logger.info('Discord notification sent');
 
-        // Clear the pending message
         pendingMessages.delete(state);
         logger.info(`Cleared pending message for state ${state}`);
 
@@ -240,11 +255,9 @@ async function handleCallback(req, res) {
     }
 }
 
-// Add callback routes
 app.get('/callback', handleCallback);
 app.get('/test-callback', handleCallback);
 
-// Add login route
 app.get('/login', async (req, res) => {
     try {
         const state = crypto.randomBytes(32).toString('hex');
@@ -260,25 +273,22 @@ app.get('/login', async (req, res) => {
 });
 
 // Handle match state changes
-faceitJS.onMatchStateChange(async (match) => {
+faceitJS.on('matchStateChange', async (match) => {
     try {
-        logger.info(`[MATCH STATE] Match ${match.id} state changed to ${match.state}`);
-        matchStates.set(match.id, match.state);
+        logger.info(`[MATCH STATE] Match ${match.match_id} state changed to ${match.state}`);
+        matchStates.set(match.match_id, match.state);
 
-        // Get match details including chat room info
-        const matchDetails = await faceitJS.getMatchDetails(match.id);
+        const matchDetails = await getMatchDetails(match.match_id);
 
-        // Send greeting when match enters configuration (map veto) phase
-        if (match.state === 'CONFIGURING' && !greetedMatches.has(match.id)) {
+        if (match.state === 'CONFIGURING' && !greetedMatches.has(match.match_id)) {
             const players = matchDetails.teams.faction1.roster.concat(matchDetails.teams.faction2.roster);
             const playerNames = players.map(p => p.nickname).join(', ');
             const greeting = `Welcome to the match, ${playerNames}! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.`;
-            await sendLobbyMessage(match.id, greeting);
-            greetedMatches.add(match.id);
-            logger.info(`[MATCH EVENT] Sent initial greeting for match ${match.id} during map veto phase`);
+            await sendLobbyMessage(match.match_id, greeting);
+            greetedMatches.add(match.match_id);
+            logger.info(`[MATCH EVENT] Sent initial greeting for match ${match.match_id} during map veto phase`);
         }
 
-        // Send other notifications based on state
         let notification = '';
         switch (match.state) {
             case 'ONGOING':
@@ -286,46 +296,42 @@ faceitJS.onMatchStateChange(async (match) => {
                 break;
             case 'FINISHED':
                 notification = 'Match has ended. Thanks for playing!';
-                // Clear any existing votes and greeting status for this match
-                rehostVotes.delete(match.id);
-                greetedMatches.delete(match.id);
+                rehostVotes.delete(match.match_id);
+                greetedMatches.delete(match.match_id);
                 break;
             case 'CANCELLED':
                 notification = 'Match has been cancelled.';
-                // Clear any existing votes and greeting status for this match
-                rehostVotes.delete(match.id);
-                greetedMatches.delete(match.id);
+                rehostVotes.delete(match.match_id);
+                greetedMatches.delete(match.match_id);
                 break;
         }
 
         if (notification) {
-            await sendLobbyMessage(match.id, notification);
-            logger.info(`[MATCH EVENT] Match ${match.id} state changed to ${match.state}`);
+            await sendLobbyMessage(match.match_id, notification);
+            logger.info(`[MATCH EVENT] Match ${match.match_id} state changed to ${match.state}`);
         }
     } catch (error) {
         logger.error('Error handling match state change:', error);
     }
 });
 
-// Check if match is in configuration or lobby phase
 const isValidMatchPhase = (matchState) => {
     return matchState === 'READY' || matchState === 'CONFIGURING';
 };
 
-// Calculate average ELO for a team
 const calculateTeamAvgElo = (team) => {
     const totalElo = team.roster.reduce((sum, player) => sum + player.elo, 0);
     return totalElo / team.roster.length;
 };
 
 // Handle FACEIT chat messages
-faceitJS.onRoomMessage(async (message, roomId) => {
+faceitJS.on('chatMessage', async (message) => {
     try {
         const command = message.text.toLowerCase();
         const playerId = message.user_id;
+        const roomId = message.room_id;
 
-        // Get match details
-        const matchDetails = await faceitJS.getMatchDetails(roomId);
+        const matchDetails = await getMatchDetails(roomId);
         const matchState = matchStates.get(roomId) || matchDetails.state;
 
         if (!isValidMatchPhase(matchState)) {
@@ -334,14 +340,12 @@ faceitJS.onRoomMessage(async (message, roomId) => {
         }
 
         if (command === '!cancel') {
-            // Calculate team average ELOs
             const team1AvgElo = calculateTeamAvgElo(matchDetails.teams.faction1);
             const team2AvgElo = calculateTeamAvgElo(matchDetails.teams.faction2);
             const eloDiff = Math.abs(team1AvgElo - team2AvgElo);
 
             if (eloDiff >= 70) {
-                // Cancel the match
-                await faceitJS.cancelMatch(roomId);
+                await cancelMatch(roomId);
                 await sendLobbyMessage(roomId, `Match has been cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`);
                 logger.info(`[MATCH CANCELLED] Match ${roomId} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
             } else {
@@ -349,29 +353,24 @@ faceitJS.onRoomMessage(async (message, roomId) => {
                 logger.info(`[CANCEL DENIED] Match ${roomId} - ELO difference ${eloDiff.toFixed(0)} < 70`);
             }
         } else if (command === '!rehost') {
-            // Initialize vote set if it doesn't exist
             if (!rehostVotes.has(roomId)) {
                 rehostVotes.set(roomId, new Set());
             }
 
             const votes = rehostVotes.get(roomId);
 
-            // Check if player already voted
             if (votes.has(playerId)) {
                 await sendLobbyMessage(roomId, 'You have already voted for a rehost.');
                 return;
             }
 
-            // Add vote
             votes.add(playerId);
             const currentVotes = votes.size;
             const requiredVotes = 6;
 
             if (currentVotes >= requiredVotes) {
-                // Rehost the match
-                await faceitJS.rehostMatch(roomId);
+                await rehostMatch(roomId);
                 await sendLobbyMessage(roomId, `Match has been rehosted (${currentVotes}/10 votes).`);
-                // Clear votes after successful rehost
                 rehostVotes.delete(roomId);
                 logger.info(`[MATCH REHOSTED] Match ${roomId} rehosted with ${currentVotes} votes`);
             } else {
@@ -399,29 +398,24 @@ client.on('error', (error) => {
     logger.error('Discord client error:', error);
 });
 
-// Handle unhandled promise rejections
 process.on('unhandledRejection', (error) => {
     logger.error('Unhandled promise rejection:', error);
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
     logger.error('Uncaught exception:', error);
 });
 
 // Start server and login to Discord
 Promise.all([
-    // Start Express server
     new Promise((resolve) => {
         const server = app.listen(port, () => {
             logger.info(`Server running on port ${port}`);
             resolve(server);
         });
     }),
-    // Login to Discord
     client.login(process.env.DISCORD_TOKEN).then(() => {
         logger.info('Discord bot logged in successfully');
-        // Start match state polling after successful Discord login
         faceitJS.startPolling();
         logger.info('Started FACEIT match state polling');
     })

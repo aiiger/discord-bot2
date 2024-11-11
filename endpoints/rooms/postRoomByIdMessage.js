@@ -1,28 +1,41 @@
+// postRoomByIdMessage.js - Send a message to a FACEIT chat room
 import { FaceitJS } from '../../FaceitJS.js';
 
-/*
-    Uses url https://api.faceit.com/chat/v1/rooms/{roomId}/messages
-    Method: POST
-    Parameters: 
-    - roomId: string
-    - message: string
-    Description: Send a message to a room
-*/
+/**
+ * Send a message to a FACEIT chat room
+ * @param {string} roomId - The ID of the chat room
+ * @param {string} message - The message to send
+ * @returns {Promise<Object>} The API response data
+ */
 export default async function postRoomByIdMessage(roomId, message) {
   try {
     const faceitJS = new FaceitJS();
-    // Send message directly without checking match state
+
+    // Ensure we have an access token before attempting to send message
+    if (!faceitJS.accessToken) {
+      throw new Error('No access token available. Please authenticate first.');
+    }
+
+    // Send message to chat room
     const response = await faceitJS.chatApiInstance.post(`/rooms/${roomId}/messages`, {
       body: message
     });
-    console.log('Message sent successfully');
+
+    if (!response.data) {
+      throw new Error('Invalid response from chat API');
+    }
+
+    console.log('[CHAT] Message sent successfully');
     return response.data;
   } catch (error) {
-    console.error('Error sending message:', error.message);
+    console.error('[CHAT ERROR] Failed to send message:', error.message);
+
+    // Add more context to the error
     if (error.response?.data) {
-      console.error('API Error Response:', error.response.data);
-      throw new Error(JSON.stringify(error.response.data));
+      console.error('[CHAT ERROR] API Response:', error.response.data);
     }
-    throw error;
+
+    // Rethrow with better error message
+    throw new Error(`Failed to send message: ${error.message}`);
   }
 }

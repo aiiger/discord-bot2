@@ -3,7 +3,7 @@ import axios from 'axios';
 import { EventEmitter } from 'events';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
-import getHeaders from './utils/headers.js';
+import getHeaders, { getChatHeaders } from './utils/headers.js';
 
 dotenv.config();
 
@@ -62,6 +62,8 @@ export class FaceitJS extends EventEmitter {
         this.accessToken = null;
         this.refreshToken = null;
         this.lastMessageTimestamps = new Map();
+        this.pollingInterval = null;
+        this.previousMatchStates = new Map();
 
         // Create Axios instances for different API endpoints
         this.oauthInstance = axios.create({
@@ -80,11 +82,7 @@ export class FaceitJS extends EventEmitter {
 
         // Chat API instance with OAuth token auth
         this.chatApiInstance = axios.create({
-            baseURL: this.chatApiBase,
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
+            baseURL: this.chatApiBase
         });
 
         this.setupInterceptors();
@@ -92,102 +90,101 @@ export class FaceitJS extends EventEmitter {
     }
 
     setupInterceptors() {
-        // Chat API instance interceptors
-        this.chatApiInstance.interceptors.request.use(
-            (config) => {
-                // Ensure OAuth token is used for chat endpoints
-                if (this.accessToken) {
-                    config.headers.Authorization = `Bearer ${this.accessToken}`;
-                }
-
-                if (config.method === 'post' && config.url.includes('/messages')) {
-                    logger.info(`[CHAT REQUEST] Sending message to ${config.url}`);
-                    logger.info(`[CHAT CONTENT] ${JSON.stringify(config.data)}`);
-                    logger.info(`[CHAT HEADERS] ${JSON.stringify(config.headers)}`);
-                }
-                return config;
-            },
-            (error) => {
-                logger.error('Request interceptor error:', error);
-                return Promise.reject(error);
+        // Add access token to chat API requests
+        this.chatApiInstance.interceptors.request.use((config) => {
+            if (!this.accessToken) {
+                throw new Error('No access token available');
             }
-        );
-
-        // Common response interceptor for handling 401s
-        const responseInterceptor = async (error) => {
-            const originalRequest = error.config;
-
-            if (error.response?.status === 401 && this.refreshToken && !originalRequest._retry) {
-                originalRequest._retry = true;
-                try {
-                    logger.info('Access token expired, attempting refresh');
-                    await this.refreshAccessToken();
-                    originalRequest.headers.Authorization = `Bearer ${this.accessToken}`;
-                    return axios(originalRequest);
-                } catch (refreshError) {
-                    logger.error('Token refresh failed:', refreshError);
-                    throw refreshError;
-                }
-            }
-
+            const headers = getChatHeaders(this.accessToken);
+            config.headers = { ...config.headers, ...headers.headers };
+            return config;
+        }, (error) => {
             return Promise.reject(error);
-        };
-
-        this.chatApiInstance.interceptors.response.use(
-            (response) => {
-                if (response.config.method === 'post' && response.config.url.includes('/messages')) {
-                    logger.info(`[CHAT SUCCESS] Message sent successfully to ${response.config.url}`);
-                }
-                return response;
-            },
-            responseInterceptor
-        );
-    }
-
-    // PKCE Helper Methods
-    generateCodeVerifier() {
-        const verifier = crypto.randomBytes(32)
-            .toString('base64')
-            .replace(/[^a-zA-Z0-9]/g, '')
-            .substring(0, 128);
-        logger.info('Generated code verifier');
-        return verifier;
-    }
-
-    generateCodeChallenge(verifier) {
-        const challenge = crypto.createHash('sha256')
-            .update(verifier)
-            .digest('base64')
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=/g, '');
-        logger.info('Generated code challenge');
-        return challenge;
-    }
-
-    // OAuth2 PKCE Methods
-    async getAuthorizationUrl(state, customRedirectUri = null) {
-        const codeVerifier = this.generateCodeVerifier();
-        const codeChallenge = this.generateCodeChallenge(codeVerifier);
-
-        const params = new URLSearchParams({
-            response_type: 'code',
-            client_id: this.clientId,
-            redirect_uri: customRedirectUri || this.redirectUri,
-            scope: 'openid profile email membership',  // Updated scopes based on supported scopes
-            state: state,
-            code_challenge: codeChallenge,
-            code_challenge_method: 'S256'
         });
 
-        const url = `https://accounts.faceit.com/authorize?${params.toString()}`;
-        logger.info(`Generated authorization URL: ${url}`);
-        logger.info(`Using redirect URI: ${customRedirectUri || this.redirectUri}`);
+        // Add error handling interceptor
+        this.chatApiInstance.interceptors.response.use(
+            response => response,
+            async error => {
+                if (error.response?.status === 401) {
+                    try {
+                        await this.refreshAccessToken();
+                        // Retry the original request with new token
+                        const originalRequest = error.config;
+                        const headers = getChatHeaders(this.accessToken);
+                        originalRequest.headers = { ...originalRequest.headers, ...headers.headers };
+                        return this.chatApiInstance(originalRequest);
+                    } catch (refreshError) {
+                        logger.error('[AUTH ERROR] Failed to refresh token:', refreshError);
+                        throw refreshError;
+                    }
+                }
+                throw error;
+            }
+        );
+    }
 
-        return {
-            url,
-            codeVerifier
-        };
+    // Generate PKCE code verifier and challenge
+    generatePKCE() {
+        const verifier = crypto.randomBytes(32).toString('base64url');
+        const challenge = crypto.createHash('sha256')
+            .update(verifier)
+            .digest('base64url');
+        return { verifier, challenge };
+    }
+
+    // Get authorization URL for OAuth2 PKCE flow
+    async getAuthorizationUrl(state, customRedirectUri = null) {
+        try {
+            const { verifier, challenge } = this.generatePKCE();
+
+            const params = new URLSearchParams({
+                response_type: 'code',
+                client_id: this.clientId,
+                redirect_uri: customRedirectUri || this.redirectUri,
+                scope: 'chat:write chat:read',
+                state: state,
+                code_challenge: challenge,
+                code_challenge_method: 'S256'
+            });
+
+            const url = `${this.authBase}/oauth/authorize?${params.toString()}`;
+            logger.info('Generated authorization URL with PKCE');
+
+            return { url, codeVerifier: verifier };
+        } catch (error) {
+            logger.error('Failed to generate authorization URL:', error);
+            throw error;
+        }
+    }
+
+    async refreshAccessToken() {
+        if (!this.refreshToken) {
+            throw new Error('No refresh token available');
+        }
+
+        try {
+            const params = new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: this.refreshToken,
+                client_id: this.clientId,
+                client_secret: this.clientSecret
+            });
+
+            const response = await this.oauthInstance.post('/oauth/token', params);
+
+            if (!response.data.access_token) {
+                throw new Error('No access token in refresh response');
+            }
+
+            this.accessToken = response.data.access_token;
+            this.refreshToken = response.data.refresh_token;
+            logger.info('Successfully refreshed access token');
+            return response.data;
+        } catch (error) {
+            logger.error('Failed to refresh access token:', error);
+            throw error;
+        }
     }
 
     async exchangeCodeForToken(code, codeVerifier, customRedirectUri = null) {
@@ -203,10 +200,18 @@ export class FaceitJS extends EventEmitter {
             });
 
             const response = await this.oauthInstance.post('/oauth/token', params);
+
+            if (!response.data.access_token) {
+                throw new Error('No access token in exchange response');
+            }
+
             logger.info('Successfully exchanged code for tokens');
 
             this.accessToken = response.data.access_token;
             this.refreshToken = response.data.refresh_token;
+
+            // Start polling after successful authentication
+            this.startPolling();
 
             return response.data;
         } catch (error) {
@@ -215,224 +220,16 @@ export class FaceitJS extends EventEmitter {
         }
     }
 
-    async refreshAccessToken() {
-        if (!this.refreshToken) {
-            throw new Error('No refresh token available');
-        }
-
+    async getHubMatches(hubId) {
         try {
-            logger.info('Attempting to refresh access token');
-            const params = new URLSearchParams({
-                grant_type: 'refresh_token',
-                refresh_token: this.refreshToken,
-                client_id: this.clientId,
-                client_secret: this.clientSecret
-            });
-
-            const response = await this.oauthInstance.post('/oauth/token', params);
-            logger.info('Successfully refreshed access token');
-
-            this.accessToken = response.data.access_token;
-            this.refreshToken = response.data.refresh_token;
-
-            return response.data;
+            const response = await this.dataApiInstance.get(`/hubs/${hubId}/matches`);
+            return response.data.items || [];
         } catch (error) {
-            logger.error('Failed to refresh token:', error);
-            throw error;
+            logger.error('[HUB ERROR] Failed to get hub matches:', error);
+            return [];
         }
     }
 
-    // Hub Methods
-    async getHubDetails(hubId = this.hubId, expanded = []) {
-        try {
-            const params = new URLSearchParams();
-            if (expanded.length > 0) {
-                params.append('expanded', expanded.join(','));
-            }
-
-            logger.info(`[HUB] Getting details for hub ${hubId}`);
-            const response = await this.dataApiInstance.get(`/hubs/${hubId}?${params.toString()}`);
-            return response.data;
-        } catch (error) {
-            logger.error(`Failed to get hub details for ${hubId}:`, error);
-            throw error;
-        }
-    }
-
-    async getHubMatches(hubId = this.hubId, type = 'ongoing', offset = 0, limit = 20) {
-        try {
-            const params = new URLSearchParams({
-                type,
-                offset: offset.toString(),
-                limit: limit.toString()
-            });
-
-            logger.info(`[HUB] Getting ${type} matches for hub ${hubId}`);
-            const response = await this.dataApiInstance.get(`/hubs/${hubId}/matches?${params.toString()}`);
-            if (response.data.items.length > 0) {
-                logger.info(`[HUB] Found ${response.data.items.length} ${type} matches`);
-                response.data.items.forEach(match => {
-                    logger.info(`[MATCH INFO] Match ${match.match_id} is in state: ${match.state}`);
-                });
-            } else {
-                logger.info(`[HUB] No ${type} matches found`);
-            }
-            return response.data.items;
-        } catch (error) {
-            logger.error(`Failed to get hub matches for ${hubId}:`, error);
-            throw error;
-        }
-    }
-
-    // Match Methods
-    async getMatchDetails(matchId) {
-        try {
-            logger.info(`[MATCH] Getting details for match ${matchId}`);
-            const response = await this.dataApiInstance.get(`/matches/${matchId}`);
-            logger.info(`[MATCH] Match ${matchId} state: ${response.data.state}`);
-            return response.data;
-        } catch (error) {
-            logger.error(`Failed to get match details for ${matchId}:`, error);
-            throw error;
-        }
-    }
-
-    async getMatchStats(matchId) {
-        try {
-            logger.info(`Getting stats for match ${matchId}`);
-            const response = await this.dataApiInstance.get(`/matches/${matchId}/stats`);
-            return response.data;
-        } catch (error) {
-            logger.error(`Failed to get match stats for ${matchId}:`, error);
-            throw error;
-        }
-    }
-
-    async rehostMatch(matchId) {
-        try {
-            logger.info(`[MATCH ACTION] Attempting to rehost match ${matchId}`);
-            const response = await this.dataApiInstance.post(`/matches/${matchId}/rehost`);
-            logger.info(`[MATCH ACTION] Successfully rehosted match ${matchId}`);
-            return response.data;
-        } catch (error) {
-            logger.error(`Failed to rehost match ${matchId}:`, error);
-            throw error;
-        }
-    }
-
-    async cancelMatch(matchId) {
-        try {
-            logger.info(`[MATCH ACTION] Attempting to cancel match ${matchId}`);
-            const response = await this.dataApiInstance.post(`/matches/${matchId}/cancel`);
-            logger.info(`[MATCH ACTION] Successfully cancelled match ${matchId}`);
-            return response.data;
-        } catch (error) {
-            logger.error(`Failed to cancel match ${matchId}:`, error);
-            throw error;
-        }
-    }
-
-    // Chat Methods
-    async getRoomDetails(roomId) {
-        if (!this.accessToken) {
-            throw new Error('No access token available. Please authenticate first.');
-        }
-
-        try {
-            logger.info(`[CHAT] Getting details for room ${roomId}`);
-            const response = await this.chatApiInstance.get(`/rooms/${roomId}`);
-            return response.data;
-        } catch (error) {
-            logger.error(`Failed to get room details for ${roomId}:`, error);
-            throw error;
-        }
-    }
-
-    async getRoomMessages(roomId, before = '', limit = 50) {
-        if (!this.accessToken) {
-            throw new Error('No access token available. Please authenticate first.');
-        }
-
-        try {
-            const params = new URLSearchParams();
-            if (before) params.append('before', before);
-            if (limit) params.append('limit', limit.toString());
-
-            logger.info(`[CHAT] Getting messages for room ${roomId}`);
-            const response = await this.chatApiInstance.get(`/rooms/${roomId}/messages?${params.toString()}`);
-            return response.data;
-        } catch (error) {
-            logger.error(`Failed to get room messages for ${roomId}:`, error);
-            throw error;
-        }
-    }
-
-    async sendRoomMessage(roomId, message) {
-        if (!this.accessToken) {
-            throw new Error('No access token available. Please authenticate first.');
-        }
-
-        try {
-            // Validate room ID format
-            if (!roomId || typeof roomId !== 'string') {
-                throw new Error('Invalid room ID format');
-            }
-
-            logger.info(`[CHAT SEND] Sending message to room ${roomId}: "${message}"`);
-
-            const response = await this.chatApiInstance.post(`/rooms/${roomId}/messages`, {
-                body: message
-            });
-
-            logger.info(`[CHAT SUCCESS] Message sent to room ${roomId}`);
-            return response.data;
-        } catch (error) {
-            // Enhanced error logging
-            logger.error(`[CHAT ERROR] Failed to send message to room ${roomId}:`, error);
-
-            if (error.response?.status === 404) {
-                throw new Error(`Chat room ${roomId} not found`);
-            } else if (error.response?.status === 403) {
-                throw new Error(`Not authorized to send messages to room ${roomId}`);
-            } else if (error.response?.status === 500) {
-                throw new Error(`Server error while sending message to room ${roomId}`);
-            }
-
-            throw error;
-        }
-    }
-
-    // Event handling for match state changes
-    startPolling() {
-        this.previousMatchStates = {};
-        logger.info('[POLLING] Starting match state polling');
-
-        // Poll every 15 seconds
-        setInterval(async () => {
-            try {
-                const activeMatches = await this.getHubMatches(this.hubId);
-                activeMatches.forEach(match => {
-                    const prevState = this.previousMatchStates[match.id];
-                    if (!prevState) {
-                        logger.info(`[MATCH NEW] Found new match ${match.id} in state: ${match.state}`);
-                    } else if (prevState !== match.state) {
-                        logger.info(`[MATCH STATE] Match ${match.id} state changed from ${prevState} to ${match.state}`);
-                        this.emit('matchStateChange', match);
-                    }
-                    this.previousMatchStates[match.id] = match.state;
-
-                    // Poll chat messages for this match
-                    if (match.chat_room_id) {
-                        this.pollRoomMessages(match.chat_room_id);
-                    }
-                });
-            } catch (error) {
-                logger.error('[POLLING ERROR] Failed to poll matches:', error);
-            }
-        }, 15000);
-    }
-
-    // Poll chat messages for a room
     async pollRoomMessages(roomId) {
         if (!this.accessToken) {
             logger.error('[CHAT ERROR] No access token available for polling messages');
@@ -440,33 +237,96 @@ export class FaceitJS extends EventEmitter {
         }
 
         try {
-            const lastTimestamp = this.lastMessageTimestamps.get(roomId) || '';
-            const messages = await this.getRoomMessages(roomId, lastTimestamp);
+            const lastTimestamp = this.lastMessageTimestamps.get(roomId) || 0;
+            const response = await this.chatApiInstance.get(`/rooms/${roomId}/messages`, {
+                params: { timestamp_from: lastTimestamp }
+            });
 
-            if (messages.messages && messages.messages.length > 0) {
-                // Update last message timestamp
-                this.lastMessageTimestamps.set(roomId, messages.messages[0].timestamp);
-
-                // Process new messages
-                messages.messages.reverse().forEach(message => {
-                    if (message.text.startsWith('!')) {
-                        logger.info(`[CHAT COMMAND] Room ${roomId}: ${message.text} from ${message.user_id}`);
-                        this.emit('roomMessage', message, roomId);
-                    }
-                });
+            if (response.data && Array.isArray(response.data.messages)) {
+                const messages = response.data.messages;
+                if (messages.length > 0) {
+                    const latestTimestamp = Math.max(...messages.map(m => m.timestamp));
+                    this.lastMessageTimestamps.set(roomId, latestTimestamp);
+                    messages.forEach(message => {
+                        this.emit('chatMessage', message);
+                    });
+                }
             }
         } catch (error) {
-            logger.error(`[CHAT ERROR] Failed to poll messages for room ${roomId}:`, error);
+            if (error.message === 'No access token available') {
+                logger.error('[CHAT ERROR] No access token available for polling messages');
+            } else {
+                logger.error('[CHAT ERROR] Failed to poll messages:', error);
+            }
         }
     }
 
-    onMatchStateChange(callback) {
-        this.on('matchStateChange', callback);
-        logger.info('[EVENT] Registered match state change callback');
-    }
+    startPolling() {
+        if (!this.accessToken) {
+            logger.error('[POLLING ERROR] Cannot start polling without access token');
+            return;
+        }
 
-    onRoomMessage(callback) {
-        this.on('roomMessage', callback);
-        logger.info('[EVENT] Registered room message callback');
+        // Clear any existing polling interval
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+        }
+
+        logger.info('[POLLING] Starting match state polling');
+
+        // Poll every 15 seconds
+        this.pollingInterval = setInterval(async () => {
+            try {
+                const activeMatches = await this.getHubMatches(this.hubId);
+
+                if (!Array.isArray(activeMatches)) {
+                    logger.error('[POLLING ERROR] Invalid matches data received');
+                    return;
+                }
+
+                logger.info(`[HUB] Found ${activeMatches.length} ongoing matches`);
+
+                activeMatches.forEach(match => {
+                    if (!match || !match.match_id) {
+                        logger.error('[POLLING ERROR] Invalid match data:', match);
+                        return;
+                    }
+
+                    const matchId = match.match_id;
+                    const currentState = match.state || 'UNKNOWN';
+                    const prevState = this.previousMatchStates.get(matchId);
+
+                    logger.info(`[MATCH INFO] Match ${matchId} is in state: ${currentState}`);
+
+                    if (!prevState) {
+                        logger.info(`[MATCH NEW] Found new match ${matchId} in state: ${currentState}`);
+                        this.emit('newMatch', match);
+                    } else if (prevState !== currentState) {
+                        logger.info(`[MATCH STATE] Match ${matchId} state changed from ${prevState} to ${currentState}`);
+                        this.emit('matchStateChange', match);
+                    }
+
+                    this.previousMatchStates.set(matchId, currentState);
+
+                    // Only poll chat messages if we have an access token and chat room ID
+                    if (this.accessToken && match.chat_room_id) {
+                        this.pollRoomMessages(match.chat_room_id).catch(error => {
+                            logger.error(`[CHAT ERROR] Failed to poll messages for room ${match.chat_room_id}:`, error);
+                        });
+                    }
+                });
+
+                // Clean up old matches
+                const currentMatchIds = new Set(activeMatches.map(m => m.match_id));
+                for (const [matchId] of this.previousMatchStates) {
+                    if (!currentMatchIds.has(matchId)) {
+                        this.previousMatchStates.delete(matchId);
+                        logger.info(`[MATCH REMOVED] Match ${matchId} is no longer active`);
+                    }
+                }
+            } catch (error) {
+                logger.error('[POLLING ERROR] Failed to poll matches:', error);
+            }
+        }, 15000);
     }
 }
