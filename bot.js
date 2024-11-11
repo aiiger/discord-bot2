@@ -175,25 +175,22 @@ client.on('messageCreate', async (message) => {
         try {
             if (!faceitJS.accessToken) {
                 const state = crypto.randomBytes(32).toString('hex');
-                const testRedirectUri = process.env.REDIRECT_URI.replace('/callback', '/test-callback');
-                const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state, testRedirectUri);
+                const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
 
-                if (!pendingMessages.has(state)) {
-                    pendingMessages.set(state, {
-                        matchId,
-                        message: testMessage,
-                        discordMessage: message,
-                        codeVerifier,
-                        timestamp: Date.now()
-                    });
+                pendingMessages.set(state, {
+                    matchId,
+                    message: testMessage,
+                    discordMessage: message,
+                    codeVerifier,
+                    timestamp: Date.now()
+                });
 
-                    logger.info(`Stored pending message for state ${state}:`, {
-                        matchId,
-                        message: testMessage
-                    });
+                logger.info(`Stored pending message for state ${state}:`, {
+                    matchId,
+                    message: testMessage
+                });
 
-                    message.reply(`Please authenticate first by visiting: ${url}\nAfter authentication, the message will be sent automatically.`);
-                }
+                message.reply(`Please authenticate first by visiting: ${url}\nAfter authentication, the message will be sent automatically.`);
                 return;
             }
 
@@ -212,19 +209,24 @@ app.get('/', (req, res) => {
     res.send('<a href="/login">Login with FACEIT</a>');
 });
 
-// Callback handler function
-async function handleCallback(req, res) {
+// Unified callback handler
+app.get('/callback', async (req, res) => {
     const { code, state } = req.query;
 
-    logger.info(`Callback received at ${req.path} - Session ID: ${req.session.id}`);
+    logger.info(`Callback received - Session ID: ${req.session.id}`);
     logger.info(`State from query: ${state}`);
     logger.info(`Code from query: ${code ? '[PRESENT]' : '[MISSING]'}`);
+
+    if (!code || !state) {
+        logger.error('Missing code or state parameter');
+        return res.status(400).send('Invalid request: Missing required parameters');
+    }
 
     try {
         const pendingMessage = pendingMessages.get(state);
         if (!pendingMessage) {
             logger.error('No pending message found for state:', state);
-            return res.status(400).send('Invalid state parameter or no pending message.');
+            return res.status(400).send('Invalid state parameter.');
         }
 
         logger.info(`Found pending message for state ${state}:`, {
@@ -233,8 +235,7 @@ async function handleCallback(req, res) {
         });
 
         logger.info('Exchanging code for tokens...');
-        const testRedirectUri = process.env.REDIRECT_URI.replace('/callback', '/test-callback');
-        const tokens = await faceitJS.exchangeCodeForToken(code, pendingMessage.codeVerifier, testRedirectUri);
+        const tokens = await faceitJS.exchangeCodeForToken(code, pendingMessage.codeVerifier);
         logger.info('Successfully exchanged code for tokens');
 
         const roomId = pendingMessage.matchId.includes('-') ? pendingMessage.matchId.split('-')[1] : pendingMessage.matchId;
@@ -251,17 +252,18 @@ async function handleCallback(req, res) {
         if (error.response?.data) {
             logger.error('API Error Response:', error.response.data);
         }
-        res.status(500).send('Authentication failed. Please try again.');
+        res.status(500).send('Error exchanging authorization code for tokens');
     }
-}
-
-app.get('/callback', handleCallback);
-app.get('/test-callback', handleCallback);
+});
 
 app.get('/login', async (req, res) => {
     try {
         const state = crypto.randomBytes(32).toString('hex');
         const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
+
+        // Store the code verifier in the session
+        req.session.codeVerifier = codeVerifier;
+        req.session.state = state;
 
         logger.info(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
         logger.info(`Redirecting to: ${url}`);
