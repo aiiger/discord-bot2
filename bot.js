@@ -1,8 +1,6 @@
 // FACEIT OAuth2 Bot with PKCE Support
 import express from 'express';
 import session from 'express-session';
-import { createClient } from 'redis';
-import RedisStore from 'connect-redis';
 import { FaceitJS } from './FaceitJS.js';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
@@ -12,6 +10,38 @@ import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
+// Initialize logger
+const logger = {
+    info: (message, ...args) => {
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] INFO: ${message}`, ...args);
+    },
+    error: (message, error) => {
+        const timestamp = new Date().toISOString();
+        console.error(`[${timestamp}] ERROR: ${message}`);
+        if (error?.response?.data) {
+            console.error('Response data:', error.response.data);
+        }
+        if (error?.response?.status) {
+            console.error('Status code:', error.response.status);
+        }
+        if (error?.config?.url) {
+            console.error('Request URL:', error.config.url);
+        }
+        if (error?.config?.headers) {
+            const sanitizedHeaders = { ...error.config.headers };
+            if (sanitizedHeaders.Authorization) {
+                sanitizedHeaders.Authorization = 'Bearer [REDACTED]';
+            }
+            console.error('Request headers:', sanitizedHeaders);
+        }
+        if (error?.config?.data) {
+            console.error('Request data:', error.config.data);
+        }
+        console.error('Full error:', error);
+    }
+};
+
 // Validate required environment variables
 const requiredEnvVars = [
     'SESSION_SECRET',
@@ -20,8 +50,7 @@ const requiredEnvVars = [
     'REDIRECT_URI',
     'HUB_ID',
     'DISCORD_TOKEN',
-    'FACEIT_API_KEY',
-    'REDIS_URL'
+    'FACEIT_API_KEY'
 ];
 
 const patterns = {
@@ -40,27 +69,26 @@ const validators = {
     REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
     HUB_ID: (id) => patterns.HUB_ID.test(id),
     DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0,
-    FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key),
-    REDIS_URL: (url) => typeof url === 'string' && url.startsWith('redis://')
+    FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key)
 };
 
 for (const varName of requiredEnvVars) {
     const value = process.env[varName];
     if (!value) {
-        console.error(`Missing required environment variable: ${varName}`);
+        logger.error(`Missing required environment variable: ${varName}`);
         process.exit(1);
     }
 
     if (!validators[varName](value)) {
-        console.error(`Invalid format for ${varName}: ${value}`);
+        logger.error(`Invalid format for ${varName}: ${value}`);
         if (patterns[varName]) {
-            console.error(`Expected format: ${patterns[varName]}`);
+            logger.error(`Expected format: ${patterns[varName]}`);
         }
         process.exit(1);
     }
 }
 
-console.log('Environment variables validated successfully');
+logger.info('Environment variables validated successfully');
 
 // Initialize Express
 const app = express();
@@ -72,23 +100,6 @@ const faceitJS = new FaceitJS();
 // Force production mode for Heroku
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Initialize Redis client
-const redisClient = createClient({
-    url: process.env.REDIS_URL,
-    legacyMode: false
-});
-
-redisClient.on('error', (err) => console.error('Redis Client Error:', err));
-redisClient.on('connect', () => console.log('Connected to Redis'));
-
-await redisClient.connect().catch(console.error);
-
-// Initialize Redis store
-const redisStore = new RedisStore({
-    client: redisClient,
-    prefix: 'faceit:sess:'
-});
-
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -96,9 +107,8 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.'
 });
 
-// Session middleware configuration with Redis storage
+// Session middleware configuration
 const sessionMiddleware = session({
-    store: redisStore,
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
     resave: false,
@@ -108,8 +118,7 @@ const sessionMiddleware = session({
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax'
-    },
-    rolling: true
+    }
 });
 
 // Store for rehost votes and match states
@@ -117,10 +126,20 @@ const rehostVotes = new Map(); // matchId -> Set of player IDs who voted
 const matchStates = new Map(); // matchId -> match state
 
 // Apply middleware
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'", "https://api.faceit.com", "https://open.faceit.com"]
+        }
+    }
+}));
 app.use(limiter);
 app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path} - IP: ${req.ip}`);
+    logger.info(`${req.method} ${req.path} - IP: ${req.ip}`);
     res.setHeader('X-Powered-By', 'FACEIT OAuth2 Bot');
     next();
 });
@@ -133,7 +152,7 @@ app.use(express.urlencoded({ extended: true }));
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 app.get('/', (req, res) => {
-    console.log(`Home route accessed by IP: ${req.ip}`);
+    logger.info(`Home route accessed by IP: ${req.ip}`);
     res.send('<a href="/login">Login with FACEIT</a>');
 });
 
@@ -143,24 +162,17 @@ app.get('/login', async (req, res) => {
         const state = crypto.randomBytes(32).toString('hex');
         const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
 
-        console.log(`Generated state: ${state} and code verifier for session: ${req.session.id}`);
+        logger.info(`Generated state: ${state} and code verifier for session: ${req.session.id}`);
 
         // Store state and code verifier in session
         req.session.oauthState = state;
         req.session.codeVerifier = codeVerifier;
 
-        // Ensure session is saved before redirect
-        req.session.save((err) => {
-            if (err) {
-                console.error('Failed to save session:', err);
-                return res.status(500).send('Internal server error');
-            }
-
-            console.log(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
-            res.redirect(url);
-        });
+        logger.info(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
+        logger.info(`Redirecting to: ${url}`);
+        res.redirect(url);
     } catch (error) {
-        console.error('Error in login route:', error);
+        logger.error('Error in login route:', error);
         res.status(500).send('Internal server error');
     }
 });
@@ -169,37 +181,35 @@ app.get('/login', async (req, res) => {
 app.get('/callback', async (req, res) => {
     const { code, state } = req.query;
 
-    console.log(`Callback received - Session ID: ${req.session.id}`);
-    console.log(`State from query: ${state}`);
-    console.log(`State from session: ${req.session.oauthState}`);
+    logger.info(`Callback received - Session ID: ${req.session.id}`);
+    logger.info(`State from query: ${state}`);
+    logger.info(`State from session: ${req.session.oauthState}`);
+    logger.info(`Code verifier from session: ${req.session.codeVerifier ? '[PRESENT]' : '[MISSING]'}`);
 
     try {
         // Verify state parameter
         if (!state || state !== req.session.oauthState) {
-            console.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
+            logger.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
             return res.status(400).send('Invalid state parameter. Please try logging in again.');
         }
 
+        if (!req.session.codeVerifier) {
+            logger.error('Code verifier missing from session');
+            return res.status(400).send('Code verifier missing. Please try logging in again.');
+        }
+
         // Exchange the authorization code for tokens
+        logger.info('Exchanging authorization code for tokens...');
         const tokens = await faceitJS.exchangeCodeForToken(code, req.session.codeVerifier);
 
         // Store tokens in session
         req.session.accessToken = tokens.access_token;
         req.session.refreshToken = tokens.refresh_token;
 
-        // Ensure session is saved before sending response
-        req.session.save((err) => {
-            if (err) {
-                console.error('Failed to save session with tokens:', err);
-                return res.status(500).send('Internal server error');
-            }
-
-            console.log('Successfully authenticated with FACEIT');
-            res.send('Authentication successful! You can close this window.');
-        });
+        logger.info('Successfully authenticated with FACEIT');
+        res.send('Authentication successful! You can close this window.');
     } catch (error) {
-        console.error('Error during OAuth callback:', error.message);
-        console.error('Full error:', error);
+        logger.error('Error during OAuth callback:', error);
         res.status(500).send('Authentication failed. Please try logging in again.');
     }
 });
@@ -207,7 +217,7 @@ app.get('/callback', async (req, res) => {
 // Handle match state changes
 faceitJS.onMatchStateChange(async (match) => {
     try {
-        console.log(`Match ${match.id} state changed to ${match.state}`);
+        logger.info(`Match ${match.id} state changed to ${match.state}`);
         matchStates.set(match.id, match.state);
 
         // Get match details including chat room info
@@ -219,7 +229,7 @@ faceitJS.onMatchStateChange(async (match) => {
             const playerNames = players.map(p => p.nickname).join(', ');
             const greeting = `Welcome to the match, ${playerNames}! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.`;
             await faceitJS.sendRoomMessage(match.id, greeting);
-            console.log(`Sent greeting message for match ${match.id}`);
+            logger.info(`Sent greeting message for match ${match.id}`);
         }
 
         // Send other notifications based on state
@@ -242,10 +252,10 @@ faceitJS.onMatchStateChange(async (match) => {
 
         if (notification) {
             await faceitJS.sendRoomMessage(match.id, notification);
-            console.log(`Sent state change notification for match ${match.id}: ${notification}`);
+            logger.info(`Sent state change notification for match ${match.id}: ${notification}`);
         }
     } catch (error) {
-        console.error('Error handling match state change:', error);
+        logger.error('Error handling match state change:', error);
     }
 });
 
@@ -297,10 +307,10 @@ client.on('messageCreate', async (message) => {
                 await faceitJS.sendRoomMessage(activeMatch.match_id,
                     `Match has been cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`
                 );
-                console.log(`Match ${activeMatch.match_id} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
+                logger.info(`Match ${activeMatch.match_id} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
             } else {
                 message.reply(`Cannot cancel match. ELO difference (${eloDiff.toFixed(0)}) is less than 70.`);
-                console.log(`Cancel request denied for match ${activeMatch.match_id} - ELO difference ${eloDiff.toFixed(0)} < 70`);
+                logger.info(`Cancel request denied for match ${activeMatch.match_id} - ELO difference ${eloDiff.toFixed(0)} < 70`);
             }
         } else if (command === '!rehost') {
             const playerId = message.author.id;
@@ -332,51 +342,48 @@ client.on('messageCreate', async (message) => {
                 );
                 // Clear votes after successful rehost
                 rehostVotes.delete(activeMatch.match_id);
-                console.log(`Match ${activeMatch.match_id} rehosted with ${currentVotes} votes`);
+                logger.info(`Match ${activeMatch.match_id} rehosted with ${currentVotes} votes`);
             } else {
                 message.reply(`Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`);
                 await faceitJS.sendRoomMessage(activeMatch.match_id,
                     `Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`
                 );
-                console.log(`Rehost vote recorded for match ${activeMatch.match_id} (${currentVotes}/${requiredVotes})`);
+                logger.info(`Rehost vote recorded for match ${activeMatch.match_id} (${currentVotes}/${requiredVotes})`);
             }
         }
     } catch (error) {
-        console.error('Error handling command:', error);
+        logger.error('Error handling command:', error);
         message.reply('An error occurred while processing the command.');
     }
 });
 
 // Error handling
 client.on('error', (error) => {
-    console.error('Discord client error:', error);
+    logger.error('Discord client error:', error);
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (error) => {
-    console.error('Unhandled promise rejection:', error);
+    logger.error('Unhandled promise rejection:', error);
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-    console.error('Uncaught exception:', error);
+    logger.error('Uncaught exception:', error);
 });
 
 // Start server
 const server = app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+    logger.info(`Server running on port ${port}`);
 });
 
 // Graceful shutdown
 const shutdown = async () => {
-    console.log('Shutting down gracefully...');
-
-    // Close Redis client
-    await redisClient.quit();
+    logger.info('Shutting down gracefully...');
 
     // Close Express server
     server.close(() => {
-        console.log('Express server closed');
+        logger.info('Express server closed');
         process.exit(0);
     });
 };
@@ -387,13 +394,13 @@ process.on('SIGINT', shutdown);
 // Login to Discord
 client.login(process.env.DISCORD_TOKEN)
     .then(() => {
-        console.log('Discord bot logged in successfully');
+        logger.info('Discord bot logged in successfully');
         // Start match state polling after successful Discord login
         faceitJS.startPolling();
-        console.log('Started FACEIT match state polling');
+        logger.info('Started FACEIT match state polling');
     })
     .catch(error => {
-        console.error('Failed to login to Discord:', error);
+        logger.error('Failed to login to Discord:', error);
     });
 
 export default app;

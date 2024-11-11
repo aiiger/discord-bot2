@@ -6,12 +6,44 @@ import crypto from 'crypto';
 
 dotenv.config();
 
+// Initialize logger
+const logger = {
+    info: (message, ...args) => {
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] INFO: ${message}`, ...args);
+    },
+    error: (message, error) => {
+        const timestamp = new Date().toISOString();
+        console.error(`[${timestamp}] ERROR: ${message}`);
+        if (error?.response?.data) {
+            console.error('Response data:', error.response.data);
+        }
+        if (error?.response?.status) {
+            console.error('Status code:', error.response.status);
+        }
+        if (error?.config?.url) {
+            console.error('Request URL:', error.config.url);
+        }
+        if (error?.config?.headers) {
+            const sanitizedHeaders = { ...error.config.headers };
+            if (sanitizedHeaders.Authorization) {
+                sanitizedHeaders.Authorization = 'Bearer [REDACTED]';
+            }
+            console.error('Request headers:', sanitizedHeaders);
+        }
+        if (error?.config?.data) {
+            console.error('Request data:', error.config.data);
+        }
+        console.error('Full error:', error);
+    }
+};
+
 export class FaceitJS extends EventEmitter {
     constructor() {
         super();
         this.apiBase = 'https://open.faceit.com/data/v4';
         this.chatApiBase = 'https://api.faceit.com/chat/v1';
-        this.tokenEndpoint = 'https://api.faceit.com/auth/v1/oauth/token';
+        this.authBase = 'https://api.faceit.com/auth/v1';
         this.clientId = process.env.CLIENT_ID;
         this.clientSecret = process.env.CLIENT_SECRET;
         this.redirectUri = process.env.REDIRECT_URI;
@@ -31,10 +63,10 @@ export class FaceitJS extends EventEmitter {
 
         // Create Axios instances for different API endpoints
         this.oauthInstance = axios.create({
-            baseURL: 'https://api.faceit.com',
+            baseURL: this.authBase,
             headers: {
                 'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/x-www-form-urlencoded'
             }
         });
 
@@ -57,46 +89,38 @@ export class FaceitJS extends EventEmitter {
         });
 
         this.setupInterceptors();
+        logger.info('FaceitJS initialized successfully');
     }
 
     setupInterceptors() {
-        // OAuth instance interceptors
-        this.oauthInstance.interceptors.request.use(
-            (config) => {
-                if (this.accessToken) {
-                    config.headers.Authorization = `Bearer ${this.accessToken}`;
-                } else if (this.clientId && this.clientSecret) {
-                    const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
-                    config.headers.Authorization = `Basic ${credentials}`;
-                }
-                return config;
-            },
-            (error) => Promise.reject(error)
-        );
-
         // Chat API instance interceptors
         this.chatApiInstance.interceptors.request.use(
             (config) => {
                 if (this.accessToken) {
                     config.headers.Authorization = `Bearer ${this.accessToken}`;
                 }
+                logger.info(`Making request to ${config.url}`);
                 return config;
             },
-            (error) => Promise.reject(error)
+            (error) => {
+                logger.error('Request interceptor error:', error);
+                return Promise.reject(error);
+            }
         );
 
-        // Common response interceptor
+        // Common response interceptor for handling 401s
         const responseInterceptor = async (error) => {
             const originalRequest = error.config;
 
             if (error.response?.status === 401 && this.refreshToken && !originalRequest._retry) {
                 originalRequest._retry = true;
                 try {
+                    logger.info('Access token expired, attempting refresh');
                     await this.refreshAccessToken();
                     originalRequest.headers.Authorization = `Bearer ${this.accessToken}`;
                     return axios(originalRequest);
                 } catch (refreshError) {
-                    console.error('Token refresh failed:', refreshError);
+                    logger.error('Token refresh failed:', refreshError);
                     throw refreshError;
                 }
             }
@@ -104,27 +128,34 @@ export class FaceitJS extends EventEmitter {
             return Promise.reject(error);
         };
 
-        this.oauthInstance.interceptors.response.use(
-            (response) => response,
-            responseInterceptor
-        );
-
         this.chatApiInstance.interceptors.response.use(
-            (response) => response,
+            (response) => {
+                logger.info(`Received response from ${response.config.url}`);
+                return response;
+            },
             responseInterceptor
         );
     }
 
     // PKCE Helper Methods
     generateCodeVerifier() {
-        const verifier = crypto.randomBytes(32).toString('base64url');
+        const verifier = crypto.randomBytes(32)
+            .toString('base64')
+            .replace(/[^a-zA-Z0-9]/g, '')
+            .substring(0, 128);
+        logger.info('Generated code verifier');
         return verifier;
     }
 
     generateCodeChallenge(verifier) {
-        const hash = crypto.createHash('sha256');
-        hash.update(verifier);
-        return hash.digest('base64url');
+        const challenge = crypto.createHash('sha256')
+            .update(verifier)
+            .digest('base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
+        logger.info('Generated code challenge');
+        return challenge;
     }
 
     // OAuth2 PKCE Methods
@@ -142,14 +173,18 @@ export class FaceitJS extends EventEmitter {
             code_challenge_method: 'S256'
         });
 
+        const url = `https://accounts.faceit.com/authorize?${params.toString()}`;
+        logger.info(`Generated authorization URL: ${url}`);
+
         return {
-            url: `https://accounts.faceit.com/authorize?${params.toString()}`,
+            url,
             codeVerifier
         };
     }
 
     async exchangeCodeForToken(code, codeVerifier) {
         try {
+            logger.info('Attempting to exchange authorization code for tokens');
             const params = new URLSearchParams({
                 grant_type: 'authorization_code',
                 code: code,
@@ -159,19 +194,43 @@ export class FaceitJS extends EventEmitter {
                 code_verifier: codeVerifier
             });
 
-            const response = await this.oauthInstance.post('/auth/v1/oauth/token', params.toString(), {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
-            });
+            const response = await this.oauthInstance.post('/oauth/token', params);
+            logger.info('Successfully exchanged code for tokens');
 
             this.accessToken = response.data.access_token;
             this.refreshToken = response.data.refresh_token;
 
             return response.data;
         } catch (error) {
-            console.error('Failed to exchange code for token:', error);
-            throw new Error(`Failed to exchange code for token: ${error.message}`);
+            logger.error('Failed to exchange code for token:', error);
+            throw error;
+        }
+    }
+
+    async refreshAccessToken() {
+        if (!this.refreshToken) {
+            throw new Error('No refresh token available');
+        }
+
+        try {
+            logger.info('Attempting to refresh access token');
+            const params = new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: this.refreshToken,
+                client_id: this.clientId,
+                client_secret: this.clientSecret
+            });
+
+            const response = await this.oauthInstance.post('/oauth/token', params);
+            logger.info('Successfully refreshed access token');
+
+            this.accessToken = response.data.access_token;
+            this.refreshToken = response.data.refresh_token;
+
+            return response.data;
+        } catch (error) {
+            logger.error('Failed to refresh token:', error);
+            throw error;
         }
     }
 
@@ -183,11 +242,12 @@ export class FaceitJS extends EventEmitter {
                 params.append('expanded', expanded.join(','));
             }
 
+            logger.info(`Getting hub details for ${hubId}`);
             const response = await this.dataApiInstance.get(`/hubs/${hubId}?${params.toString()}`);
             return response.data;
         } catch (error) {
-            console.error('Failed to get hub details:', error);
-            throw new Error(`Failed to get hub details: ${error.message}`);
+            logger.error(`Failed to get hub details for ${hubId}:`, error);
+            throw error;
         }
     }
 
@@ -199,63 +259,69 @@ export class FaceitJS extends EventEmitter {
                 limit: limit.toString()
             });
 
+            logger.info(`Getting ${type} matches for hub ${hubId}`);
             const response = await this.dataApiInstance.get(`/hubs/${hubId}/matches?${params.toString()}`);
             return response.data.items;
         } catch (error) {
-            console.error('Failed to get hub matches:', error);
-            throw new Error(`Failed to get hub matches: ${error.message}`);
+            logger.error(`Failed to get hub matches for ${hubId}:`, error);
+            throw error;
         }
     }
 
     // Match Methods
     async getMatchDetails(matchId) {
         try {
+            logger.info(`Getting details for match ${matchId}`);
             const response = await this.dataApiInstance.get(`/matches/${matchId}`);
             return response.data;
         } catch (error) {
-            console.error('Failed to get match details:', error);
-            throw new Error(`Failed to get match details: ${error.message}`);
+            logger.error(`Failed to get match details for ${matchId}:`, error);
+            throw error;
         }
     }
 
     async getMatchStats(matchId) {
         try {
+            logger.info(`Getting stats for match ${matchId}`);
             const response = await this.dataApiInstance.get(`/matches/${matchId}/stats`);
             return response.data;
         } catch (error) {
-            console.error('Failed to get match stats:', error);
-            throw new Error(`Failed to get match stats: ${error.message}`);
+            logger.error(`Failed to get match stats for ${matchId}:`, error);
+            throw error;
         }
     }
 
     async rehostMatch(matchId) {
         try {
+            logger.info(`Attempting to rehost match ${matchId}`);
             const response = await this.dataApiInstance.post(`/matches/${matchId}/rehost`);
             return response.data;
         } catch (error) {
-            console.error('Failed to rehost match:', error);
-            throw new Error(`Failed to rehost match: ${error.message}`);
+            logger.error(`Failed to rehost match ${matchId}:`, error);
+            throw error;
         }
     }
 
     async cancelMatch(matchId) {
         try {
+            logger.info(`Attempting to cancel match ${matchId}`);
             const response = await this.dataApiInstance.post(`/matches/${matchId}/cancel`);
             return response.data;
         } catch (error) {
-            console.error('Failed to cancel match:', error);
-            throw new Error(`Failed to cancel match: ${error.message}`);
+            logger.error(`Failed to cancel match ${matchId}:`, error);
+            throw error;
         }
     }
 
     // Chat Methods
     async getRoomDetails(roomId) {
         try {
+            logger.info(`Getting details for room ${roomId}`);
             const response = await this.chatApiInstance.get(`/rooms/${roomId}`);
             return response.data;
         } catch (error) {
-            console.error('Failed to get room details:', error);
-            throw new Error(`Failed to get room details: ${error.message}`);
+            logger.error(`Failed to get room details for ${roomId}:`, error);
+            throw error;
         }
     }
 
@@ -265,81 +331,32 @@ export class FaceitJS extends EventEmitter {
             if (before) params.append('before', before);
             if (limit) params.append('limit', limit.toString());
 
+            logger.info(`Getting messages for room ${roomId}`);
             const response = await this.chatApiInstance.get(`/rooms/${roomId}/messages?${params.toString()}`);
             return response.data;
         } catch (error) {
-            console.error('Failed to get room messages:', error);
-            throw new Error(`Failed to get room messages: ${error.message}`);
+            logger.error(`Failed to get room messages for ${roomId}:`, error);
+            throw error;
         }
     }
 
     async sendRoomMessage(roomId, message) {
         try {
+            logger.info(`Sending message to room ${roomId}`);
             const response = await this.chatApiInstance.post(`/rooms/${roomId}/messages`, {
                 message: message
             });
             return response.data;
         } catch (error) {
-            console.error('Failed to send room message:', error);
-            throw new Error(`Failed to send room message: ${error.message}`);
-        }
-    }
-
-    // Authentication Methods
-    async authenticateWithClientCredentials() {
-        try {
-            const response = await this.oauthInstance.post(
-                '/auth/v1/oauth/token',
-                'grant_type=client_credentials',
-                {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'Authorization': `Basic ${Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64')}`
-                    }
-                }
-            );
-            this.accessToken = response.data.access_token;
-            // Note: Client Credentials flow may not return a refresh token
-            this.refreshToken = response.data.refresh_token || null;
-            console.log('Authenticated with client credentials.');
-            return response.data;
-        } catch (error) {
-            console.error('Client credentials authentication failed:', error);
-            throw new Error(`Client credentials authentication failed: ${error.message}`);
-        }
-    }
-
-    async refreshAccessToken() {
-        if (!this.refreshToken) {
-            throw new Error('No refresh token available.');
-        }
-
-        try {
-            const params = new URLSearchParams({
-                grant_type: 'refresh_token',
-                refresh_token: this.refreshToken,
-                client_id: this.clientId,
-                client_secret: this.clientSecret
-            });
-
-            const response = await this.oauthInstance.post('/auth/v1/oauth/token', params.toString(), {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
-            });
-            this.accessToken = response.data.access_token;
-            this.refreshToken = response.data.refresh_token;
-            console.log('Access token refreshed.');
-            return response.data;
-        } catch (error) {
-            console.error('Failed to refresh access token:', error);
-            throw new Error(`Failed to refresh access token: ${error.message}`);
+            logger.error(`Failed to send room message to ${roomId}:`, error);
+            throw error;
         }
     }
 
     // Event handling for match state changes
     startPolling() {
         this.previousMatchStates = {};
+        logger.info('Starting match state polling');
 
         setInterval(async () => {
             try {
@@ -347,17 +364,19 @@ export class FaceitJS extends EventEmitter {
                 activeMatches.forEach(match => {
                     const prevState = this.previousMatchStates[match.id];
                     if (prevState && prevState !== match.state) {
+                        logger.info(`Match ${match.id} state changed from ${prevState} to ${match.state}`);
                         this.emit('matchStateChange', match);
                     }
                     this.previousMatchStates[match.id] = match.state;
                 });
             } catch (error) {
-                console.error('Polling error:', error);
+                logger.error('Polling error:', error);
             }
         }, 60000);
     }
 
     onMatchStateChange(callback) {
         this.on('matchStateChange', callback);
+        logger.info('Registered match state change callback');
     }
 }

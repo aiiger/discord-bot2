@@ -1,7 +1,8 @@
+// headers.js - Utility for constructing request headers
 export default function getHeaders(apiKey) {
   return {
     headers: {
-      'accept': 'application/json',
+      'Accept': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json'
     }
