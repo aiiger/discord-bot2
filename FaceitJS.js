@@ -127,6 +127,54 @@ export class FaceitJS extends EventEmitter {
         return hash.digest('base64url');
     }
 
+    // OAuth2 PKCE Methods
+    async getAuthorizationUrl(state) {
+        const codeVerifier = this.generateCodeVerifier();
+        const codeChallenge = this.generateCodeChallenge(codeVerifier);
+
+        const params = new URLSearchParams({
+            response_type: 'code',
+            client_id: this.clientId,
+            redirect_uri: this.redirectUri,
+            scope: 'openid profile email',
+            state: state,
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256'
+        });
+
+        return {
+            url: `https://accounts.faceit.com/authorize?${params.toString()}`,
+            codeVerifier
+        };
+    }
+
+    async exchangeCodeForToken(code, codeVerifier) {
+        try {
+            const params = new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                client_id: this.clientId,
+                client_secret: this.clientSecret,
+                redirect_uri: this.redirectUri,
+                code_verifier: codeVerifier
+            });
+
+            const response = await this.oauthInstance.post('/auth/v1/oauth/token', params.toString(), {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            });
+
+            this.accessToken = response.data.access_token;
+            this.refreshToken = response.data.refresh_token;
+
+            return response.data;
+        } catch (error) {
+            console.error('Failed to exchange code for token:', error);
+            throw new Error(`Failed to exchange code for token: ${error.message}`);
+        }
+    }
+
     // Hub Methods
     async getHubDetails(hubId = this.hubId, expanded = []) {
         try {

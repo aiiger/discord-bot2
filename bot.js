@@ -1,10 +1,14 @@
 // FACEIT OAuth2 Bot with PKCE Support
 import express from 'express';
 import session from 'express-session';
+import { createClient } from 'redis';
+import RedisStore from 'connect-redis';
 import { FaceitJS } from './FaceitJS.js';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { Client, GatewayIntentBits } from 'discord.js';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
@@ -16,7 +20,8 @@ const requiredEnvVars = [
     'REDIRECT_URI',
     'HUB_ID',
     'DISCORD_TOKEN',
-    'FACEIT_API_KEY'
+    'FACEIT_API_KEY',
+    'REDIS_URL'
 ];
 
 const patterns = {
@@ -35,7 +40,8 @@ const validators = {
     REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
     HUB_ID: (id) => patterns.HUB_ID.test(id),
     DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0,
-    FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key)
+    FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key),
+    REDIS_URL: (url) => typeof url === 'string' && url.startsWith('redis://')
 };
 
 for (const varName of requiredEnvVars) {
@@ -47,7 +53,9 @@ for (const varName of requiredEnvVars) {
 
     if (!validators[varName](value)) {
         console.error(`Invalid format for ${varName}: ${value}`);
-        console.error(`Expected format: ${patterns[varName]}`);
+        if (patterns[varName]) {
+            console.error(`Expected format: ${patterns[varName]}`);
+        }
         process.exit(1);
     }
 }
@@ -64,12 +72,37 @@ const faceitJS = new FaceitJS();
 // Force production mode for Heroku
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Session middleware configuration with in-memory storage
+// Initialize Redis client
+const redisClient = createClient({
+    url: process.env.REDIS_URL,
+    legacyMode: false
+});
+
+redisClient.on('error', (err) => console.error('Redis Client Error:', err));
+redisClient.on('connect', () => console.log('Connected to Redis'));
+
+await redisClient.connect().catch(console.error);
+
+// Initialize Redis store
+const redisStore = new RedisStore({
+    client: redisClient,
+    prefix: 'faceit:sess:'
+});
+
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.'
+});
+
+// Session middleware configuration with Redis storage
 const sessionMiddleware = session({
+    store: redisStore,
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     cookie: {
         secure: isProduction,
         httpOnly: true,
@@ -84,8 +117,11 @@ const rehostVotes = new Map(); // matchId -> Set of player IDs who voted
 const matchStates = new Map(); // matchId -> match state
 
 // Apply middleware
+app.use(helmet());
+app.use(limiter);
 app.use((req, res, next) => {
     console.log(`${req.method} ${req.path} - IP: ${req.ip}`);
+    res.setHeader('X-Powered-By', 'FACEIT OAuth2 Bot');
     next();
 });
 
@@ -96,8 +132,8 @@ app.use(express.urlencoded({ extended: true }));
 // Initialize Discord client
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-// Add home route
 app.get('/', (req, res) => {
+    console.log(`Home route accessed by IP: ${req.ip}`);
     res.send('<a href="/login">Login with FACEIT</a>');
 });
 
@@ -326,6 +362,28 @@ process.on('uncaughtException', (error) => {
     console.error('Uncaught exception:', error);
 });
 
+// Start server
+const server = app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+});
+
+// Graceful shutdown
+const shutdown = async () => {
+    console.log('Shutting down gracefully...');
+
+    // Close Redis client
+    await redisClient.quit();
+
+    // Close Express server
+    server.close(() => {
+        console.log('Express server closed');
+        process.exit(0);
+    });
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
 // Login to Discord
 client.login(process.env.DISCORD_TOKEN)
     .then(() => {
@@ -337,10 +395,5 @@ client.login(process.env.DISCORD_TOKEN)
     .catch(error => {
         console.error('Failed to login to Discord:', error);
     });
-
-// Start server
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-});
 
 export default app;
