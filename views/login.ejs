@@ -67,23 +67,9 @@
 	<div class="container">
 		<img src="https://cdn.faceit.com/frontend/291/assets/FACEIT_LOGO_RGB.svg" alt="FACEIT Logo" class="logo">
 		<h1>FACEIT Bot Authentication</h1>
-		<div id="faceitLogin"></div>
-		<p class="info">You will be redirected to FACEIT to authenticate the bot.</p>
+		<a href="/auth/faceit" class="login-button">Login with FACEIT</a>
+		<p class="info">Click the button above to authenticate with FACEIT.</p>
 	</div>
-
-	<!-- FACEIT OAuth SDK -->
-	<script src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
-	<script>
-		var initParams = {
-			client_id: '<%= process.env.CLIENT_ID %>', // Using correct env variable name
-			response_type: 'code',
-			redirect_uri: '<%= process.env.REDIRECT_URI %>', // Adding redirect URI
-			state: Math.random().toString(36).substring(7), // Random state for security
-			redirect_popup: true,
-			debug: true
-		};
-		FACEIT.init(initParams);
-	</script>
 </body>
 
 </html>
