@@ -148,13 +148,18 @@ client.on('messageCreate', async (message) => {
                 const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
 
                 // Store the message details to send after authentication
-                pendingMessages.set(state, {
-                    matchId,
-                    message: testMessage,
-                    discordMessage: message
-                });
+                if (!pendingMessages.has(state)) {
+                    pendingMessages.set(state, {
+                        matchId,
+                        message: testMessage,
+                        discordMessage: message,
+                        timestamp: Date.now(),
+                        codeVerifier // Store the code verifier with the pending message
+                    });
 
-                message.reply(`Please authenticate first by visiting: ${url}\nAfter authentication, the message will be sent automatically.`);
+                    // Send authentication URL only once
+                    message.reply(`Please authenticate first by visiting: ${url}\nAfter authentication, the message will be sent automatically.`);
+                }
                 return;
             }
 
@@ -182,20 +187,14 @@ app.get('/callback', async (req, res) => {
     logger.info(`State from query: ${state}`);
 
     try {
-        // Exchange the code for tokens
+        // Get pending message using state
         const pendingMessage = pendingMessages.get(state);
         if (!pendingMessage) {
             return res.status(400).send('Invalid state parameter or no pending message.');
         }
 
-        // Get code verifier from the stored state
-        const codeVerifier = req.session.codeVerifier;
-        if (!codeVerifier) {
-            return res.status(400).send('Code verifier missing. Please try again.');
-        }
-
-        // Exchange the code for tokens
-        await faceitJS.exchangeCodeForToken(code, codeVerifier);
+        // Exchange the code for tokens using the stored code verifier
+        await faceitJS.exchangeCodeForToken(code, pendingMessage.codeVerifier);
 
         // Send the pending message
         await faceitJS.sendRoomMessage(pendingMessage.matchId, pendingMessage.message);
@@ -216,9 +215,6 @@ app.get('/login', async (req, res) => {
     try {
         const state = crypto.randomBytes(32).toString('hex');
         const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
-
-        // Store code verifier in session
-        req.session.codeVerifier = codeVerifier;
 
         logger.info(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
         logger.info(`Redirecting to: ${url}`);
@@ -353,6 +349,16 @@ faceitJS.onRoomMessage(async (message, roomId) => {
         logger.error('Error handling FACEIT chat message:', error);
     }
 });
+
+// Clean up old pending messages every hour
+setInterval(() => {
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    for (const [state, data] of pendingMessages.entries()) {
+        if (data.timestamp < oneHourAgo) {
+            pendingMessages.delete(state);
+        }
+    }
+}, 60 * 60 * 1000);
 
 // Error handling
 client.on('error', (error) => {
