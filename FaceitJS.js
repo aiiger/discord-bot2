@@ -52,7 +52,7 @@ export class FaceitJS extends EventEmitter {
         this.apiKey = process.env.FACEIT_API_KEY;
 
         // Validate environment variables
-        const requiredEnv = ['CLIENT_ID', 'CLIENT_SECRET', 'REDIRECT_URI', 'HUB_ID', 'FACEIT_API_KEY'];
+        const requiredEnv = ['CLIENT_ID', 'CLIENT_SECRET', 'HUB_ID', 'FACEIT_API_KEY'];
         requiredEnv.forEach((envVar) => {
             if (!process.env[envVar]) {
                 throw new Error(`Missing required environment variable: ${envVar}`);
@@ -77,7 +77,11 @@ export class FaceitJS extends EventEmitter {
         // Data API instance with API key auth
         this.dataApiInstance = axios.create({
             baseURL: this.apiBase,
-            ...getHeaders(this.apiKey)
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json'
+            }
         });
 
         // Chat API instance with OAuth token auth
@@ -95,8 +99,12 @@ export class FaceitJS extends EventEmitter {
             if (!this.accessToken) {
                 throw new Error('No access token available');
             }
-            const headers = getChatHeaders(this.accessToken);
-            config.headers = { ...config.headers, ...headers.headers };
+            config.headers = {
+                ...config.headers,
+                'Authorization': `Bearer ${this.accessToken}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            };
             return config;
         }, (error) => {
             return Promise.reject(error);
@@ -111,11 +119,12 @@ export class FaceitJS extends EventEmitter {
                         await this.refreshAccessToken();
                         // Retry the original request with new token
                         const originalRequest = error.config;
-                        const headers = getChatHeaders(this.accessToken);
-                        originalRequest.headers = { ...originalRequest.headers, ...headers.headers };
+                        originalRequest.headers['Authorization'] = `Bearer ${this.accessToken}`;
                         return this.chatApiInstance(originalRequest);
                     } catch (refreshError) {
                         logger.error('[AUTH ERROR] Failed to refresh token:', refreshError);
+                        this.accessToken = null;
+                        this.refreshToken = null;
                         throw refreshError;
                     }
                 }
@@ -142,7 +151,7 @@ export class FaceitJS extends EventEmitter {
                 response_type: 'code',
                 client_id: this.clientId,
                 redirect_uri: customRedirectUri || this.redirectUri,
-                scope: 'chat:write chat:read',
+                scope: 'public openid profile email chat chat:write chat:read',
                 state: state,
                 code_challenge: challenge,
                 code_challenge_method: 'S256'
@@ -183,6 +192,8 @@ export class FaceitJS extends EventEmitter {
             return response.data;
         } catch (error) {
             logger.error('Failed to refresh access token:', error);
+            this.accessToken = null;
+            this.refreshToken = null;
             throw error;
         }
     }

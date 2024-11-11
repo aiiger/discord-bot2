@@ -52,6 +52,17 @@ const pendingMessages = new Map(); // Store pending messages while authenticatin
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Force production mode for Heroku
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Get the base URL for the application
+const getBaseUrl = (req) => {
+    if (isProduction) {
+        return 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com';
+    }
+    return `http://localhost:${port}`;
+};
+
 // Initialize FaceitJS instance
 const faceitJS = new FaceitJS();
 
@@ -64,55 +75,6 @@ const client = new Client({
     ]
 });
 
-// Helper function to send messages to match room
-const sendLobbyMessage = async (roomId, message) => {
-    try {
-        await faceitJS.chatApiInstance.post(`/rooms/${roomId}/messages`, {
-            body: message
-        });
-        logger.info(`[LOBBY MESSAGE] Match ${roomId}: "${message}"`);
-    } catch (error) {
-        logger.error(`Failed to send lobby message to match ${roomId}:`, error);
-        throw error;
-    }
-};
-
-// Helper function to get match details
-const getMatchDetails = async (matchId) => {
-    try {
-        const response = await faceitJS.dataApiInstance.get(`/matches/${matchId}`);
-        return response.data;
-    } catch (error) {
-        logger.error(`Failed to get match details for ${matchId}:`, error);
-        throw error;
-    }
-};
-
-// Helper function to cancel match
-const cancelMatch = async (matchId) => {
-    try {
-        await faceitJS.dataApiInstance.put(`/matches/${matchId}/cancel`);
-        logger.info(`Successfully cancelled match ${matchId}`);
-    } catch (error) {
-        logger.error(`Failed to cancel match ${matchId}:`, error);
-        throw error;
-    }
-};
-
-// Helper function to rehost match
-const rehostMatch = async (matchId) => {
-    try {
-        await faceitJS.dataApiInstance.put(`/matches/${matchId}/rehost`);
-        logger.info(`Successfully rehosted match ${matchId}`);
-    } catch (error) {
-        logger.error(`Failed to rehost match ${matchId}:`, error);
-        throw error;
-    }
-};
-
-// Force production mode for Heroku
-const isProduction = process.env.NODE_ENV === 'production';
-
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -121,7 +83,7 @@ const limiter = rateLimit({
 });
 
 // Session middleware configuration
-const sessionMiddleware = session({
+const sessionConfig = {
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
     resave: false,
@@ -132,30 +94,36 @@ const sessionMiddleware = session({
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax'
     }
-});
+};
 
 // Apply middleware
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", "https://api.faceit.com", "https://open.faceit.com"]
+            defaultSrc: ["'self'", "https://api.faceit.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.faceit.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.faceit.com"],
+            imgSrc: ["'self'", "data:", "https:", "https://cdn.faceit.com"],
+            connectSrc: ["'self'", "https://api.faceit.com", "https://open.faceit.com"],
+            fontSrc: ["'self'", "https://cdn.faceit.com"],
+            formAction: ["'self'", "https://api.faceit.com", "https://open.faceit.com"],
+            frameSrc: ["'self'", "https://open.faceit.com"]
         }
     }
 }));
+
 app.use(limiter);
 app.use((req, res, next) => {
     logger.info(`${req.method} ${req.path} - IP: ${req.ip}`);
-    res.setHeader('X-Powered-By', 'FACEIT OAuth2 Bot');
     next();
 });
 
-app.use(sessionMiddleware);
+app.use(session(sessionConfig));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Set view engine
+app.set('view engine', 'ejs');
 
 // Handle Discord messages
 client.on('messageCreate', async (message) => {
@@ -175,7 +143,10 @@ client.on('messageCreate', async (message) => {
         try {
             if (!faceitJS.accessToken) {
                 const state = crypto.randomBytes(32).toString('hex');
-                const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
+                const redirectUri = isProduction
+                    ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback'
+                    : `http://localhost:${port}/callback`;
+                const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state, redirectUri);
 
                 pendingMessages.set(state, {
                     matchId,
@@ -190,210 +161,111 @@ client.on('messageCreate', async (message) => {
                     message: testMessage
                 });
 
-                message.reply(`Please authenticate first by visiting: ${url}\nAfter authentication, the message will be sent automatically.`);
+                message.reply(`Please authenticate first by visiting: ${url}`);
                 return;
             }
 
-            await sendLobbyMessage(matchId, testMessage);
+            const response = await faceitJS.chatApiInstance.post(`/rooms/${matchId}/messages`, {
+                body: testMessage
+            });
             message.reply(`Successfully sent message to match room ${matchId}`);
             logger.info(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
         } catch (error) {
-            message.reply(`Failed to send message: ${error.message}`);
+            if (error.response?.status === 401) {
+                message.reply('Authentication failed. Please try authenticating again.');
+                faceitJS.accessToken = null;
+                faceitJS.refreshToken = null;
+            } else {
+                message.reply(`Failed to send message: ${error.message}`);
+            }
             logger.error('[DISCORD] Error sending test message:', error);
         }
     }
 });
 
+// Routes
 app.get('/', (req, res) => {
-    logger.info(`Home route accessed by IP: ${req.ip}`);
-    res.send('<a href="/login">Login with FACEIT</a>');
+    logger.info('Home route accessed by IP:', req.ip);
+    res.render('login');
 });
 
-// Unified callback handler
-app.get('/callback', async (req, res) => {
+app.get('/auth/faceit', async (req, res) => {
+    try {
+        const state = crypto.randomBytes(32).toString('hex');
+        const redirectUri = isProduction
+            ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback'
+            : `http://localhost:${port}/callback`;
+        const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state, redirectUri);
+
+        // Store PKCE verifier in session
+        req.session.codeVerifier = codeVerifier;
+        req.session.state = state;
+
+        logger.info(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
+        logger.info('Generated authorization URL with PKCE');
+        res.redirect(url);
+    } catch (error) {
+        logger.error('Error in auth route:', error);
+        res.status(500).render('error', { message: 'Authentication failed' });
+    }
+});
+
+// Callback handler
+async function handleCallback(req, res) {
     const { code, state } = req.query;
 
     logger.info(`Callback received - Session ID: ${req.session.id}`);
     logger.info(`State from query: ${state}`);
     logger.info(`Code from query: ${code ? '[PRESENT]' : '[MISSING]'}`);
 
-    if (!code || !state) {
-        logger.error('Missing code or state parameter');
-        return res.status(400).send('Invalid request: Missing required parameters');
-    }
-
     try {
-        const pendingMessage = pendingMessages.get(state);
-        if (!pendingMessage) {
-            logger.error('No pending message found for state:', state);
-            return res.status(400).send('Invalid state parameter.');
+        // Validate state
+        if (!state || state !== req.session.state) {
+            throw new Error('Invalid state parameter');
         }
 
-        logger.info(`Found pending message for state ${state}:`, {
-            matchId: pendingMessage.matchId,
-            message: pendingMessage.message
+        // Get stored code verifier
+        const codeVerifier = req.session.codeVerifier;
+        if (!codeVerifier) {
+            throw new Error('No code verifier found in session');
+        }
+
+        // Exchange code for tokens
+        const redirectUri = isProduction
+            ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback'
+            : `http://localhost:${port}/callback`;
+        await faceitJS.exchangeCodeForToken(code, codeVerifier, redirectUri);
+        logger.info('Successfully authenticated with FACEIT');
+
+        // Handle pending message if exists
+        const pendingMessage = pendingMessages.get(state);
+        if (pendingMessage) {
+            try {
+                await faceitJS.chatApiInstance.post(`/rooms/${pendingMessage.matchId}/messages`, {
+                    body: pendingMessage.message
+                });
+                await pendingMessage.discordMessage.reply(`Successfully sent message to match room ${pendingMessage.matchId}`);
+                pendingMessages.delete(state);
+                logger.info(`Sent pending message for state ${state}`);
+            } catch (error) {
+                logger.error('Error sending pending message:', error);
+            }
+        }
+
+        res.render('dashboard', {
+            authenticated: true,
+            username: 'FACEIT User'
         });
-
-        logger.info('Exchanging code for tokens...');
-        const tokens = await faceitJS.exchangeCodeForToken(code, pendingMessage.codeVerifier);
-        logger.info('Successfully exchanged code for tokens');
-
-        const roomId = pendingMessage.matchId.includes('-') ? pendingMessage.matchId.split('-')[1] : pendingMessage.matchId;
-
-        await sendLobbyMessage(roomId, pendingMessage.message);
-        await pendingMessage.discordMessage.reply(`Successfully sent message to match room ${pendingMessage.matchId}`);
-
-        pendingMessages.delete(state);
-        logger.info(`Cleared pending message for state ${state}`);
-
-        res.send('Authentication successful and message sent! You can close this window.');
     } catch (error) {
         logger.error('Error during callback:', error);
-        if (error.response?.data) {
-            logger.error('API Error Response:', error.response.data);
-        }
-        res.status(500).send('Error exchanging authorization code for tokens');
+        res.status(500).render('error', {
+            message: 'Authentication failed',
+            error: error.message
+        });
     }
-});
+}
 
-app.get('/login', async (req, res) => {
-    try {
-        const state = crypto.randomBytes(32).toString('hex');
-        const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
-
-        // Store the code verifier in the session
-        req.session.codeVerifier = codeVerifier;
-        req.session.state = state;
-
-        logger.info(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
-        logger.info(`Redirecting to: ${url}`);
-        res.redirect(url);
-    } catch (error) {
-        logger.error('Error in login route:', error);
-        res.status(500).send('Internal server error');
-    }
-});
-
-// Handle match state changes
-faceitJS.on('matchStateChange', async (match) => {
-    try {
-        logger.info(`[MATCH STATE] Match ${match.match_id} state changed to ${match.state}`);
-        matchStates.set(match.match_id, match.state);
-
-        const matchDetails = await getMatchDetails(match.match_id);
-
-        if (match.state === 'CONFIGURING' && !greetedMatches.has(match.match_id)) {
-            const players = matchDetails.teams.faction1.roster.concat(matchDetails.teams.faction2.roster);
-            const playerNames = players.map(p => p.nickname).join(', ');
-            const greeting = `Welcome to the match, ${playerNames}! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.`;
-            await sendLobbyMessage(match.match_id, greeting);
-            greetedMatches.add(match.match_id);
-            logger.info(`[MATCH EVENT] Sent initial greeting for match ${match.match_id} during map veto phase`);
-        }
-
-        let notification = '';
-        switch (match.state) {
-            case 'ONGOING':
-                notification = 'Match has started! Good luck and have fun!';
-                break;
-            case 'FINISHED':
-                notification = 'Match has ended. Thanks for playing!';
-                rehostVotes.delete(match.match_id);
-                greetedMatches.delete(match.match_id);
-                break;
-            case 'CANCELLED':
-                notification = 'Match has been cancelled.';
-                rehostVotes.delete(match.match_id);
-                greetedMatches.delete(match.match_id);
-                break;
-        }
-
-        if (notification) {
-            await sendLobbyMessage(match.match_id, notification);
-            logger.info(`[MATCH EVENT] Match ${match.match_id} state changed to ${match.state}`);
-        }
-    } catch (error) {
-        logger.error('Error handling match state change:', error);
-    }
-});
-
-const isValidMatchPhase = (matchState) => {
-    return matchState === 'READY' || matchState === 'CONFIGURING';
-};
-
-const calculateTeamAvgElo = (team) => {
-    const totalElo = team.roster.reduce((sum, player) => sum + player.elo, 0);
-    return totalElo / team.roster.length;
-};
-
-// Handle FACEIT chat messages
-faceitJS.on('chatMessage', async (message) => {
-    try {
-        const command = message.text.toLowerCase();
-        const playerId = message.user_id;
-        const roomId = message.room_id;
-
-        const matchDetails = await getMatchDetails(roomId);
-        const matchState = matchStates.get(roomId) || matchDetails.state;
-
-        if (!isValidMatchPhase(matchState)) {
-            await sendLobbyMessage(roomId, 'Commands can only be used during configuration phase or in matchroom lobby.');
-            return;
-        }
-
-        if (command === '!cancel') {
-            const team1AvgElo = calculateTeamAvgElo(matchDetails.teams.faction1);
-            const team2AvgElo = calculateTeamAvgElo(matchDetails.teams.faction2);
-            const eloDiff = Math.abs(team1AvgElo - team2AvgElo);
-
-            if (eloDiff >= 70) {
-                await cancelMatch(roomId);
-                await sendLobbyMessage(roomId, `Match has been cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`);
-                logger.info(`[MATCH CANCELLED] Match ${roomId} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
-            } else {
-                await sendLobbyMessage(roomId, `Cannot cancel match. ELO difference (${eloDiff.toFixed(0)}) is less than 70.`);
-                logger.info(`[CANCEL DENIED] Match ${roomId} - ELO difference ${eloDiff.toFixed(0)} < 70`);
-            }
-        } else if (command === '!rehost') {
-            if (!rehostVotes.has(roomId)) {
-                rehostVotes.set(roomId, new Set());
-            }
-
-            const votes = rehostVotes.get(roomId);
-
-            if (votes.has(playerId)) {
-                await sendLobbyMessage(roomId, 'You have already voted for a rehost.');
-                return;
-            }
-
-            votes.add(playerId);
-            const currentVotes = votes.size;
-            const requiredVotes = 6;
-
-            if (currentVotes >= requiredVotes) {
-                await rehostMatch(roomId);
-                await sendLobbyMessage(roomId, `Match has been rehosted (${currentVotes}/10 votes).`);
-                rehostVotes.delete(roomId);
-                logger.info(`[MATCH REHOSTED] Match ${roomId} rehosted with ${currentVotes} votes`);
-            } else {
-                await sendLobbyMessage(roomId, `Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`);
-                logger.info(`[REHOST VOTE] Match ${roomId} - New vote recorded (${currentVotes}/${requiredVotes})`);
-            }
-        }
-    } catch (error) {
-        logger.error('Error handling FACEIT chat message:', error);
-    }
-});
-
-// Clean up old pending messages every hour
-setInterval(() => {
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-    for (const [state, data] of pendingMessages.entries()) {
-        if (data.timestamp < oneHourAgo) {
-            pendingMessages.delete(state);
-        }
-    }
-}, 60 * 60 * 1000);
+app.get('/callback', handleCallback);
 
 // Error handling
 client.on('error', (error) => {
