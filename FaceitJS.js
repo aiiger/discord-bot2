@@ -1,4 +1,4 @@
-// FaceitJS.js
+// FaceitJS.js - Update the sendRoomMessage function to send message directly
 import axios from 'axios';
 import { EventEmitter } from 'events';
 import dotenv from 'dotenv';
@@ -362,10 +362,7 @@ export class FaceitJS extends EventEmitter {
         try {
             logger.info(`[CHAT SEND] Sending message to room ${roomId}: "${message}"`);
 
-            // First try to get room details to verify access
-            const roomDetails = await this.chatApiInstance.get(`/rooms/${roomId}`);
-            logger.info(`[CHAT] Room ${roomId} details retrieved successfully`);
-
+            // Send message directly without checking room details first
             const response = await this.chatApiInstance.post(`/rooms/${roomId}/messages`, {
                 message: message
             });
