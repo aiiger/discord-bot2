@@ -126,6 +126,17 @@ const rehostVotes = new Map(); // matchId -> Set of player IDs who voted
 const matchStates = new Map(); // matchId -> match state
 const greetedMatches = new Set(); // Set of match IDs that have been greeted
 
+// Helper function to log lobby messages
+const sendLobbyMessage = async (matchId, message) => {
+    try {
+        await faceitJS.sendRoomMessage(matchId, message);
+        logger.info(`[LOBBY MESSAGE] Match ${matchId}: "${message}"`);
+    } catch (error) {
+        logger.error(`Failed to send lobby message to match ${matchId}:`, error);
+        throw error; // Re-throw to handle in calling function
+    }
+};
+
 // Apply middleware
 app.use(helmet({
     contentSecurityPolicy: {
@@ -229,9 +240,9 @@ faceitJS.onMatchStateChange(async (match) => {
             const players = matchDetails.teams.faction1.roster.concat(matchDetails.teams.faction2.roster);
             const playerNames = players.map(p => p.nickname).join(', ');
             const greeting = `Welcome to the match, ${playerNames}! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.`;
-            await faceitJS.sendRoomMessage(match.id, greeting);
+            await sendLobbyMessage(match.id, greeting);
             greetedMatches.add(match.id);
-            logger.info(`Sent greeting message for match ${match.id}`);
+            logger.info(`[MATCH EVENT] Sent initial greeting for match ${match.id} during map veto phase`);
         }
 
         // Send other notifications based on state
@@ -255,8 +266,8 @@ faceitJS.onMatchStateChange(async (match) => {
         }
 
         if (notification) {
-            await faceitJS.sendRoomMessage(match.id, notification);
-            logger.info(`Sent state change notification for match ${match.id}: ${notification}`);
+            await sendLobbyMessage(match.id, notification);
+            logger.info(`[MATCH EVENT] Match ${match.id} state changed to ${match.state}`);
         }
     } catch (error) {
         logger.error('Error handling match state change:', error);
@@ -308,13 +319,13 @@ client.on('messageCreate', async (message) => {
                 // Cancel the match
                 await faceitJS.cancelMatch(activeMatch.match_id);
                 message.reply(`Match cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`);
-                await faceitJS.sendRoomMessage(activeMatch.match_id,
+                await sendLobbyMessage(activeMatch.match_id,
                     `Match has been cancelled due to ELO difference of ${eloDiff.toFixed(0)}.`
                 );
-                logger.info(`Match ${activeMatch.match_id} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
+                logger.info(`[MATCH CANCELLED] Match ${activeMatch.match_id} cancelled due to ELO difference of ${eloDiff.toFixed(0)}`);
             } else {
                 message.reply(`Cannot cancel match. ELO difference (${eloDiff.toFixed(0)}) is less than 70.`);
-                logger.info(`Cancel request denied for match ${activeMatch.match_id} - ELO difference ${eloDiff.toFixed(0)} < 70`);
+                logger.info(`[CANCEL DENIED] Match ${activeMatch.match_id} - ELO difference ${eloDiff.toFixed(0)} < 70`);
             }
         } else if (command === '!rehost') {
             const playerId = message.author.id;
@@ -341,18 +352,18 @@ client.on('messageCreate', async (message) => {
                 // Rehost the match
                 await faceitJS.rehostMatch(activeMatch.match_id);
                 message.reply(`Match ${activeMatch.match_id} rehosted successfully (${currentVotes}/10 votes).`);
-                await faceitJS.sendRoomMessage(activeMatch.match_id,
+                await sendLobbyMessage(activeMatch.match_id,
                     `Match has been rehosted (${currentVotes}/10 votes).`
                 );
                 // Clear votes after successful rehost
                 rehostVotes.delete(activeMatch.match_id);
-                logger.info(`Match ${activeMatch.match_id} rehosted with ${currentVotes} votes`);
+                logger.info(`[MATCH REHOSTED] Match ${activeMatch.match_id} rehosted with ${currentVotes} votes`);
             } else {
                 message.reply(`Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`);
-                await faceitJS.sendRoomMessage(activeMatch.match_id,
+                await sendLobbyMessage(activeMatch.match_id,
                     `Rehost vote recorded (${currentVotes}/${requiredVotes} votes needed).`
                 );
-                logger.info(`Rehost vote recorded for match ${activeMatch.match_id} (${currentVotes}/${requiredVotes})`);
+                logger.info(`[REHOST VOTE] Match ${activeMatch.match_id} - New vote recorded (${currentVotes}/${requiredVotes})`);
             }
         }
     } catch (error) {
