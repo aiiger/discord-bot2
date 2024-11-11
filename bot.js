@@ -190,7 +190,43 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Initialize Discord client
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
+
+// Handle Discord messages
+client.on('messageCreate', async (message) => {
+    // Ignore messages from bots
+    if (message.author.bot) return;
+
+    // Check if message starts with !sendtest
+    if (message.content.startsWith('!sendtest')) {
+        const args = message.content.split(' ');
+
+        // Check if we have both matchId and message
+        if (args.length < 3) {
+            message.reply('Usage: !sendtest [matchId] [message]');
+            return;
+        }
+
+        const matchId = args[1];
+        const testMessage = args.slice(2).join(' ');
+
+        try {
+            // Try to send the message
+            await faceitJS.sendRoomMessage(matchId, testMessage);
+            message.reply(`Successfully sent message to match room ${matchId}`);
+            logger.info(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
+        } catch (error) {
+            message.reply(`Failed to send message: ${error.message}`);
+            logger.error('[DISCORD] Error sending test message:', error);
+        }
+    }
+});
 
 app.get('/', (req, res) => {
     logger.info(`Home route accessed by IP: ${req.ip}`);
