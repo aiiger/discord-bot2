@@ -153,8 +153,13 @@ client.on('messageCreate', async (message) => {
                         matchId,
                         message: testMessage,
                         discordMessage: message,
-                        timestamp: Date.now(),
-                        codeVerifier // Store the code verifier with the pending message
+                        codeVerifier,
+                        timestamp: Date.now()
+                    });
+
+                    logger.info(`Stored pending message for state ${state}:`, {
+                        matchId,
+                        message: testMessage
                     });
 
                     // Send authentication URL only once
@@ -190,22 +195,39 @@ app.get('/callback', async (req, res) => {
         // Get pending message using state
         const pendingMessage = pendingMessages.get(state);
         if (!pendingMessage) {
+            logger.error('No pending message found for state:', state);
             return res.status(400).send('Invalid state parameter or no pending message.');
         }
 
+        logger.info(`Found pending message for state ${state}:`, {
+            matchId: pendingMessage.matchId,
+            message: pendingMessage.message
+        });
+
         // Exchange the code for tokens using the stored code verifier
+        logger.info('Exchanging code for tokens...');
         await faceitJS.exchangeCodeForToken(code, pendingMessage.codeVerifier);
+        logger.info('Successfully exchanged code for tokens');
 
         // Send the pending message
+        logger.info(`Attempting to send message to room ${pendingMessage.matchId}`);
         await faceitJS.sendRoomMessage(pendingMessage.matchId, pendingMessage.message);
-        pendingMessage.discordMessage.reply(`Successfully sent message to match room ${pendingMessage.matchId}`);
+        logger.info('Message sent successfully');
+
+        // Notify on Discord
+        await pendingMessage.discordMessage.reply(`Successfully sent message to match room ${pendingMessage.matchId}`);
+        logger.info('Discord notification sent');
 
         // Clear the pending message
         pendingMessages.delete(state);
+        logger.info(`Cleared pending message for state ${state}`);
 
         res.send('Authentication successful and message sent! You can close this window.');
     } catch (error) {
         logger.error('Error during callback:', error);
+        if (error.response?.data) {
+            logger.error('API Error Response:', error.response.data);
+        }
         res.status(500).send('Authentication failed. Please try again.');
     }
 });
