@@ -109,22 +109,6 @@ const sessionConfig = {
     }
 };
 
-// Use Redis session store in production
-if (isProduction) {
-    import('connect-redis').then((RedisStore) => {
-        import('redis').then((redis) => {
-            const redisClient = redis.createClient({
-                url: process.env.REDIS_URL
-            });
-            redisClient.connect().catch(console.error);
-            sessionConfig.store = new RedisStore.default({
-                client: redisClient,
-                prefix: 'faceit:'
-            });
-        });
-    });
-}
-
 // Apply middleware
 app.use(helmet({
     contentSecurityPolicy: {

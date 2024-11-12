@@ -13,7 +13,7 @@ const config = {
 router.get('/auth/faceit', (req, res) => {
     try {
         console.info('[' + new Date().toISOString() + '] INFO: GET /auth/faceit - IP:', req.ip);
-        // Render login page with client ID from environment variables
+        // Pass the client ID to the login page
         res.render('login', { clientId: config.clientId });
     } catch (error) {
         console.error('Error rendering login page:', error);
