@@ -105,22 +105,6 @@
 			return text;
 		}
 
-		// Function to generate code verifier for PKCE
-		function generateCodeVerifier() {
-			return generateRandomString(128);
-		}
-
-		// Function to generate code challenge from verifier
-		async function generateCodeChallenge(verifier) {
-			const encoder = new TextEncoder();
-			const data = encoder.encode(verifier);
-			const digest = await crypto.subtle.digest('SHA-256', data);
-			return btoa(String.fromCharCode(...new Uint8Array(digest)))
-				.replace(/\+/g, '-')
-				.replace(/\//g, '_')
-				.replace(/=+$/, '');
-		}
-
 		// Function to show error message
 		function showError(message) {
 			const errorElement = document.getElementById('errorMessage');
@@ -129,76 +113,37 @@
 		}
 
 		// Initialize auth flow
-		async function initAuth() {
+		function startAuth() {
 			try {
 				const state = generateRandomString(32);
-				const codeVerifier = generateCodeVerifier();
-				const codeChallenge = await generateCodeChallenge(codeVerifier);
-
-				// Store PKCE and state values
-				sessionStorage.setItem('pkce_verifier', codeVerifier);
-				sessionStorage.setItem('pkce_state', state);
+				sessionStorage.setItem('oauth_state', state);
 
 				const params = new URLSearchParams({
 					response_type: 'code',
 					client_id: '<%= clientId %>',
 					redirect_uri: '<%= redirectUri %>',
-					scope: 'openid profile',
-					state: state,
-					code_challenge: codeChallenge,
-					code_challenge_method: 'S256'
+					scope: 'public profile email',
+					state: state
 				});
 
-				const authUrl = `https://accounts.faceit.com/oauth/authorize?${params.toString()}`;
+				const authUrl = '<%= authEndpoint %>?' + params.toString();
+				console.log('Redirecting to:', authUrl);
 				window.location.href = authUrl;
 			} catch (error) {
-				console.error('Error initializing auth:', error);
-				showError('Failed to initialize authentication. Please try again.');
+				console.error('Error starting auth:', error);
+				showError('Failed to start authentication. Please try again.');
 			}
 		}
 
 		// Add click event listener to login button
-		document.getElementById('loginButton').addEventListener('click', initAuth);
+		document.getElementById('loginButton').addEventListener('click', startAuth);
 
-		// Handle the OAuth callback
-		if (window.location.search) {
-			const params = new URLSearchParams(window.location.search);
-			const code = params.get('code');
-			const state = params.get('state');
-			const storedState = sessionStorage.getItem('pkce_state');
-			const codeVerifier = sessionStorage.getItem('pkce_verifier');
-
-			if (code && state === storedState && codeVerifier) {
-				// Clean up session storage
-				sessionStorage.removeItem('pkce_state');
-				sessionStorage.removeItem('pkce_verifier');
-
-				// Exchange code for token
-				fetch('/callback', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({
-						code,
-						code_verifier: codeVerifier
-					})
-				})
-					.then(res => res.json())
-					.then(data => {
-						if (data.success && data.redirect) {
-							window.location.href = data.redirect;
-						} else {
-							showError('Authentication failed. Please try again.');
-						}
-					})
-					.catch(error => {
-						console.error('Error:', error);
-						showError('Authentication failed. Please try again.');
-					});
-			} else if (params.get('error')) {
-				showError(`Authentication failed: ${params.get('error_description') || params.get('error')}`);
-			}
+		// Check for error parameters
+		const urlParams = new URLSearchParams(window.location.search);
+		const error = urlParams.get('error');
+		const errorDescription = urlParams.get('error_description');
+		if (error) {
+			showError(errorDescription || error);
 		}
 	</script>
 </body>

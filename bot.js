@@ -213,7 +213,8 @@ app.get('/', (req, res) => {
     const redirectUri = process.env.REDIRECT_URI || `${baseUrl}/callback`;
     res.render('login', {
         clientId: process.env.CLIENT_ID,
-        redirectUri: redirectUri
+        redirectUri: redirectUri,
+        authEndpoint: 'https://accounts.faceit.com/oauth/authorize'
     });
 });
 
