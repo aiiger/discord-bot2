@@ -32,16 +32,38 @@ const config = {
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
     redirectUri: process.env.REDIRECT_URI || 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback',
-    authEndpoint: 'https://accounts.faceit.com/accounts',  // Changed from auth/v1/oauth/authorize to accounts
-    tokenEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/token',
+    authEndpoint: 'https://accounts.faceit.com/accounts',
+    tokenEndpoint: 'https://api.faceit.com/auth/v1/oauth/token',
     userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo'
 };
 
-// Authorization route - initiates OAuth2 flow
+// Generate PKCE code verifier
+function generateCodeVerifier() {
+    return crypto.randomBytes(32)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+// Generate PKCE code challenge
+async function generateCodeChallenge(verifier) {
+    const hash = crypto.createHash('sha256')
+        .update(verifier)
+        .digest('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+    return hash;
+}
+
+// Authorization route - initiates OAuth2 flow with PKCE
 router.get('/auth/faceit', async (req, res) => {
     logger.info('Auth route accessed');
     try {
-        // Generate state for security
+        // Generate PKCE values
+        const codeVerifier = generateCodeVerifier();
+        const codeChallenge = await generateCodeChallenge(codeVerifier);
         const state = crypto.randomBytes(16).toString('hex');
 
         // Initialize session if it doesn't exist
@@ -50,11 +72,8 @@ router.get('/auth/faceit', async (req, res) => {
             req.session = {};
         }
 
-        // Clear any existing state
-        delete req.session.state;
-        delete req.session.stateTimestamp;
-
-        // Store state in session
+        // Store PKCE and state values in session
+        req.session.codeVerifier = codeVerifier;
         req.session.state = state;
         req.session.stateTimestamp = Date.now();
 
@@ -77,16 +96,18 @@ router.get('/auth/faceit', async (req, res) => {
             sessionState: req.session.state,
             sessionId: req.session.id,
             stateTimestamp: req.session.stateTimestamp,
-            cookie: req.session.cookie
+            hasCodeVerifier: !!req.session.codeVerifier
         });
 
-        // Build authorization URL
+        // Build authorization URL with PKCE
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: config.clientId,
             redirect_uri: config.redirectUri,
             scope: 'openid profile email',
-            state: state
+            state: state,
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256'
         });
 
         const authUrl = `${config.authEndpoint}?${params.toString()}`;
@@ -135,7 +156,8 @@ router.get('/callback', async (req, res) => {
             error,
             sessionExists: !!req.session,
             sessionState: req.session?.state,
-            sessionId: req.session?.id
+            sessionId: req.session?.id,
+            hasCodeVerifier: !!req.session?.codeVerifier
         });
 
         // Initialize session if it doesn't exist
@@ -143,15 +165,6 @@ router.get('/callback', async (req, res) => {
             logger.error('No session object in callback request');
             throw new Error('Session initialization failed');
         }
-
-        // Log session state
-        logger.debug('Session state', {
-            sessionState: req.session.state,
-            stateTimestamp: req.session.stateTimestamp,
-            sessionId: req.session.id,
-            timeSinceStateSet: req.session.stateTimestamp ? Date.now() - req.session.stateTimestamp : null,
-            cookie: req.session.cookie
-        });
 
         // Check for OAuth error response
         if (error) {
@@ -166,44 +179,37 @@ router.get('/callback', async (req, res) => {
         }
 
         // Validate state
-        if (!state) {
-            logger.error('No state parameter in callback');
-            throw new Error('Missing state parameter');
-        }
-
-        if (!req.session.state) {
-            logger.error('No state found in session:', {
-                sessionData: req.session,
-                cookies: req.headers.cookie ? '[REDACTED]' : undefined
-            });
-            throw new Error('No state in session');
-        }
-
-        if (state !== req.session.state) {
-            logger.error('State mismatch:', {
+        if (!state || !req.session.state || state !== req.session.state) {
+            logger.error('State validation failed:', {
                 receivedState: state,
-                sessionState: req.session.state,
-                timeSinceStateSet: req.session.stateTimestamp ? Date.now() - req.session.stateTimestamp : null
+                sessionState: req.session.state
             });
-            throw new Error('State parameter mismatch');
+            throw new Error('Invalid state parameter');
+        }
+
+        // Validate code verifier presence
+        if (!req.session.codeVerifier) {
+            logger.error('No code verifier found in session');
+            throw new Error('Missing code verifier');
         }
 
         logger.info('State validation passed, exchanging code for token');
 
-        // Exchange code for token
+        // Exchange code for token using PKCE
         logger.debug('Exchanging code for token', {
             tokenEndpoint: config.tokenEndpoint,
             redirectUri: config.redirectUri,
-            codeLength: code.length
+            codeLength: code.length,
+            hasCodeVerifier: !!req.session.codeVerifier
         });
 
         const tokenResponse = await axios.post(config.tokenEndpoint,
             new URLSearchParams({
                 grant_type: 'authorization_code',
                 client_id: config.clientId,
-                client_secret: config.clientSecret,
                 code: code,
-                redirect_uri: config.redirectUri
+                redirect_uri: config.redirectUri,
+                code_verifier: req.session.codeVerifier
             }).toString(),
             {
                 headers: {
@@ -234,6 +240,7 @@ router.get('/callback', async (req, res) => {
         req.session.userInfo = userInfo.data;
         delete req.session.state;
         delete req.session.stateTimestamp;
+        delete req.session.codeVerifier;
 
         // Save session
         await new Promise((resolve, reject) => {
