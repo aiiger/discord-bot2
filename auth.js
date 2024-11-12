@@ -110,6 +110,7 @@ router.get('/auth/faceit', async (req, res) => {
             code_challenge_method: 'S256'
         });
 
+        // Ensure we use the full auth endpoint URL
         const authUrl = `${config.authEndpoint}?${params.toString()}`;
         logger.debug('Authorization URL:', { url: authUrl });
 
