@@ -91,6 +91,8 @@ app.locals.faceitJS = faceitJS;  // Store FaceitJS instance in app.locals
 
 // Store match states and voting
 const matchStates = new Map();
+// Store processed matches to avoid duplicate greetings
+const processedMatches = new Set();
 
 // Initialize Discord client
 const client = new Client({
@@ -101,9 +103,49 @@ const client = new Client({
     ]
 });
 
+// Function to send greeting message to match room
+async function sendGreetingToMatch(matchId) {
+    if (!processedMatches.has(matchId)) {
+        try {
+            const greetingMessage = "👋 Hello! I'm online and ready to assist. Good luck and have fun! 🎮";
+            await faceitJS.sendChatMessage(matchId, greetingMessage);
+            processedMatches.add(matchId);
+            logger.info(`Sent greeting message to match ${matchId}`);
+        } catch (error) {
+            logger.error(`Failed to send greeting to match ${matchId}:`, error);
+        }
+    }
+}
+
+// Function to check for new matches and send greetings
+async function checkNewMatches() {
+    try {
+        if (!faceitJS.accessToken) {
+            logger.info('No access token available. Skipping match check.');
+            return;
+        }
+
+        const matches = await faceitJS.getHubMatches(faceitJS.hubId);
+        if (matches && matches.length > 0) {
+            for (const match of matches) {
+                if (match.state === 'READY' || match.state === 'ONGOING') {
+                    await sendGreetingToMatch(match.match_id);
+                }
+            }
+        }
+    } catch (error) {
+        logger.error('Error checking for new matches:', error);
+    }
+}
+
+// Start periodic match checking (every 2 minutes)
+setInterval(checkNewMatches, 2 * 60 * 1000);
+
 // Discord client login
 client.login(process.env.DISCORD_TOKEN).then(() => {
     logger.info('Discord bot logged in successfully');
+    // Initial check for matches after successful login
+    checkNewMatches();
 }).catch(error => {
     logger.error('Failed to log in to Discord:', error);
 });
