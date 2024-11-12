@@ -83,8 +83,8 @@
 	<div class="container">
 		<img src="https://cdn.faceit.com/frontend/291/assets/FACEIT_LOGO_RGB.svg" alt="FACEIT Logo" class="logo">
 		<h1>FACEIT Bot Authentication</h1>
-		<a href="<%= authEndpoint %>?client_id=<%= clientId %>&redirect_uri=<%= encodeURIComponent(redirectUri) %>&response_type=code&scope=openid%20profile%20email"
-			id="loginButton" class="login-button">Login with FACEIT</a>
+		<a href="<%= authUrl %>" id="loginButton" class="login-button">Login with FACEIT</a>
+		id="loginButton" class="login-button">Login with FACEIT</a>
 		<p class="info">Click the button above to authenticate with FACEIT.</p>
 		<p id="errorMessage" class="error-message"></p>
 		<div class="debug-info">
@@ -121,7 +121,7 @@
 
 		// Log the auth URL for debugging
 		console.log('Auth URL:', '<%= authUrl %>');
-	</script>
+	</script>>
 </body>
 
 </html>

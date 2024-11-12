@@ -210,11 +210,20 @@ client.on('messageCreate', async (message) => {
 app.get('/', (req, res) => {
     logger.info('Home route accessed by IP:', req.ip);
     const baseUrl = getBaseUrl(req);
+
     const redirectUri = process.env.REDIRECT_URI || `${baseUrl}/callback`;
+    const clientId = process.env.CLIENT_ID;
+    const authEndpoint = 'https://accounts.faceit.com/oauth/authorize';
+
+    // Construct the authUrl
+    const authUrl = `${authEndpoint}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid%20profile%20email`;
+
+    // Pass authUrl to the template
     res.render('login', {
-        clientId: process.env.CLIENT_ID,
+        clientId: clientId,
         redirectUri: redirectUri,
-        authEndpoint: 'https://accounts.faceit.com/oauth/authorize'
+        authEndpoint: authEndpoint,
+        authUrl: authUrl
     });
 });
 
