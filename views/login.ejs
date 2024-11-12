@@ -83,7 +83,7 @@
 	<div class="container">
 		<img src="https://cdn.faceit.com/frontend/291/assets/FACEIT_LOGO_RGB.svg" alt="FACEIT Logo" class="logo">
 		<h1>FACEIT Bot Authentication</h1>
-		<button id="loginButton" class="login-button">Login with FACEIT</button>
+		<a href="<%= authUrl %>" id="loginButton" class="login-button">Login with FACEIT</a>
 		<p class="info">Click the button above to authenticate with FACEIT.</p>
 		<p id="errorMessage" class="error-message"></p>
 		<div class="debug-info">
@@ -95,16 +95,6 @@
 	</div>
 
 	<script>
-		// Function to generate random string for state
-		function generateRandomString(length) {
-			const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-			let text = '';
-			for (let i = 0; i < length; i++) {
-				text += possible.charAt(Math.floor(Math.random() * possible.length));
-			}
-			return text;
-		}
-
 		// Function to show error message
 		function showError(message) {
 			const errorElement = document.getElementById('errorMessage');
@@ -112,39 +102,24 @@
 			errorElement.style.display = 'block';
 		}
 
-		// Initialize auth flow
-		function startAuth() {
-			try {
-				const state = generateRandomString(32);
-				sessionStorage.setItem('oauth_state', state);
-
-				const params = new URLSearchParams({
-					response_type: 'code',
-					client_id: '<%= clientId %>',
-					redirect_uri: '<%= redirectUri %>',
-					scope: 'public profile email',
-					state: state
-				});
-
-				const authUrl = '<%= authEndpoint %>?' + params.toString();
-				console.log('Redirecting to:', authUrl);
-				window.location.href = authUrl;
-			} catch (error) {
-				console.error('Error starting auth:', error);
-				showError('Failed to start authentication. Please try again.');
-			}
-		}
-
-		// Add click event listener to login button
-		document.getElementById('loginButton').addEventListener('click', startAuth);
-
 		// Check for error parameters
 		const urlParams = new URLSearchParams(window.location.search);
 		const error = urlParams.get('error');
 		const errorDescription = urlParams.get('error_description');
 		if (error) {
+			console.error('Auth error:', error);
+			console.error('Error description:', errorDescription);
 			showError(errorDescription || error);
 		}
+
+		// Log any code parameter
+		const code = urlParams.get('code');
+		if (code) {
+			console.log('Received authorization code:', code);
+		}
+
+		// Log the auth URL for debugging
+		console.log('Auth URL:', '<%= authUrl %>');
 	</script>
 </body>
 
