@@ -30,7 +30,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 // Initialize Redis client
 const redisClient = createClient({
-    url: process.env.REDIS_URL,
+    url: process.env.REDISCLOUD_URL || process.env.REDIS_URL,
     socket: {
         tls: isProduction,
         rejectUnauthorized: false
