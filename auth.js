@@ -27,8 +27,17 @@ function generatePKCE() {
 function storePKCE(req) {
     const pkce = generatePKCE();
     const state = crypto.randomBytes(16).toString('hex');
-    req.session.pkce = pkce;
-    req.session.state = state;
+
+    // Store in session
+    if (!req.session.oauth) {
+        req.session.oauth = {};
+    }
+    req.session.oauth.pkce = pkce;
+    req.session.oauth.state = state;
+
+    // Force session save
+    req.session.save();
+
     return { pkce, state };
 }
 
@@ -66,9 +75,9 @@ router.get('/callback', async (req, res) => {
             throw new Error(`OAuth error: ${error}`);
         }
 
-        // Verify state parameter
-        if (!state || state !== req.session.state) {
-            throw new Error('Invalid state parameter');
+        // Verify state parameter and session exists
+        if (!req.session.oauth || !state || state !== req.session.oauth.state) {
+            throw new Error('Invalid state parameter or session expired');
         }
 
         // Exchange code for tokens using PKCE
@@ -78,7 +87,7 @@ router.get('/callback', async (req, res) => {
                 client_id: config.clientId,
                 code: code,
                 redirect_uri: config.redirectUri,
-                code_verifier: req.session.pkce.verifier
+                code_verifier: req.session.oauth.pkce.verifier
             }).toString(),
             {
                 headers: {
@@ -101,28 +110,39 @@ router.get('/callback', async (req, res) => {
         req.session.accessToken = accessToken;
         req.session.userInfo = userInfo.data;
 
-        // Clear PKCE and state from session
-        delete req.session.pkce;
-        delete req.session.state;
+        // Clear OAuth data from session
+        delete req.session.oauth;
 
-        // If there's a voucher code in the session, redeem it
-        if (req.session.voucherCode) {
-            try {
-                await axios.post('https://api.faceit.com/vouchers/v1/redeem', {
-                    code: req.session.voucherCode
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                delete req.session.voucherCode;
-            } catch (voucherError) {
-                console.error('Error redeeming voucher:', voucherError);
+        // Force session save
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+                throw new Error('Failed to save session');
             }
-        }
 
-        res.redirect('/dashboard');
+            // If there's a voucher code in the session, redeem it
+            if (req.session.voucherCode) {
+                try {
+                    axios.post('https://api.faceit.com/vouchers/v1/redeem', {
+                        code: req.session.voucherCode
+                    }, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }).then(() => {
+                        delete req.session.voucherCode;
+                        req.session.save();
+                    }).catch(error => {
+                        console.error('Error redeeming voucher:', error);
+                    });
+                } catch (voucherError) {
+                    console.error('Error redeeming voucher:', voucherError);
+                }
+            }
+
+            res.redirect('/dashboard');
+        });
     } catch (error) {
         console.error('Error in callback:', error);
         res.redirect('/error?error=' + encodeURIComponent(error.message));
@@ -136,7 +156,13 @@ router.post('/voucher', (req, res) => {
         return res.status(400).json({ error: 'Voucher code is required' });
     }
     req.session.voucherCode = code;
-    res.json({ message: 'Voucher code stored' });
+    req.session.save((err) => {
+        if (err) {
+            console.error('Error saving voucher code:', err);
+            return res.status(500).json({ error: 'Failed to store voucher code' });
+        }
+        res.json({ message: 'Voucher code stored' });
+    });
 });
 
 // Logout route
