@@ -39,8 +39,15 @@ const logger = {
 export class FaceitJS extends EventEmitter {
     constructor(accessToken = null) {
         super();
+        // Data API endpoints
         this.apiBase = 'https://open.faceit.com/data/v4';
+        this.matchesEndpoint = '/hubs/{hubId}/matches';
+        this.matchDetailsEndpoint = '/matches/{matchId}';
+
+        // Chat API endpoints
         this.chatApiBase = 'https://api.faceit.com/chat/v1';
+        this.chatMessagesEndpoint = '/rooms/{roomId}/messages';
+
         this.hubId = process.env.HUB_ID;
         this.apiKey = process.env.FACEIT_API_KEY;
         this.accessToken = accessToken;
@@ -59,14 +66,17 @@ export class FaceitJS extends EventEmitter {
             baseURL: this.apiBase,
             headers: {
                 'Accept': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${this.apiKey}`
             }
         });
 
         // Chat API instance with OAuth token auth
         this.chatApiInstance = axios.create({
-            baseURL: this.chatApiBase
+            baseURL: this.chatApiBase,
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
         });
 
         this.setupInterceptors();
@@ -81,9 +91,7 @@ export class FaceitJS extends EventEmitter {
             }
             config.headers = {
                 ...config.headers,
-                'Authorization': `Bearer ${this.accessToken}`,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${this.accessToken}`
             };
             return config;
         }, (error) => {
@@ -111,11 +119,35 @@ export class FaceitJS extends EventEmitter {
 
     async getHubMatches(hubId) {
         try {
-            const response = await this.dataApiInstance.get(`/hubs/${hubId}/matches`);
+            const endpoint = this.matchesEndpoint.replace('{hubId}', hubId);
+            const response = await this.dataApiInstance.get(endpoint);
             return response.data.items || [];
         } catch (error) {
             logger.error('[HUB ERROR] Failed to get hub matches:', error);
             return [];
+        }
+    }
+
+    async getMatchDetails(matchId) {
+        try {
+            const endpoint = this.matchDetailsEndpoint.replace('{matchId}', matchId);
+            const response = await this.dataApiInstance.get(endpoint);
+            return response.data;
+        } catch (error) {
+            logger.error('[MATCH ERROR] Failed to get match details:', error);
+            return null;
+        }
+    }
+
+    async sendChatMessage(roomId, message) {
+        try {
+            const endpoint = this.chatMessagesEndpoint.replace('{roomId}', roomId);
+            await this.chatApiInstance.post(endpoint, { body: message });
+            logger.info(`[CHAT] Message sent to room ${roomId}: ${message}`);
+            return true;
+        } catch (error) {
+            logger.error('[CHAT ERROR] Failed to send message:', error);
+            return false;
         }
     }
 
@@ -127,7 +159,8 @@ export class FaceitJS extends EventEmitter {
 
         try {
             const lastTimestamp = this.lastMessageTimestamps.get(roomId) || 0;
-            const response = await this.chatApiInstance.get(`/rooms/${roomId}/messages`, {
+            const endpoint = this.chatMessagesEndpoint.replace('{roomId}', roomId);
+            const response = await this.chatApiInstance.get(endpoint, {
                 params: { timestamp_from: lastTimestamp }
             });
 
@@ -175,35 +208,38 @@ export class FaceitJS extends EventEmitter {
 
                 logger.info(`[HUB] Found ${activeMatches.length} ongoing matches`);
 
-                activeMatches.forEach(match => {
+                for (const match of activeMatches) {
                     if (!match || !match.match_id) {
                         logger.error('[POLLING ERROR] Invalid match data:', match);
-                        return;
+                        continue;
                     }
 
                     const matchId = match.match_id;
-                    const currentState = match.state || 'UNKNOWN';
+                    const matchDetails = await this.getMatchDetails(matchId);
+                    if (!matchDetails) continue;
+
+                    const currentState = matchDetails.state || 'UNKNOWN';
                     const prevState = this.previousMatchStates.get(matchId);
 
                     logger.info(`[MATCH INFO] Match ${matchId} is in state: ${currentState}`);
 
                     if (!prevState) {
                         logger.info(`[MATCH NEW] Found new match ${matchId} in state: ${currentState}`);
-                        this.emit('newMatch', match);
+                        this.emit('newMatch', matchDetails);
                     } else if (prevState !== currentState) {
                         logger.info(`[MATCH STATE] Match ${matchId} state changed from ${prevState} to ${currentState}`);
-                        this.emit('matchStateChange', match);
+                        this.emit('matchStateChange', matchDetails);
                     }
 
                     this.previousMatchStates.set(matchId, currentState);
 
                     // Only poll chat messages if we have an access token and chat room ID
-                    if (this.accessToken && match.chat_room_id) {
-                        this.pollRoomMessages(match.chat_room_id).catch(error => {
-                            logger.error(`[CHAT ERROR] Failed to poll messages for room ${match.chat_room_id}:`, error);
+                    if (this.accessToken && matchDetails.chat_room_id) {
+                        await this.pollRoomMessages(matchDetails.chat_room_id).catch(error => {
+                            logger.error(`[CHAT ERROR] Failed to poll messages for room ${matchDetails.chat_room_id}:`, error);
                         });
                     }
-                });
+                }
 
                 // Clean up old matches
                 const currentMatchIds = new Set(activeMatches.map(m => m.match_id));

@@ -58,6 +58,17 @@ app.enable('trust proxy');
 const port = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Force HTTPS in production
+if (isProduction) {
+    app.use((req, res, next) => {
+        if (req.header('x-forwarded-proto') !== 'https') {
+            res.redirect(`https://${req.header('host')}${req.url}`);
+        } else {
+            next();
+        }
+    });
+}
+
 // Set up view engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -121,9 +132,7 @@ client.on('messageCreate', async (message) => {
                 }
 
                 try {
-                    await faceitJS.chatApiInstance.post(`/rooms/${matchId}/messages`, {
-                        body: testMessage
-                    });
+                    await faceitJS.sendChatMessage(matchId, testMessage);
                     message.reply(`Successfully sent message to match room ${matchId}`);
                     logger.info(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
                 } catch (error) {
@@ -201,15 +210,14 @@ const limiter = rateLimit({
 const sessionConfig = {
     secret: process.env.SESSION_SECRET,
     name: 'faceit.sid',
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     proxy: true,
     cookie: {
         secure: isProduction,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax',
-        path: '/'
+        sameSite: 'lax'
     }
 };
 
@@ -276,9 +284,7 @@ faceitJS.on('newMatch', async (match) => {
                     "!rehost - Vote for match rehost (6/10 players needed)\n" +
                     "Match can be cancelled if ELO difference is 70 or greater.";
 
-                await faceitJS.chatApiInstance.post(`/rooms/${match.chat_room_id}/messages`, {
-                    body: welcomeMessage
-                });
+                await faceitJS.sendChatMessage(match.chat_room_id, welcomeMessage);
                 currentMatchState.greeted = true;
 
                 // Check ELO difference
@@ -290,9 +296,7 @@ faceitJS.on('newMatch', async (match) => {
 
                     if (eloDiff >= 70) {
                         const eloMessage = `⚠️ Warning: ELO difference is ${eloDiff}. Type !cancel to vote for cancellation.`;
-                        await faceitJS.chatApiInstance.post(`/rooms/${match.chat_room_id}/messages`, {
-                            body: eloMessage
-                        });
+                        await faceitJS.sendChatMessage(match.chat_room_id, eloMessage);
                     }
                 }
             }
@@ -312,9 +316,7 @@ faceitJS.on('matchStateChange', async (match) => {
                     ? "❌ Match has been cancelled."
                     : "🏁 Match has ended! Thanks for playing!";
 
-                await faceitJS.chatApiInstance.post(`/rooms/${match.chat_room_id}/messages`, {
-                    body: message
-                });
+                await faceitJS.sendChatMessage(match.chat_room_id, message);
             }
             // Clean up match state
             matchStates.delete(match.match_id);
@@ -350,14 +352,14 @@ faceitJS.on('chatMessage', async (message) => {
             const votesNeeded = 6;
             const currentVotes = matchState.rehostVotes.size;
 
-            await faceitJS.chatApiInstance.post(`/rooms/${matchId}/messages`, {
-                body: `Rehost vote: ${currentVotes}/10 players (${votesNeeded} needed)`
-            });
+            await faceitJS.sendChatMessage(matchId,
+                `Rehost vote: ${currentVotes}/10 players (${votesNeeded} needed)`
+            );
 
             if (currentVotes >= votesNeeded) {
-                await faceitJS.chatApiInstance.post(`/rooms/${matchId}/messages`, {
-                    body: `✅ Rehost vote passed! Please wait for admin to rehost the match.`
-                });
+                await faceitJS.sendChatMessage(matchId,
+                    `✅ Rehost vote passed! Please wait for admin to rehost the match.`
+                );
                 // Reset votes after passing
                 matchState.rehostVotes.clear();
             }
