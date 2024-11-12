@@ -48,12 +48,6 @@ const logger = {
     }
 };
 
-// Store for rehost votes and match states
-const rehostVotes = new Map(); // matchId -> Set of player IDs who voted
-const matchStates = new Map(); // matchId -> match state
-const greetedMatches = new Set(); // Set of match IDs that have been greeted
-const pendingMessages = new Map(); // Store pending messages while authenticating
-
 // Initialize Express
 const app = express();
 const port = process.env.PORT || 3000;
@@ -99,19 +93,23 @@ const limiter = rateLimit({
 // Session middleware configuration
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
-    name: 'faceit_session',
-    resave: true,
-    saveUninitialized: true,
-    rolling: true,
+    name: 'faceit.sid',
+    proxy: true, // Required for Heroku
+    resave: false,
+    saveUninitialized: false,
     cookie: {
         secure: isProduction,
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax'
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: 'lax',
+        path: '/',
+        domain: isProduction ? '.herokuapp.com' : undefined
     }
 };
 
 // Apply middleware
+app.set('trust proxy', 1); // Required for Heroku
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
