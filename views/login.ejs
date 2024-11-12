@@ -84,6 +84,29 @@
 			background-color: rgba(255, 51, 51, 0.1);
 			border-radius: 4px;
 		}
+
+		.instructions {
+			margin-top: 20px;
+			padding: 15px;
+			background-color: #363636;
+			border-radius: 4px;
+			text-align: left;
+		}
+
+		.instructions h3 {
+			color: #ff5500;
+			margin-top: 0;
+		}
+
+		.instructions ol {
+			margin: 10px 0;
+			padding-left: 20px;
+		}
+
+		.instructions li {
+			margin-bottom: 10px;
+			color: #cccccc;
+		}
 	</style>
 </head>
 
@@ -102,6 +125,18 @@
 		<a href="/auth/faceit" class="link-button">Link FACEIT Account</a>
 
 		<div id="errorMessage" class="error-message"></div>
+
+		<div class="instructions">
+			<h3>How to Link Your Account:</h3>
+			<ol>
+				<li>Click the "Link FACEIT Account" button above</li>
+				<li>Log in to your FACEIT account if not already logged in</li>
+				<li>On the FACEIT authorization page, click "Allow" or "Authorize"</li>
+				<li>Wait to be redirected back to this application</li>
+			</ol>
+			<p style="color: #ff5500; margin-top: 15px;">Note: Make sure to complete the authorization on FACEIT's
+				website when redirected.</p>
+		</div>
 
 		<div class="info-box">
 			By linking your account, you'll enable the bot to:
