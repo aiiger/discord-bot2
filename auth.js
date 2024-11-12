@@ -32,7 +32,7 @@ const config = {
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
     redirectUri: process.env.REDIRECT_URI || 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback',
-    authEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/authorize',
+    authEndpoint: 'https://accounts.faceit.com/accounts',  // Changed from auth/v1/oauth/authorize to accounts
     tokenEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/token',
     userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo'
 };
