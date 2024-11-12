@@ -99,7 +99,8 @@
 			</ol>
 		</div>
 
-		<button onclick="startAuth()" class="link-button">Link FACEIT Account</button>
+		<a href="https://accounts.faceit.com/auth/v1/oauth/authorize?response_type=code&client_id=30bdac0f-591c-408d-88c3-bebb897339b9&redirect_uri=https%3A%2F%2Ffaceit-bot-test-ae3e65bcedb3.herokuapp.com%2Fcallback&scope=openid+profile+email"
+			target="_blank" class="link-button">Link FACEIT Account</a>
 
 		<div id="errorMessage" class="error-message"></div>
 
@@ -119,23 +120,6 @@
 			const errorElement = document.getElementById('errorMessage');
 			errorElement.textContent = message;
 			errorElement.style.display = 'block';
-		}
-
-		// Function to start auth process
-		function startAuth() {
-			fetch('/auth/faceit')
-				.then(response => {
-					if (response.redirected) {
-						window.location.href = response.url;
-					} else {
-						return response.text().then(text => {
-							throw new Error('Failed to get authorization URL');
-						});
-					}
-				})
-				.catch(error => {
-					showError(error.message);
-				});
 		}
 
 		// Check for error parameters
