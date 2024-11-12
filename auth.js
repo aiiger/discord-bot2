@@ -14,63 +14,34 @@ const config = {
     userInfoEndpoint: 'https://api.faceit.com/users/v1/oauth/userinfo'
 };
 
-// Generate PKCE code verifier and challenge
-function generatePKCE() {
-    const verifier = crypto.randomBytes(32).toString('base64url');
-    const challenge = crypto.createHash('sha256')
-        .update(verifier)
-        .digest('base64url');
-    return { verifier, challenge };
-}
-
-// Store PKCE and state in session
-function storePKCE(req) {
-    const pkce = generatePKCE();
-    const state = crypto.randomBytes(16).toString('hex');
-
-    // Initialize oauth object if it doesn't exist
-    if (!req.session.oauth) {
-        req.session.oauth = {};
-    }
-
-    // Store PKCE and state
-    req.session.oauth.pkce = pkce;
-    req.session.oauth.state = state;
-
-    // Force session save
-    return new Promise((resolve, reject) => {
-        req.session.save((err) => {
-            if (err) {
-                console.error('Error saving session:', err);
-                reject(err);
-            } else {
-                resolve({ pkce, state });
-            }
-        });
-    });
-}
-
 // Authorization route - initiates OAuth2 flow
 router.get('/auth/faceit', async (req, res) => {
     try {
-        const { pkce, state } = await storePKCE(req);
+        // Generate state for security
+        const state = crypto.randomBytes(16).toString('hex');
+        req.session.state = state;
 
-        // Build authorization URL with PKCE
+        // Build authorization URL
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: config.clientId,
             redirect_uri: config.redirectUri,
             scope: 'openid profile email',
-            state: state,
-            code_challenge: pkce.challenge,
-            code_challenge_method: 'S256'
+            state: state
         });
 
         const authUrl = `${config.authEndpoint}?${params.toString()}`;
+
+        // Set required headers
+        res.set({
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+        });
+
         res.redirect(authUrl);
     } catch (error) {
         console.error('Error initiating OAuth flow:', error);
-        res.redirect('/error?error=' + encodeURIComponent(error.message));
+        res.redirect('/error?error=' + encodeURIComponent('Failed to initiate authentication'));
     }
 });
 
@@ -84,28 +55,25 @@ router.get('/callback', async (req, res) => {
             throw new Error(`OAuth error: ${error}`);
         }
 
-        // Check if session exists
-        if (!req.session.oauth) {
-            throw new Error('Session expired');
-        }
-
         // Verify state parameter
-        if (!state || state !== req.session.oauth.state) {
+        if (!state || state !== req.session.state) {
             throw new Error('Invalid state parameter');
         }
 
-        // Exchange code for tokens using PKCE
+        // Exchange code for tokens
         const tokenResponse = await axios.post(config.tokenEndpoint,
             new URLSearchParams({
                 grant_type: 'authorization_code',
                 client_id: config.clientId,
+                client_secret: config.clientSecret,
                 code: code,
-                redirect_uri: config.redirectUri,
-                code_verifier: req.session.oauth.pkce.verifier
+                redirect_uri: config.redirectUri
             }).toString(),
             {
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${process.env.FACEIT_API_KEY}`
                 }
             }
         );
@@ -116,7 +84,8 @@ router.get('/callback', async (req, res) => {
         // Get user info
         const userInfo = await axios.get(config.userInfoEndpoint, {
             headers: {
-                'Authorization': `Bearer ${accessToken}`
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/json'
             }
         });
 
@@ -124,10 +93,10 @@ router.get('/callback', async (req, res) => {
         req.session.accessToken = accessToken;
         req.session.userInfo = userInfo.data;
 
-        // Clear OAuth data from session
-        delete req.session.oauth;
+        // Clear state from session
+        delete req.session.state;
 
-        // Force session save
+        // Save session
         req.session.save((err) => {
             if (err) {
                 console.error('Error saving session:', err);
@@ -137,7 +106,17 @@ router.get('/callback', async (req, res) => {
         });
     } catch (error) {
         console.error('Error in callback:', error);
-        res.redirect('/error?error=' + encodeURIComponent(error.message));
+        let errorMessage = 'Authentication failed. ';
+
+        if (error.response) {
+            console.error('Response data:', error.response.data);
+            console.error('Status code:', error.response.status);
+            errorMessage += error.response.data?.message || error.message;
+        } else {
+            errorMessage += error.message;
+        }
+
+        res.redirect('/error?error=' + encodeURIComponent(errorMessage));
     }
 });
 

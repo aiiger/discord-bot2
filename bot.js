@@ -199,7 +199,7 @@ const limiter = rateLimit({
 
 // Session middleware configuration
 const sessionConfig = {
-    secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
+    secret: process.env.SESSION_SECRET,
     name: 'faceit.sid',
     resave: false,
     saveUninitialized: false,
@@ -370,22 +370,7 @@ faceitJS.on('chatMessage', async (message) => {
 // Routes
 app.get('/', (req, res) => {
     logger.info('Home route accessed by IP:', req.ip);
-    const baseUrl = getBaseUrl();
-
-    const redirectUri = process.env.REDIRECT_URI || `${baseUrl}/callback`;
-    const clientId = process.env.CLIENT_ID;
-    const authEndpoint = 'https://accounts.faceit.com/oauth/authorize';
-
-    // Construct the authUrl
-    const authUrl = `${authEndpoint}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid%20profile%20email`;
-
-    // Pass authUrl to the template
-    res.render('login', {
-        clientId: clientId,
-        redirectUri: redirectUri,
-        authEndpoint: authEndpoint,
-        authUrl: authUrl
-    });
+    res.render('login');
 });
 
 // Dashboard route
@@ -395,7 +380,7 @@ app.get('/dashboard', (req, res) => {
     }
     res.render('dashboard', {
         authenticated: true,
-        username: 'FACEIT User',
+        username: req.session.userInfo?.nickname || 'FACEIT User',
         userInfo: req.session.userInfo
     });
 });

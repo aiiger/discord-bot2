@@ -66,9 +66,13 @@
 			background-color: #ff6a1f;
 		}
 
-		.faceit-logo {
-			width: 150px;
-			margin-bottom: 30px;
+		.info-box {
+			background-color: #363636;
+			padding: 15px;
+			border-radius: 4px;
+			margin-top: 20px;
+			font-size: 14px;
+			color: #999;
 		}
 
 		.error-message {
@@ -80,21 +84,11 @@
 			background-color: rgba(255, 51, 51, 0.1);
 			border-radius: 4px;
 		}
-
-		.info-box {
-			background-color: #363636;
-			padding: 15px;
-			border-radius: 4px;
-			margin-top: 20px;
-			font-size: 14px;
-			color: #999;
-		}
 	</style>
 </head>
 
 <body>
 	<div class="container">
-		<img src="https://cdn.faceit.com/frontend/291/assets/FACEIT_LOGO_RGB.svg" alt="FACEIT Logo" class="faceit-logo">
 		<h1>Link Your FACEIT Account</h1>
 
 		<div class="flow-steps">
@@ -105,7 +99,7 @@
 			</ol>
 		</div>
 
-		<a href="<%= authUrl %>" class="link-button">Link FACEIT Account</a>
+		<a href="/auth/faceit" class="link-button">Link FACEIT Account</a>
 
 		<div id="errorMessage" class="error-message"></div>
 
@@ -130,9 +124,8 @@
 		// Check for error parameters
 		const urlParams = new URLSearchParams(window.location.search);
 		const error = urlParams.get('error');
-		const errorDescription = urlParams.get('error_description');
 		if (error) {
-			showError(errorDescription || error);
+			showError(error);
 		}
 	</script>
 </body>
