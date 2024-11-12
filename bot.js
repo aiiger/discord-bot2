@@ -50,9 +50,11 @@ const logger = {
 
 // Initialize Express
 const app = express();
-const port = process.env.PORT || 3000;
 
-// Force production mode for Heroku
+// Must be first - trust proxy for Heroku
+app.set('trust proxy', 1);
+
+const port = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Get the base URL for the application
@@ -77,12 +79,12 @@ const client = new Client({
 
 // Rate limiting configuration for Heroku
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    windowMs: 15 * 60 * 1000,
+    max: 100,
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
-    trustProxy: 2,
+    trustProxy: true,
     keyGenerator: (req) => {
         const forwardedFor = req.headers['x-forwarded-for'];
         const clientIP = forwardedFor ? forwardedFor.split(',')[0].trim() : req.ip;
@@ -90,23 +92,18 @@ const limiter = rateLimit({
     }
 });
 
-// Configure trust proxy for Heroku
-app.set('trust proxy', 1);
-
 // Session middleware configuration
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
     name: 'faceit.sid',
-    resave: true,
-    saveUninitialized: true,
-    rolling: true,
+    resave: false,
+    saveUninitialized: false,
     proxy: true,
     cookie: {
-        secure: true, // Always use secure cookies in production and development
+        secure: isProduction, // Only use secure in production
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        sameSite: 'lax',
-        path: '/'
+        maxAge: 24 * 60 * 60 * 1000,
+        sameSite: 'lax'
     }
 };
 
@@ -149,7 +146,7 @@ app.use((req, res, next) => {
     res.redirect = function (url) {
         if (url === '/dashboard' && req.session.accessToken) {
             faceitJS.setAccessToken(req.session.accessToken);
-            faceitJS.startPolling(); // Start polling after successful auth
+            faceitJS.startPolling();
             logger.info('FaceitJS instance updated with new access token');
         }
         originalRedirect.call(this, url);
