@@ -81,12 +81,22 @@ const client = new Client({
     ]
 });
 
-// Rate limiting
+// Rate limiting configuration for Heroku
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per windowMs
     message: 'Too many requests from this IP, please try again later.',
-    trustProxy: true // Trust Heroku's proxy
+    standardHeaders: true,
+    legacyHeaders: false,
+    // Configure for Heroku
+    trustProxy: 2,
+    // Custom key generator that handles Heroku's forwarded IPs
+    keyGenerator: (req) => {
+        // Get the leftmost (client) IP from X-Forwarded-For
+        const forwardedFor = req.headers['x-forwarded-for'];
+        const clientIP = forwardedFor ? forwardedFor.split(',')[0].trim() : req.ip;
+        return clientIP;
+    }
 });
 
 // Session middleware configuration
@@ -131,6 +141,10 @@ app.use(session(sessionConfig));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Import and use auth routes
+import authRouter from './auth.js';
+app.use(authRouter);
+
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -154,30 +168,13 @@ client.on('messageCreate', async (message) => {
         const testMessage = args.slice(2).join(' ');
 
         try {
-            if (!faceitJS.accessToken) {
-                const state = crypto.randomBytes(32).toString('hex');
-                const redirectUri = isProduction
-                    ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback'
-                    : `http://localhost:${port}/callback`;
-                const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state, redirectUri);
-
-                pendingMessages.set(state, {
-                    matchId,
-                    message: testMessage,
-                    discordMessage: message,
-                    codeVerifier,
-                    timestamp: Date.now()
-                });
-
-                logger.info(`Stored pending message for state ${state}:`, {
-                    matchId,
-                    message: testMessage
-                });
-
-                message.reply(`Please authenticate first by visiting: ${url}`);
+            const accessToken = req.session.accessToken;
+            if (!accessToken) {
+                message.reply('Please authenticate first by visiting: ' + getBaseUrl(req) + '/auth/faceit');
                 return;
             }
 
+            faceitJS.setAccessToken(accessToken);
             const response = await faceitJS.chatApiInstance.post(`/rooms/${matchId}/messages`, {
                 body: testMessage
             });
@@ -186,8 +183,7 @@ client.on('messageCreate', async (message) => {
         } catch (error) {
             if (error.response?.status === 401) {
                 message.reply('Authentication failed. Please try authenticating again.');
-                faceitJS.accessToken = null;
-                faceitJS.refreshToken = null;
+                delete req.session.accessToken;
             } else {
                 message.reply(`Failed to send message: ${error.message}`);
             }
@@ -201,84 +197,6 @@ app.get('/', (req, res) => {
     logger.info('Home route accessed by IP:', req.ip);
     res.render('login');
 });
-
-app.get('/auth/faceit', async (req, res) => {
-    try {
-        const state = crypto.randomBytes(32).toString('hex');
-        const redirectUri = isProduction
-            ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback'
-            : `http://localhost:${port}/callback`;
-        const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state, redirectUri);
-
-        // Store PKCE verifier in session
-        req.session.codeVerifier = codeVerifier;
-        req.session.state = state;
-
-        logger.info(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
-        logger.info('Generated authorization URL with PKCE');
-        res.redirect(url);
-    } catch (error) {
-        logger.error('Error in auth route:', error);
-        res.status(500).render('error', { message: 'Authentication failed' });
-    }
-});
-
-// Callback handler
-async function handleCallback(req, res) {
-    const { code, state } = req.query;
-
-    logger.info(`Callback received - Session ID: ${req.session.id}`);
-    logger.info(`State from query: ${state}`);
-    logger.info(`Code from query: ${code ? '[PRESENT]' : '[MISSING]'}`);
-
-    try {
-        // Validate state
-        if (!state || state !== req.session.state) {
-            throw new Error('Invalid state parameter');
-        }
-
-        // Get stored code verifier
-        const codeVerifier = req.session.codeVerifier;
-        if (!codeVerifier) {
-            throw new Error('No code verifier found in session');
-        }
-
-        // Exchange code for tokens
-        const redirectUri = isProduction
-            ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback'
-            : `http://localhost:${port}/callback`;
-        await faceitJS.exchangeCodeForToken(code, codeVerifier, redirectUri);
-        logger.info('Successfully authenticated with FACEIT');
-
-        // Handle pending message if exists
-        const pendingMessage = pendingMessages.get(state);
-        if (pendingMessage) {
-            try {
-                await faceitJS.chatApiInstance.post(`/rooms/${pendingMessage.matchId}/messages`, {
-                    body: pendingMessage.message
-                });
-                await pendingMessage.discordMessage.reply(`Successfully sent message to match room ${pendingMessage.matchId}`);
-                pendingMessages.delete(state);
-                logger.info(`Sent pending message for state ${state}`);
-            } catch (error) {
-                logger.error('Error sending pending message:', error);
-            }
-        }
-
-        res.render('dashboard', {
-            authenticated: true,
-            username: 'FACEIT User'
-        });
-    } catch (error) {
-        logger.error('Error during callback:', error);
-        res.status(500).render('error', {
-            message: 'Authentication failed',
-            error: error.message
-        });
-    }
-}
-
-app.get('/callback', handleCallback);
 
 // Error handling
 client.on('error', (error) => {

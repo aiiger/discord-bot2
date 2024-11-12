@@ -1,8 +1,7 @@
-const express = require('express');
-const session = require('express-session');
-const crypto = require('crypto');
-const axios = require('axios');
-const { URLSearchParams } = require('url');
+import express from 'express';
+import crypto from 'crypto';
+import axios from 'axios';
+import { URLSearchParams } from 'url';
 
 const router = express.Router();
 
@@ -14,17 +13,6 @@ const config = {
     authUrl: 'https://cdn.faceit.com/widgets/sso/index.html',
     tokenUrl: 'https://api.faceit.com/auth/v1/oauth/token'
 };
-
-// Configure session middleware
-router.use(session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-}));
 
 // Generate PKCE challenge
 function generatePKCE() {
@@ -114,7 +102,7 @@ router.get('/callback', async (req, res) => {
         delete req.session.codeVerifier;
         delete req.session.state;
 
-        // Redirect to dashboard or home page
+        // Redirect to dashboard
         res.redirect('/dashboard');
     } catch (error) {
         console.error('Error in callback:', error);
@@ -155,4 +143,4 @@ router.post('/refresh-token', async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;
