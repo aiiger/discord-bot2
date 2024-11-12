@@ -46,8 +46,9 @@ router.get('/auth/faceit', async (req, res) => {
             req.session = {};
         }
 
-        // Log session before modification
-        logger.info('Session before state:', req.session);
+        // Clear any existing state
+        delete req.session.state;
+        delete req.session.stateTimestamp;
 
         // Store state in session
         req.session.state = state;
@@ -66,12 +67,13 @@ router.get('/auth/faceit', async (req, res) => {
             });
         });
 
-        // Log session after save
-        logger.info('Session after save:', {
+        // Log session details
+        logger.info('Session details:', {
             state: state,
             sessionState: req.session.state,
             sessionId: req.session.id,
-            stateTimestamp: req.session.stateTimestamp
+            stateTimestamp: req.session.stateTimestamp,
+            cookie: req.session.cookie
         });
 
         // Build authorization URL
@@ -104,15 +106,24 @@ router.get('/auth/faceit', async (req, res) => {
 // OAuth callback handler
 router.get('/callback', async (req, res) => {
     try {
+        logger.info('Raw callback URL:', req.url);
+        logger.info('Query parameters:', req.query);
+        logger.info('Headers:', req.headers);
+
         const { code, state, error } = req.query;
 
-        logger.info('Raw callback URL:', req.url);
-        logger.info('Callback received with query parameters:', {
+        // Log detailed callback information
+        logger.info('Callback details:', {
             hasCode: !!code,
             state,
             error,
             method: req.method,
-            headers: req.headers
+            path: req.path,
+            url: req.url,
+            headers: {
+                cookie: req.headers.cookie,
+                referer: req.headers.referer
+            }
         });
 
         // Initialize session if it doesn't exist
@@ -121,11 +132,13 @@ router.get('/callback', async (req, res) => {
             throw new Error('Session initialization failed');
         }
 
-        logger.info('Session state in callback:', {
+        // Log session state
+        logger.info('Session state:', {
             sessionState: req.session.state,
             stateTimestamp: req.session.stateTimestamp,
             sessionId: req.session.id,
-            timeSinceStateSet: req.session.stateTimestamp ? Date.now() - req.session.stateTimestamp : null
+            timeSinceStateSet: req.session.stateTimestamp ? Date.now() - req.session.stateTimestamp : null,
+            cookie: req.session.cookie
         });
 
         // Check for OAuth error response
@@ -141,12 +154,17 @@ router.get('/callback', async (req, res) => {
         }
 
         // Validate state
-        if (!state || !req.session.state) {
-            logger.error('State validation failed:', {
-                receivedState: state,
-                sessionState: req.session.state
+        if (!state) {
+            logger.error('No state parameter in callback');
+            throw new Error('Missing state parameter');
+        }
+
+        if (!req.session.state) {
+            logger.error('No state found in session:', {
+                sessionData: req.session,
+                cookies: req.headers.cookie
             });
-            throw new Error('Invalid state parameter');
+            throw new Error('No state in session');
         }
 
         if (state !== req.session.state) {
