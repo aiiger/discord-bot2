@@ -33,7 +33,7 @@ const config = {
     clientSecret: process.env.CLIENT_SECRET,
     redirectUri: process.env.REDIRECT_URI || 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback',
     authEndpoint: 'https://accounts.faceit.com/accounts',
-    tokenEndpoint: 'https://api.faceit.com/auth/v1/oauth/token',
+    tokenEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/token',  // Changed to accounts subdomain
     userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo'
 };
 
@@ -104,7 +104,7 @@ router.get('/auth/faceit', async (req, res) => {
             response_type: 'code',
             client_id: config.clientId,
             redirect_uri: config.redirectUri,
-            scope: 'openid profile email',
+            scope: 'openid profile email membership chat.messages.read',  // Added all required scopes
             state: state,
             code_challenge: codeChallenge,
             code_challenge_method: 'S256'
@@ -203,6 +203,9 @@ router.get('/callback', async (req, res) => {
             hasCodeVerifier: !!req.session.codeVerifier
         });
 
+        // Add Basic Auth for token request
+        const basicAuth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
+
         const tokenResponse = await axios.post(config.tokenEndpoint,
             new URLSearchParams({
                 grant_type: 'authorization_code',
@@ -213,6 +216,7 @@ router.get('/callback', async (req, res) => {
             }).toString(),
             {
                 headers: {
+                    'Authorization': `Basic ${basicAuth}`,
                     'Content-Type': 'application/x-www-form-urlencoded'
                 }
             }
