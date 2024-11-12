@@ -28,22 +28,32 @@ function storePKCE(req) {
     const pkce = generatePKCE();
     const state = crypto.randomBytes(16).toString('hex');
 
-    // Initialize session if needed
-    if (!req.session) {
-        req.session = {};
+    // Initialize oauth object if it doesn't exist
+    if (!req.session.oauth) {
+        req.session.oauth = {};
     }
 
     // Store PKCE and state
-    req.session.pkce = pkce;
-    req.session.state = state;
+    req.session.oauth.pkce = pkce;
+    req.session.oauth.state = state;
 
-    return { pkce, state };
+    // Force session save
+    return new Promise((resolve, reject) => {
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+                reject(err);
+            } else {
+                resolve({ pkce, state });
+            }
+        });
+    });
 }
 
 // Authorization route - initiates OAuth2 flow
-router.get('/auth/faceit', (req, res) => {
+router.get('/auth/faceit', async (req, res) => {
     try {
-        const { pkce, state } = storePKCE(req);
+        const { pkce, state } = await storePKCE(req);
 
         // Build authorization URL with PKCE
         const params = new URLSearchParams({
@@ -75,13 +85,13 @@ router.get('/callback', async (req, res) => {
         }
 
         // Check if session exists
-        if (!req.session) {
-            throw new Error('Session not found');
+        if (!req.session.oauth) {
+            throw new Error('Session expired');
         }
 
         // Verify state parameter
-        if (!state || !req.session.state || state !== req.session.state) {
-            throw new Error('Invalid state parameter or session expired');
+        if (!state || state !== req.session.oauth.state) {
+            throw new Error('Invalid state parameter');
         }
 
         // Exchange code for tokens using PKCE
@@ -91,7 +101,7 @@ router.get('/callback', async (req, res) => {
                 client_id: config.clientId,
                 code: code,
                 redirect_uri: config.redirectUri,
-                code_verifier: req.session.pkce.verifier
+                code_verifier: req.session.oauth.pkce.verifier
             }).toString(),
             {
                 headers: {
@@ -114,11 +124,17 @@ router.get('/callback', async (req, res) => {
         req.session.accessToken = accessToken;
         req.session.userInfo = userInfo.data;
 
-        // Clear PKCE and state from session
-        delete req.session.pkce;
-        delete req.session.state;
+        // Clear OAuth data from session
+        delete req.session.oauth;
 
-        res.redirect('/dashboard');
+        // Force session save
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+                throw new Error('Failed to save session');
+            }
+            res.redirect('/dashboard');
+        });
     } catch (error) {
         console.error('Error in callback:', error);
         res.redirect('/error?error=' + encodeURIComponent(error.message));
