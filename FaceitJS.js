@@ -44,7 +44,7 @@ export class FaceitJS extends EventEmitter {
         super();
         this.apiBase = 'https://open.faceit.com/data/v4';
         this.chatApiBase = 'https://api.faceit.com/chat/v1';
-        this.authBase = 'https://api.faceit.com/auth/v1';
+        this.authBase = 'https://api.faceit.com';
         this.clientId = process.env.CLIENT_ID;
         this.clientSecret = process.env.CLIENT_SECRET;
         this.redirectUri = process.env.REDIRECT_URI;
@@ -151,13 +151,13 @@ export class FaceitJS extends EventEmitter {
                 response_type: 'code',
                 client_id: this.clientId,
                 redirect_uri: customRedirectUri || this.redirectUri,
-                scope: 'public openid profile email chat chat:write chat:read',
+                scope: 'openid profile email',
                 state: state,
                 code_challenge: challenge,
                 code_challenge_method: 'S256'
             });
 
-            const url = `${this.authBase}/oauth/authorize?${params.toString()}`;
+            const url = `${this.authBase}/api/auth/v1/oauth/authorize?${params.toString()}`;
             logger.info('Generated authorization URL with PKCE');
 
             return { url, codeVerifier: verifier };
@@ -180,7 +180,7 @@ export class FaceitJS extends EventEmitter {
                 client_secret: this.clientSecret
             });
 
-            const response = await this.oauthInstance.post('/oauth/token', params);
+            const response = await this.oauthInstance.post('/api/auth/v1/oauth/token', params);
 
             if (!response.data.access_token) {
                 throw new Error('No access token in refresh response');
@@ -210,7 +210,7 @@ export class FaceitJS extends EventEmitter {
                 code_verifier: codeVerifier
             });
 
-            const response = await this.oauthInstance.post('/oauth/token', params);
+            const response = await this.oauthInstance.post('/api/auth/v1/oauth/token', params);
 
             if (!response.data.access_token) {
                 throw new Error('No access token in exchange response');
