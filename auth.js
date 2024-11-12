@@ -26,6 +26,11 @@ function generatePKCE() {
 // Login route
 router.get('/auth/faceit', (req, res) => {
     try {
+        // Ensure session exists
+        if (!req.session) {
+            throw new Error('Session not initialized');
+        }
+
         // Generate PKCE values
         const { verifier, challenge } = generatePKCE();
 
@@ -36,32 +41,44 @@ router.get('/auth/faceit', (req, res) => {
         const state = crypto.randomBytes(32).toString('hex');
         req.session.state = state;
 
-        console.info('Login initiated - Session ID:', req.sessionID, 'State:', state);
+        // Save session before redirect
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+                return res.redirect('/error?error=session_save_failed');
+            }
 
-        // Construct authorization URL
-        const params = new URLSearchParams({
-            response_type: 'code',
-            client_id: config.clientId,
-            redirect_uri: config.redirectUri,
-            scope: 'openid profile email',
-            state: state,
-            code_challenge: challenge,
-            code_challenge_method: 'S256'
+            console.info('Login initiated - Session ID:', req.sessionID, 'State:', state);
+            console.info('Generated authorization URL with PKCE');
+
+            // Construct authorization URL
+            const params = new URLSearchParams({
+                response_type: 'code',
+                client_id: config.clientId,
+                redirect_uri: config.redirectUri,
+                scope: 'openid profile email',
+                state: state,
+                code_challenge: challenge,
+                code_challenge_method: 'S256'
+            });
+
+            // Redirect to FACEIT authorization page
+            res.redirect(`${config.authUrl}?${params.toString()}`);
         });
-
-        console.info('Generated authorization URL with PKCE');
-
-        // Redirect to FACEIT authorization page
-        res.redirect(`${config.authUrl}?${params.toString()}`);
     } catch (error) {
         console.error('Error initiating login:', error);
-        res.redirect('/error');
+        res.redirect('/error?error=' + encodeURIComponent(error.message));
     }
 });
 
 // Callback route
 router.get('/callback', async (req, res) => {
     try {
+        // Ensure session exists
+        if (!req.session) {
+            throw new Error('Session not initialized');
+        }
+
         const { code, state } = req.query;
 
         // Verify state parameter
@@ -96,23 +113,36 @@ router.get('/callback', async (req, res) => {
         req.session.accessToken = response.data.access_token;
         req.session.refreshToken = response.data.refresh_token;
 
-        console.info('Successfully exchanged code for tokens');
+        // Save session before redirect
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+                return res.redirect('/error?error=session_save_failed');
+            }
 
-        // Clear PKCE and state values
-        delete req.session.codeVerifier;
-        delete req.session.state;
+            console.info('Successfully exchanged code for tokens');
 
-        // Redirect to dashboard
-        res.redirect('/dashboard');
+            // Clear PKCE and state values
+            delete req.session.codeVerifier;
+            delete req.session.state;
+
+            // Redirect to dashboard
+            res.redirect('/dashboard');
+        });
     } catch (error) {
         console.error('Error in callback:', error);
-        res.redirect('/error');
+        res.redirect('/error?error=' + encodeURIComponent(error.message));
     }
 });
 
 // Refresh token route
 router.post('/refresh-token', async (req, res) => {
     try {
+        // Ensure session exists
+        if (!req.session) {
+            throw new Error('Session not initialized');
+        }
+
         const refreshToken = req.session.refreshToken;
         if (!refreshToken) {
             throw new Error('No refresh token available');
@@ -136,7 +166,15 @@ router.post('/refresh-token', async (req, res) => {
         req.session.accessToken = response.data.access_token;
         req.session.refreshToken = response.data.refresh_token;
 
-        res.json({ success: true });
+        // Save session before sending response
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+                return res.status(500).json({ error: 'Failed to save session' });
+            }
+
+            res.json({ success: true });
+        });
     } catch (error) {
         console.error('Error refreshing token:', error);
         res.status(401).json({ error: 'Failed to refresh token' });
