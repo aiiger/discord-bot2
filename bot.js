@@ -140,6 +140,21 @@ app.use(express.urlencoded({ extended: true }));
 
 // Import and use auth routes
 import authRouter from './auth.js';
+
+// Extend auth callback to update FaceitJS instance
+app.use((req, res, next) => {
+    const originalRedirect = res.redirect;
+    res.redirect = function (url) {
+        if (url === '/dashboard' && req.session.accessToken) {
+            faceitJS.setAccessToken(req.session.accessToken);
+            faceitJS.startPolling(); // Start polling after successful auth
+            logger.info('FaceitJS instance updated with new access token');
+        }
+        originalRedirect.call(this, url);
+    };
+    next();
+});
+
 app.use(authRouter);
 
 // Serve static files from the public directory
@@ -193,6 +208,17 @@ app.get('/', (req, res) => {
     res.render('login');
 });
 
+// Dashboard route
+app.get('/dashboard', (req, res) => {
+    if (!req.session.accessToken) {
+        return res.redirect('/');
+    }
+    res.render('dashboard', {
+        authenticated: true,
+        username: 'FACEIT User'
+    });
+});
+
 // Error handling
 client.on('error', (error) => {
     logger.error('Discord client error:', error);
@@ -226,8 +252,13 @@ Promise.all([
     }),
     client.login(process.env.DISCORD_TOKEN).then(() => {
         logger.info('Discord bot logged in successfully');
-        // Don't start polling until we have an access token
-        logger.info('Waiting for authentication before starting polling');
+        // Check if we already have an access token in the session
+        if (faceitJS.accessToken) {
+            faceitJS.startPolling();
+            logger.info('Started FACEIT match state polling with existing token');
+        } else {
+            logger.info('Waiting for authentication before starting polling');
+        }
     })
 ]).catch(error => {
     logger.error('Failed to start services:', error);
