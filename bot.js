@@ -131,14 +131,14 @@ client.on('messageCreate', async (message) => {
                 try {
                     const matches = await faceitJS.getHubMatches(faceitJS.hubId);
                     if (matches && matches.length > 0) {
-                        const matchInfo = matches.map(match => ({
-                            match_id: match.match_id,
-                            chat_room_id: match.chat_room_id,
-                            state: match.state,
-                            started_at: match.started_at,
-                            finished_at: match.finished_at
-                        }));
-                        message.reply(`Recent matches:\n${JSON.stringify(matchInfo, null, 2)}`);
+                        // Format a shorter version of match info
+                        const matchList = matches.slice(0, 5).map(match =>
+                            `Match ID: ${match.match_id}\n` +
+                            `Status: ${match.state || 'Unknown'}\n` +
+                            `Room: ${match.chat_room_id || 'No room'}\n`
+                        ).join('\n');
+
+                        message.reply(`Recent matches:\n${matchList}\n\nUse !sendtest [matchId] [message] to test sending a message.`);
                     } else {
                         message.reply('No recent matches found.');
                     }
@@ -238,6 +238,118 @@ app.use(express.urlencoded({ extended: true }));
 // Import and use auth routes
 import authRouter from './auth.js';
 app.use('/', authRouter);
+
+// Handle new matches and state changes
+faceitJS.on('newMatch', async (match) => {
+    try {
+        if (match.state === 'VOTING' && match.chat_room_id) {
+            // Initialize match state if not exists
+            if (!matchStates.has(match.match_id)) {
+                matchStates.set(match.match_id, {
+                    rehostVotes: new Set(),
+                    greeted: false,
+                    eloChecked: false
+                });
+            }
+
+            const currentMatchState = matchStates.get(match.match_id);
+
+            // Only send greeting if we haven't greeted yet
+            if (!currentMatchState.greeted) {
+                const welcomeMessage = "👋 Welcome to the match! Available commands:\n" +
+                    "!rehost - Vote for match rehost (6/10 players needed)\n" +
+                    "Match can be cancelled if ELO difference is 70 or greater.";
+
+                await faceitJS.chatApiInstance.post(`/rooms/${match.chat_room_id}/messages`, {
+                    body: welcomeMessage
+                });
+                currentMatchState.greeted = true;
+
+                // Check ELO difference
+                const teams = match.teams;
+                if (teams?.faction1 && teams?.faction2) {
+                    const team1Elo = calculateTeamElo(teams.faction1.roster);
+                    const team2Elo = calculateTeamElo(teams.faction2.roster);
+                    const eloDiff = Math.abs(team1Elo - team2Elo);
+
+                    if (eloDiff >= 70) {
+                        const eloMessage = `⚠️ Warning: ELO difference is ${eloDiff}. Type !cancel to vote for cancellation.`;
+                        await faceitJS.chatApiInstance.post(`/rooms/${match.chat_room_id}/messages`, {
+                            body: eloMessage
+                        });
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        logger.error('Error handling new match:', error);
+    }
+});
+
+// Handle match state changes
+faceitJS.on('matchStateChange', async (match) => {
+    try {
+        // If match is cancelled or finished, clean up the state
+        if (match.state === 'CANCELLED' || match.state === 'FINISHED') {
+            if (match.chat_room_id) {
+                const message = match.state === 'CANCELLED'
+                    ? "❌ Match has been cancelled."
+                    : "🏁 Match has ended! Thanks for playing!";
+
+                await faceitJS.chatApiInstance.post(`/rooms/${match.chat_room_id}/messages`, {
+                    body: message
+                });
+            }
+            // Clean up match state
+            matchStates.delete(match.match_id);
+        }
+    } catch (error) {
+        logger.error('Error handling match state change:', error);
+    }
+});
+
+// Calculate team ELO
+function calculateTeamElo(roster) {
+    if (!roster || !Array.isArray(roster)) return 0;
+    const totalElo = roster.reduce((sum, player) => sum + (player.elo || 0), 0);
+    return Math.round(totalElo / roster.length);
+}
+
+// Handle chat messages
+faceitJS.on('chatMessage', async (message) => {
+    try {
+        if (!message.room_id || !message.body) return;
+
+        const matchId = message.room_id;
+        const matchState = matchStates.get(matchId);
+
+        if (!matchState) return;
+
+        const command = message.body.toLowerCase();
+        const playerId = message.user_id;
+
+        if (command === '!rehost') {
+            // Handle rehost voting
+            matchState.rehostVotes.add(playerId);
+            const votesNeeded = 6;
+            const currentVotes = matchState.rehostVotes.size;
+
+            await faceitJS.chatApiInstance.post(`/rooms/${matchId}/messages`, {
+                body: `Rehost vote: ${currentVotes}/10 players (${votesNeeded} needed)`
+            });
+
+            if (currentVotes >= votesNeeded) {
+                await faceitJS.chatApiInstance.post(`/rooms/${matchId}/messages`, {
+                    body: `✅ Rehost vote passed! Please wait for admin to rehost the match.`
+                });
+                // Reset votes after passing
+                matchState.rehostVotes.clear();
+            }
+        }
+    } catch (error) {
+        logger.error('Error handling chat message:', error);
+    }
+});
 
 // Routes
 app.get('/', (req, res) => {
