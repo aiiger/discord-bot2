@@ -10,7 +10,7 @@ const config = {
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
     redirectUri: process.env.REDIRECT_URI,
-    authUrl: 'https://cdn.faceit.com/widgets/sso/index.html',
+    authUrl: 'https://accounts.faceit.com/post-redirect',
     tokenUrl: 'https://api.faceit.com/auth/v1/oauth/token'
 };
 
