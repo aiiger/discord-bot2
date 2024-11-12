@@ -55,14 +55,21 @@
 			text-decoration: none;
 			display: inline-block;
 			transition: background-color 0.3s;
+			margin-top: 20px;
 		}
 
 		.login-button:hover {
 			background-color: #ff6a1f;
 		}
+
+		.debug-info {
+			margin-top: 20px;
+			font-size: 12px;
+			color: #666;
+			text-align: left;
+			word-break: break-all;
+		}
 	</style>
-	<!-- Include FACEIT OAuth SDK -->
-	<script src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
 </head>
 
 <body>
@@ -71,15 +78,31 @@
 		<h1>FACEIT Bot Authentication</h1>
 		<!-- SDK will inject the login button here -->
 		<div id="faceitLogin"></div>
-		<!-- Manual login button as backup -->
+		<!-- Manual login button -->
 		<button onclick="initiateFaceitLogin()" class="login-button">Login with FACEIT</button>
 		<p class="info">Click the button above to authenticate with FACEIT.</p>
+		<!-- Debug info -->
+		<div class="debug-info">
+			<p>Client ID: <%= clientId %>
+			</p>
+			<p>Redirect URI: <%= redirectUri %>
+			</p>
+		</div>
 	</div>
 
+	<!-- Include FACEIT OAuth SDK -->
+	<script src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
 	<script type="text/javascript">
+		console.log('Initializing FACEIT SDK with:', {
+			clientId: '<%= clientId %>',
+			redirectUri: '<%= redirectUri %>'
+		});
+
 		// Callback function to handle authentication result
 		function handleAuth(response) {
+			console.log('Auth callback received:', response);
 			if (response && response.token) {
+				console.log('Token received, sending to backend');
 				// Send token to our backend
 				fetch('/auth/callback', {
 					method: 'POST',
@@ -92,6 +115,7 @@
 				})
 					.then(res => res.json())
 					.then(data => {
+						console.log('Backend response:', data);
 						if (data.success && data.redirect) {
 							window.location.href = data.redirect;
 						} else {
@@ -112,16 +136,30 @@
 		// Initialize FACEIT SDK
 		var initParams = {
 			client_id: '<%= clientId %>', // Get client ID passed from the server
+			redirect_uri: '<%= redirectUri %>', // Get redirect URI passed from the server
 			response_type: 'token',
 			callback: handleAuth
 		};
 
 		// Initialize SDK
-		FACEIT.init(initParams);
+		console.log('Calling FACEIT.init with params:', initParams);
+		try {
+			FACEIT.init(initParams);
+			console.log('FACEIT SDK initialized successfully');
+		} catch (error) {
+			console.error('Error initializing FACEIT SDK:', error);
+		}
 
 		// Manual login function
 		function initiateFaceitLogin() {
-			FACEIT.openAuthenticationWindow();
+			console.log('Manual login button clicked');
+			try {
+				FACEIT.openAuthenticationWindow();
+				console.log('Authentication window opened');
+			} catch (error) {
+				console.error('Error opening authentication window:', error);
+				alert('Failed to open authentication window. Please try again.');
+			}
 		}
 	</script>
 </body>

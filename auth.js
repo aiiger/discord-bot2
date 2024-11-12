@@ -6,15 +6,19 @@ const router = express.Router();
 // FACEIT OAuth2 configuration
 const config = {
     clientId: process.env.CLIENT_ID,
-    clientSecret: process.env.CLIENT_SECRET
+    clientSecret: process.env.CLIENT_SECRET,
+    redirectUri: process.env.REDIRECT_URI || 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/auth/callback'
 };
 
 // Login route - renders the login page with FACEIT SDK
 router.get('/auth/faceit', (req, res) => {
     try {
         console.info('[' + new Date().toISOString() + '] INFO: GET /auth/faceit - IP:', req.ip);
-        // Pass the client ID to the login page
-        res.render('login', { clientId: config.clientId });
+        // Pass the client ID and redirect URI to the login page
+        res.render('login', {
+            clientId: config.clientId,
+            redirectUri: config.redirectUri
+        });
     } catch (error) {
         console.error('Error rendering login page:', error);
         res.redirect('/error?error=' + encodeURIComponent(error.message));
@@ -24,6 +28,7 @@ router.get('/auth/faceit', (req, res) => {
 // Handle token from FACEIT SDK
 router.post('/auth/callback', async (req, res) => {
     try {
+        console.info('Received callback with body:', JSON.stringify(req.body));
         const { token } = req.body;
 
         if (!token) {
