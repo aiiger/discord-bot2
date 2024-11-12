@@ -1,370 +1,295 @@
+// FaceitJS.js
 import axios from 'axios';
 import { EventEmitter } from 'events';
-import dotenv from 'dotenv';
+import WebSocket from 'ws';
 
-dotenv.config();
-
-// Initialize logger
-const logger = {
-    info: (message, ...args) => {
-        const timestamp = new Date().toISOString();
-        console.log(`[${timestamp}] INFO: ${message}`, ...args);
-    },
-    error: (message, error) => {
-        const timestamp = new Date().toISOString();
-        console.error(`[${timestamp}] ERROR: ${message}`);
-        if (error?.response?.data) {
-            console.error('Response data:', error.response.data);
-        }
-        if (error?.response?.status) {
-            console.error('Status code:', error.response.status);
-        }
-        console.error('Full error:', error);
-    },
-    debug: (message, data = null) => {
-        const timestamp = new Date().toISOString();
-        console.log(`[${timestamp}] DEBUG: ${message}`);
-        if (data) {
-            console.log('Debug data:', JSON.stringify(data, null, 2));
-        }
-    }
-};
-
-// Error mapping
-const errorMapping = {
-    400: 'game_not_found',
-    403: 'game_user_forbidden',
-    500: 'game_user_server_error'
-};
-
-// Data transformations
-function transformRequest(req) {
-    if (req.body) {
-        // Map game name
-        if (req.body.gameName) {
-            req.body.faceit_game_name = req.body.gameName;
-            delete req.body.gameName;
-        }
-        // Map platform ID
-        if (req.body.platformId) {
-            req.body.faceit_user_platform_id = req.body.platformId;
-            delete req.body.platformId;
-        }
-    }
-    return req;
-}
-
-function transformResponse(resp) {
-    if (resp.data) {
-        // Map ELO calculation
-        if (resp.data.user?.levelNumber) {
-            resp.data.elo = (10 * resp.data.user.levelNumber) + 30;
-        }
-        // Map player ELO
-        if (resp.data.elo) {
-            resp.data.playerElo = resp.data.elo;
-            delete resp.data.elo;
-        }
-    }
-    return resp;
-}
-
-export class FaceitJS extends EventEmitter {
-    constructor(accessToken = null) {
+class FaceitJS extends EventEmitter {
+    constructor() {
         super();
-        // Data API endpoints
         this.apiBase = 'https://open.faceit.com/data/v4';
-        this.matchesEndpoint = '/hubs/{hubId}/matches';
-        this.matchDetailsEndpoint = '/matches/{matchId}';
-
-        // Chat API endpoints
         this.chatApiBase = 'https://api.faceit.com/chat/v1';
-        this.chatMessagesEndpoint = '/rooms/{roomId}/messages';
+        this.matchApiBase = 'https://api.faceit.com/match/v1';
 
         this.hubId = process.env.HUB_ID;
         this.apiKey = process.env.FACEIT_API_KEY;
-        this.accessToken = accessToken;
+        this.accessToken = null;
 
-        // Validate environment variables
-        if (!process.env.HUB_ID || !process.env.FACEIT_API_KEY) {
-            throw new Error('Missing required environment variables: HUB_ID and FACEIT_API_KEY are required');
-        }
-
-        logger.debug('Initializing with config:', {
-            hubId: this.hubId,
-            hasApiKey: !!this.apiKey,
-            hasAccessToken: !!this.accessToken
-        });
-
-        this.lastMessageTimestamps = new Map();
+        this.wsConnection = null;
+        this.wsReconnectAttempts = 0;
+        this.maxReconnectAttempts = 5;
         this.pollingInterval = null;
-        this.previousMatchStates = new Map();
 
-        // Data API instance with API key auth
-        this.dataApiInstance = axios.create({
-            baseURL: this.apiBase,
-            headers: {
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
-            }
-        });
-
-        // Chat API instance with OAuth token auth
-        this.chatApiInstance = axios.create({
-            baseURL: this.chatApiBase,
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        });
-
-        this.setupInterceptors();
-        logger.info('FaceitJS initialized successfully');
-    }
-
-    setupInterceptors() {
-        // Add request transformation
-        this.dataApiInstance.interceptors.request.use(transformRequest);
-        this.chatApiInstance.interceptors.request.use(transformRequest);
-
-        // Add response transformation
-        this.dataApiInstance.interceptors.response.use(transformResponse);
-        this.chatApiInstance.interceptors.response.use(transformResponse);
-
-        // Add access token to chat API requests
-        this.chatApiInstance.interceptors.request.use((config) => {
-            if (!this.accessToken) {
-                throw new Error('No access token available');
-            }
-            config.headers = {
-                ...config.headers,
-                'Authorization': `Bearer ${this.accessToken}`
-            };
-            return config;
-        }, (error) => {
-            return Promise.reject(error);
-        });
-
-        // Add error handling interceptor
-        const errorHandler = async error => {
-            if (error.response) {
-                const status = error.response.status;
-                if (status in errorMapping) {
-                    error.response.data = { error: errorMapping[status] };
-                }
-                if (status === 401) {
-                    logger.error('[AUTH ERROR] Unauthorized request:', error);
-                    this.emit('unauthorized', error);
-                }
-            }
-            throw error;
-        };
-
-        this.dataApiInstance.interceptors.response.use(response => response, errorHandler);
-        this.chatApiInstance.interceptors.response.use(response => response, errorHandler);
+        this.activeMatches = new Map();
+        this.matchStates = new Map();
+        this.vetoStates = new Map();
     }
 
     setAccessToken(token) {
         this.accessToken = token;
-        logger.info('Access token updated');
-        logger.debug('New access token status:', { hasToken: !!token });
-    }
-
-    async getHubMatches(hubId) {
-        try {
-            const endpoint = this.matchesEndpoint.replace('{hubId}', hubId);
-            logger.debug('Fetching hub matches:', { endpoint, hubId });
-
-            // Add query parameters for all match types
-            const params = {
-                type: 'all',  // Get all match types
-                offset: 0,    // Start from the beginning
-                limit: 20     // Get up to 20 matches
-            };
-
-            const response = await this.dataApiInstance.get(endpoint, { params });
-            logger.debug('Hub matches response:', {
-                status: response.status,
-                matchCount: response.data?.items?.length || 0,
-                params
-            });
-
-            return response.data.items || [];
-        } catch (error) {
-            logger.error('[HUB ERROR] Failed to get hub matches:', error);
-            return [];
+        this.setupApiInstances();
+        if (token) {
+            this.connectWebSocket();
+            this.startPolling();
         }
     }
 
-    async getMatchDetails(matchId) {
-        try {
-            const endpoint = this.matchDetailsEndpoint.replace('{matchId}', matchId);
-            logger.debug('Fetching match details:', { endpoint, matchId });
+    setupApiInstances() {
+        this.dataApiInstance = axios.create({
+            baseURL: this.apiBase,
+            headers: {
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Accept': 'application/json'
+            }
+        });
 
-            const response = await this.dataApiInstance.get(endpoint);
-            logger.debug('Match details response:', {
-                status: response.status,
-                matchState: response.data?.state,
-                hasRoomId: !!response.data?.chat_room_id
+        this.chatApiInstance = axios.create({
+            baseURL: this.chatApiBase,
+            headers: {
+                'Authorization': `Bearer ${this.accessToken}`,
+                'Accept': 'application/json'
+            }
+        });
+
+        this.matchApiInstance = axios.create({
+            baseURL: this.matchApiBase,
+            headers: {
+                'Authorization': `Bearer ${this.accessToken}`,
+                'Accept': 'application/json'
+            }
+        });
+    }
+
+    async connectWebSocket() {
+        try {
+            if (this.wsConnection) {
+                this.wsConnection.terminate();
+            }
+
+            this.wsConnection = new WebSocket('wss://api.faceit.com/chat/v1/ws', {
+                headers: {
+                    'Authorization': `Bearer ${this.accessToken}`
+                }
             });
 
-            return response.data;
+            this.wsConnection.on('open', () => {
+                console.log('[WS] Connection established');
+                this.wsReconnectAttempts = 0;
+                this.emit('wsConnected');
+            });
+
+            this.wsConnection.on('message', async (data) => {
+                try {
+                    const message = JSON.parse(data);
+                    if (message.event === 'message' && message.payload) {
+                        await this.handleChatMessage(message.payload);
+                    }
+                } catch (error) {
+                    console.error('[WS] Error processing message:', error);
+                }
+            });
+
+            this.wsConnection.on('close', () => {
+                console.log('[WS] Connection closed');
+                this.handleReconnect();
+            });
+
+            this.wsConnection.on('error', (error) => {
+                console.error('[WS] Error:', error);
+                this.handleReconnect();
+            });
+
         } catch (error) {
-            logger.error('[MATCH ERROR] Failed to get match details:', error);
-            return null;
+            console.error('[WS] Connection error:', error);
+            this.handleReconnect();
         }
     }
 
-    async sendChatMessage(roomId, message) {
-        try {
-            const endpoint = this.chatMessagesEndpoint.replace('{roomId}', roomId);
-            logger.debug('Sending chat message:', { roomId, message });
+    async startPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+        }
 
-            await this.chatApiInstance.post(endpoint, { body: message });
-            logger.info(`[CHAT] Message sent to room ${roomId}: ${message}`);
+        console.log('[POLLING] Starting match polling');
+        await this.checkMatches(); // Initial check
+
+        this.pollingInterval = setInterval(async () => {
+            try {
+                await this.checkMatches();
+            } catch (error) {
+                console.error('[POLLING] Error:', error);
+                this.emit('pollingError', error);
+            }
+        }, 30000); // Check every 30 seconds
+    }
+
+    async checkMatches() {
+        try {
+            const response = await this.dataApiInstance.get(`/hubs/${this.hubId}/matches`, {
+                params: {
+                    status: 'ONGOING',
+                    limit: 50
+                }
+            });
+
+            const matches = response.data.items;
+
+            for (const match of matches) {
+                const matchId = match.match_id;
+                const currentState = this.matchStates.get(matchId);
+
+                // New match detection
+                if (!this.activeMatches.has(matchId)) {
+                    this.activeMatches.set(matchId, match);
+                    this.matchStates.set(matchId, {
+                        status: match.status,
+                        vetoComplete: false,
+                        greetingSent: false
+                    });
+                    this.emit('newMatch', match);
+                    await this.handleMatchState(match);
+                } else if (currentState.status !== match.status) {
+                    // Status change detection
+                    this.matchStates.set(matchId, {
+                        ...currentState,
+                        status: match.status
+                    });
+                    this.emit('matchStatusChange', { matchId, oldStatus: currentState.status, newStatus: match.status });
+                    await this.handleMatchState(match);
+                }
+
+                // Veto phase check
+                if (match.status === 'VOTING' && !currentState?.greetingSent) {
+                    await this.handleVetoPhase(match);
+                }
+            }
+
+            // Cleanup finished matches
+            for (const [matchId, match] of this.activeMatches.entries()) {
+                if (!matches.some(m => m.match_id === matchId)) {
+                    this.activeMatches.delete(matchId);
+                    this.matchStates.delete(matchId);
+                    this.emit('matchComplete', { matchId, match });
+                }
+            }
+
+        } catch (error) {
+            console.error('[MATCHES] Check error:', error);
+            throw error;
+        }
+    }
+
+    async handleMatchState(match) {
+        const state = this.matchStates.get(match.match_id);
+
+        switch (match.status) {
+            case 'VOTING':
+                if (!state.greetingSent) {
+                    await this.handleVetoPhase(match);
+                }
+                break;
+            case 'READY':
+                await this.sendChatMessage(match.match_id,
+                    "📢 Match is ready! Please join the server."
+                );
+                break;
+            case 'ONGOING':
+                if (state.status !== 'ONGOING') {
+                    await this.sendChatMessage(match.match_id,
+                        "🎮 Match has started! Good luck and have fun!"
+                    );
+                }
+                break;
+            case 'CANCELLED':
+                await this.sendChatMessage(match.match_id,
+                    "⚠️ Match has been cancelled."
+                );
+                break;
+            case 'FINISHED':
+                await this.sendChatMessage(match.match_id,
+                    "🏁 Match has ended. GG WP!"
+                );
+                break;
+        }
+    }
+
+    async handleVetoPhase(match) {
+        try {
+            const state = this.matchStates.get(match.match_id);
+            if (!state.greetingSent) {
+                await this.sendChatMessage(match.match_id,
+                    "👋 Welcome to the map veto phase!\n" +
+                    "Use !veto [map] to ban a map.\n" +
+                    "Available commands: !maps, !veto, !help"
+                );
+
+                this.matchStates.set(match.match_id, {
+                    ...state,
+                    greetingSent: true
+                });
+
+                this.emit('vetoStarted', match);
+            }
+        } catch (error) {
+            console.error('[VETO] Error:', error);
+        }
+    }
+
+    handleReconnect() {
+        if (this.wsReconnectAttempts < this.maxReconnectAttempts) {
+            this.wsReconnectAttempts++;
+            console.log(`[WS] Reconnecting (${this.wsReconnectAttempts}/${this.maxReconnectAttempts})`);
+            setTimeout(() => this.connectWebSocket(), 5000 * this.wsReconnectAttempts);
+        } else {
+            console.error('[WS] Max reconnection attempts reached');
+            this.emit('wsMaxReconnectAttempts');
+        }
+    }
+
+    async sendChatMessage(matchId, message) {
+        try {
+            await this.chatApiInstance.post(`/rooms/${matchId}/messages`, {
+                message: message
+            });
             return true;
         } catch (error) {
-            logger.error('[CHAT ERROR] Failed to send message:', error);
+            console.error('[CHAT] Send error:', error);
             return false;
         }
     }
 
-    async pollRoomMessages(roomId) {
-        if (!this.accessToken) {
-            logger.error('[CHAT ERROR] No access token available for polling messages');
-            return;
-        }
-
+    async getActiveMatches() {
         try {
-            const lastTimestamp = this.lastMessageTimestamps.get(roomId) || 0;
-            const endpoint = this.chatMessagesEndpoint.replace('{roomId}', roomId);
-            logger.debug('Polling room messages:', { roomId, lastTimestamp });
-
-            const response = await this.chatApiInstance.get(endpoint, {
-                params: { timestamp_from: lastTimestamp }
+            const response = await this.dataApiInstance.get(`/hubs/${this.hubId}/matches`, {
+                params: {
+                    status: 'ONGOING',
+                    limit: 50
+                }
             });
-
-            if (response.data && Array.isArray(response.data.messages)) {
-                const messages = response.data.messages;
-                logger.debug('Room messages received:', {
-                    roomId,
-                    messageCount: messages.length
-                });
-
-                if (messages.length > 0) {
-                    const latestTimestamp = Math.max(...messages.map(m => m.timestamp));
-                    this.lastMessageTimestamps.set(roomId, latestTimestamp);
-                    messages.forEach(message => {
-                        this.emit('chatMessage', message);
-                    });
-                }
-            }
+            return response.data.items;
         } catch (error) {
-            if (error.message === 'No access token available') {
-                logger.error('[CHAT ERROR] No access token available for polling messages');
-            } else {
-                logger.error('[CHAT ERROR] Failed to poll messages:', error);
-            }
+            console.error('[MATCHES] Get error:', error);
+            throw error;
         }
     }
 
-    startPolling() {
-        if (!this.accessToken) {
-            logger.error('[POLLING ERROR] Cannot start polling without access token');
-            return;
+    async sendTestMessage(matchId, message) {
+        try {
+            const success = await this.sendChatMessage(matchId, message);
+            return success;
+        } catch (error) {
+            console.error('[TEST] Message error:', error);
+            return false;
         }
-
-        // Clear any existing polling interval
-        if (this.pollingInterval) {
-            clearInterval(this.pollingInterval);
-        }
-
-        logger.info('[POLLING] Starting match state polling');
-        logger.debug('Polling configuration:', {
-            hubId: this.hubId,
-            hasAccessToken: !!this.accessToken,
-            interval: '15 seconds'
-        });
-
-        // Poll every 15 seconds
-        this.pollingInterval = setInterval(async () => {
-            try {
-                const activeMatches = await this.getHubMatches(this.hubId);
-
-                if (!Array.isArray(activeMatches)) {
-                    logger.error('[POLLING ERROR] Invalid matches data received');
-                    return;
-                }
-
-                logger.info(`[HUB] Found ${activeMatches.length} ongoing matches`);
-                logger.debug('Active matches:', activeMatches.map(m => ({
-                    matchId: m.match_id,
-                    state: m.state,
-                    hasRoomId: !!m.chat_room_id
-                })));
-
-                for (const match of activeMatches) {
-                    if (!match || !match.match_id) {
-                        logger.error('[POLLING ERROR] Invalid match data:', match);
-                        continue;
-                    }
-
-                    const matchId = match.match_id;
-                    const matchDetails = await this.getMatchDetails(matchId);
-                    if (!matchDetails) continue;
-
-                    const currentState = matchDetails.state || 'UNKNOWN';
-                    const prevState = this.previousMatchStates.get(matchId);
-
-                    logger.info(`[MATCH INFO] Match ${matchId} is in state: ${currentState}`);
-                    logger.debug('Match details:', {
-                        matchId,
-                        currentState,
-                        previousState: prevState,
-                        hasRoomId: !!matchDetails.chat_room_id,
-                        teams: matchDetails.teams ? {
-                            faction1Count: matchDetails.teams.faction1?.roster?.length,
-                            faction2Count: matchDetails.teams.faction2?.roster?.length
-                        } : null
-                    });
-
-                    if (!prevState) {
-                        logger.info(`[MATCH NEW] Found new match ${matchId} in state: ${currentState}`);
-                        this.emit('newMatch', matchDetails);
-                    } else if (prevState !== currentState) {
-                        logger.info(`[MATCH STATE] Match ${matchId} state changed from ${prevState} to ${currentState}`);
-                        this.emit('matchStateChange', matchDetails);
-                    }
-
-                    this.previousMatchStates.set(matchId, currentState);
-
-                    // Only poll chat messages if we have an access token and chat room ID
-                    if (this.accessToken && matchDetails.chat_room_id) {
-                        await this.pollRoomMessages(matchDetails.chat_room_id).catch(error => {
-                            logger.error(`[CHAT ERROR] Failed to poll messages for room ${matchDetails.chat_room_id}:`, error);
-                        });
-                    }
-                }
-
-                // Clean up old matches
-                const currentMatchIds = new Set(activeMatches.map(m => m.match_id));
-                for (const [matchId] of this.previousMatchStates) {
-                    if (!currentMatchIds.has(matchId)) {
-                        this.previousMatchStates.delete(matchId);
-                        logger.info(`[MATCH REMOVED] Match ${matchId} is no longer active`);
-                    }
-                }
-            } catch (error) {
-                logger.error('[POLLING ERROR] Failed to poll matches:', error);
-            }
-        }, 15000);
     }
 
-    stopPolling() {
+    stop() {
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
-            this.pollingInterval = null;
-            logger.info('[POLLING] Stopped match state polling');
+        }
+        if (this.wsConnection) {
+            this.wsConnection.terminate();
         }
     }
 }
+
+export { FaceitJS };

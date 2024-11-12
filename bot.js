@@ -1,98 +1,17 @@
-// FACEIT OAuth2 Bot with SDK Support
+// bot.js
 import express from 'express';
 import session from 'express-session';
 import { FaceitJS } from './FaceitJS.js';
-import crypto from 'crypto';
-import dotenv from 'dotenv';
-import { Client, GatewayIntentBits } from 'discord.js';
+import authRouter from './auth.js';
+import { Client, GatewayIntentBits, EmbedBuilder, Partials } from 'discord.js';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import axios from 'axios';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Get directory name in ES module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Initialize logger
-const logger = {
-    info: (message, ...args) => {
-        const timestamp = new Date().toISOString();
-        console.log(`[${timestamp}] INFO: ${message}`, ...args);
-    },
-    error: (message, error) => {
-        const timestamp = new Date().toISOString();
-        console.error(`[${timestamp}] ERROR: ${message}`);
-        if (error?.response?.data) {
-            console.error('Response data:', error.response.data);
-        }
-        if (error?.response?.status) {
-            console.error('Status code:', error.response.status);
-        }
-        if (error?.config?.url) {
-            console.error('Request URL:', error.config.url);
-        }
-        if (error?.config?.headers) {
-            const sanitizedHeaders = { ...error.config.headers };
-            if (sanitizedHeaders.Authorization) {
-                sanitizedHeaders.Authorization = 'Bearer [REDACTED]';
-            }
-            console.error('Request headers:', sanitizedHeaders);
-        }
-        if (error?.config?.data) {
-            console.error('Request data:', error.config.data);
-        }
-        console.error('Full error:', error);
-    },
-    debug: (message, data = null) => {
-        const timestamp = new Date().toISOString();
-        console.log(`[${timestamp}] DEBUG: ${message}`);
-        if (data) {
-            console.log('Debug data:', JSON.stringify(data, null, 2));
-        }
-    }
-};
-
-// Initialize Express
 const app = express();
-
-// Must be first - trust proxy for Heroku
-app.enable('trust proxy');
-
 const port = process.env.PORT || 3002;
-const isProduction = process.env.NODE_ENV === 'production';
-
-// Force HTTPS in production
-if (isProduction) {
-    app.use((req, res, next) => {
-        if (req.header('x-forwarded-proto') !== 'https') {
-            res.redirect(`https://${req.header('host')}${req.url}`);
-        } else {
-            next();
-        }
-    });
-}
-
-// Set up view engine
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
-// Get the base URL for the application
-const getBaseUrl = () => {
-    return isProduction ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com' : `http://localhost:${port}`;
-};
-
-// Initialize FaceitJS instance
-const faceitJS = new FaceitJS();
-app.locals.faceitJS = faceitJS;  // Store FaceitJS instance in app.locals
-
-// Store match states and voting
-const matchStates = new Map();
-// Store processed matches to avoid duplicate greetings
-const processedMatches = new Set();
 
 // Initialize Discord client
 const client = new Client({
@@ -100,255 +19,301 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent
-    ]
+    ],
+    partials: [Partials.Channel]
 });
 
-// Function to send greeting message to match room
-async function sendGreetingToMatch(matchId, matchDetails) {
-    if (!processedMatches.has(matchId)) {
-        try {
-            const greetingMessage = "👋 Hello! Map veto phase has started. I'm here to assist and monitor the process. Good luck! 🎮";
-            await faceitJS.sendChatMessage(matchId, greetingMessage);
-            processedMatches.add(matchId);
-            logger.info(`Sent greeting message to match ${matchId} during veto phase`);
-        } catch (error) {
-            logger.error(`Failed to send greeting to match ${matchId}:`, error);
-            if (error.message === 'No access token available') {
-                const authUrl = `${getBaseUrl()}/auth/faceit`;
-                logger.info(`⚠️ Authentication required! Please visit ${authUrl} to authenticate the bot`);
-                // If running in Discord, try to notify a channel
-                try {
-                    const channel = await client.channels.fetch(process.env.NOTIFICATION_CHANNEL_ID);
-                    if (channel) {
-                        await channel.send(`⚠️ Bot needs authentication! Please visit ${authUrl} to authenticate the bot.`);
-                    }
-                } catch (discordError) {
-                    logger.error('Failed to send Discord notification:', discordError);
-                }
-            }
-        }
-    }
-}
+// Initialize FaceitJS
+const faceitJS = new FaceitJS();
 
-// Function to check for matches in veto phase
-async function checkMatchesInVeto() {
-    try {
-        if (!faceitJS.accessToken) {
-            const authUrl = `${getBaseUrl()}/auth/faceit`;
-            logger.info(`⚠️ Authentication required! Please visit ${authUrl} to authenticate the bot`);
-            return;
-        }
-
-        const matches = await faceitJS.getHubMatches(faceitJS.hubId);
-        if (matches && matches.length > 0) {
-            logger.info(`Found ${matches.length} matches to check`);
-            for (const match of matches) {
-                // Check if match is in veto phase (VOTING state)
-                if (match.status === 'VOTING' || match.state === 'VOTING') {
-                    logger.info(`Match ${match.match_id} is in veto phase, sending greeting`);
-                    await sendGreetingToMatch(match.match_id, match);
-                }
-            }
-        }
-    } catch (error) {
-        if (error.response?.status === 401) {
-            faceitJS.accessToken = null; // Clear invalid token
-            const authUrl = `${getBaseUrl()}/auth/faceit`;
-            logger.info(`⚠️ Authentication expired! Please visit ${authUrl} to re-authenticate the bot`);
-        } else {
-            logger.error('Error checking for matches in veto phase:', error);
-        }
-    }
-}
-
-// Start periodic match checking (every 30 seconds)
-setInterval(checkMatchesInVeto, 30 * 1000);
-
-// Discord client login
-client.login(process.env.DISCORD_TOKEN).then(() => {
-    logger.info('Discord bot logged in successfully');
-    // Initial check for matches after successful login
-    checkMatchesInVeto();
-}).catch(error => {
-    logger.error('Failed to log in to Discord:', error);
-});
-
-// Discord client ready event
-client.once('ready', () => {
-    logger.info(`Discord bot logged in as ${client.user.tag}`);
-});
-
-// Handle Discord messages
-client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-
-    const args = message.content.split(' ');
-    const command = args[0].toLowerCase();
-
-    try {
-        switch (command) {
-            case '!sendtest':
-                if (args.length < 3) {
-                    message.reply('Usage: !sendtest [matchId] [message]');
-                    return;
-                }
-
-                const matchId = args[1];
-                const testMessage = args.slice(2).join(' ');
-
-                if (!faceitJS.accessToken) {
-                    const authUrl = `${getBaseUrl()}/auth/faceit`;
-                    message.reply(`⚠️ Authentication required! Please visit ${authUrl} to authenticate the bot`);
-                    return;
-                }
-
-                try {
-                    await faceitJS.sendChatMessage(matchId, testMessage);
-                    message.reply(`Successfully sent message to match room ${matchId}`);
-                    logger.info(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
-                } catch (error) {
-                    if (error.response?.status === 401) {
-                        const authUrl = `${getBaseUrl()}/auth/faceit`;
-                        message.reply(`⚠️ Authentication expired! Please visit ${authUrl} to re-authenticate the bot`);
-                        faceitJS.accessToken = null;
-                    } else {
-                        message.reply(`Failed to send message: ${error.message}`);
-                    }
-                    logger.error('[DISCORD] Error sending test message:', error);
-                }
-                break;
-
-            case '!getmatches':
-                try {
-                    const matches = await faceitJS.getHubMatches(faceitJS.hubId);
-                    if (matches && matches.length > 0) {
-                        const matchList = matches.slice(0, 5).map(match =>
-                            `Match ID: ${match.match_id}\n` +
-                            `Status: ${match.state || 'Unknown'}\n` +
-                            `Room: ${match.chat_room_id || 'No room'}\n`
-                        ).join('\n');
-
-                        message.reply(`Recent matches:\n${matchList}\n\nUse !sendtest [matchId] [message] to test sending a message.`);
-                        logger.info('[DISCORD] Retrieved matches:', { count: matches.length });
-                    } else {
-                        message.reply('No recent matches found.');
-                        logger.info('[DISCORD] No matches found');
-                    }
-                } catch (error) {
-                    message.reply('Error getting matches: ' + error.message);
-                    logger.error('Error getting matches:', error);
-                }
-                break;
-
-            case '!auth':
-                const authUrl = `${getBaseUrl()}/auth/faceit`;
-                message.reply(`Please visit ${authUrl} to authenticate the bot`);
-                break;
-
-            case '!testhelp':
-                const helpMessage = `
-Available test commands:
-!getmatches - Get recent matches from your hub
-!sendtest [matchId] [message] - Send a custom message to match chat
-!auth - Get the authentication URL
-
-Example:
-1. Use !auth to get the authentication URL
-2. Use !getmatches to get match IDs
-3. Use !sendtest with a match ID to test messaging
-`;
-                message.reply(helpMessage);
-                break;
-        }
-    } catch (error) {
-        logger.error('[DISCORD] Error executing command:', error);
-        message.reply(`Failed to execute command: ${error.message}`);
-    }
-});
-
-// Rate limiting configuration for Heroku
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: 'Too many requests from this IP, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false
-});
-
-// Session middleware configuration
-const sessionConfig = {
-    secret: process.env.SESSION_SECRET,
-    name: 'faceit.sid',
-    resave: true,
-    saveUninitialized: true,
-    proxy: true,
-    rolling: true,
-    cookie: {
-        secure: isProduction,
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax',
-        path: '/'
-    }
-};
-
-if (isProduction) {
-    app.set('trust proxy', 1);
-    sessionConfig.cookie.secure = true;
-}
-
-// Apply middleware
+// Middleware setup
 app.use(helmet({
-    contentSecurityPolicy: false
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
 }));
-app.use(limiter);
-app.use((req, res, next) => {
-    logger.info(`${req.method} ${req.path} - IP: ${req.ip}`);
-    next();
-});
-
-// Initialize session middleware
-app.use(session(sessionConfig));
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Import and use auth routes
-import authRouter from './auth.js';
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.'
+});
+app.use(limiter);
+
+// Session configuration
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
+
+// Make faceitJS available to routes
+app.locals.faceitJS = faceitJS;
+
+// Auth routes
 app.use('/', authRouter);
 
-// Routes
-app.get('/', (req, res) => {
-    logger.info('Home route accessed by IP:', req.ip);
-    res.render('login', {
-        authenticated: !!faceitJS.accessToken,
-        baseUrl: getBaseUrl()
-    });
-});
+// Discord logging functions
+async function sendDiscordLog(type, data) {
+    try {
+        const logChannel = await client.channels.fetch(process.env.DISCORD_LOG_CHANNEL);
+        if (!logChannel) {
+            console.error('Log channel not found');
+            return;
+        }
 
-// Dashboard route
-app.get('/dashboard', (req, res) => {
-    if (!req.session.accessToken) {
-        return res.redirect('/');
+        const embed = new EmbedBuilder()
+            .setTimestamp();
+
+        switch (type) {
+            case 'matchCreated':
+                embed
+                    .setColor('#0099ff')
+                    .setTitle('🎮 New Match Created')
+                    .setDescription(`Match ID: ${data.matchId}`)
+                    .addFields(
+                        { name: 'Status', value: data.status, inline: true },
+                        { name: 'Team 1', value: data.teams.team1, inline: true },
+                        { name: 'Team 2', value: data.teams.team2, inline: true }
+                    );
+                break;
+
+            case 'vetoPhase':
+                embed
+                    .setColor('#ffa500')
+                    .setTitle('🗺️ Map Veto Started')
+                    .setDescription(`Match ID: ${data.matchId}`)
+                    .addFields(
+                        { name: 'Status', value: 'Veto phase in progress', inline: true }
+                    );
+                break;
+
+            case 'matchComplete':
+                embed
+                    .setColor('#00ff00')
+                    .setTitle('🏁 Match Completed')
+                    .setDescription(`Match ID: ${data.matchId}`)
+                    .addFields(
+                        { name: 'Duration', value: data.duration || 'N/A', inline: true }
+                    );
+                break;
+
+            case 'error':
+                embed
+                    .setColor('#ff0000')
+                    .setTitle('❌ Error Occurred')
+                    .setDescription(data.message)
+                    .addFields(
+                        { name: 'Details', value: data.details || 'No details provided', inline: true }
+                    );
+                break;
+
+            case 'wsConnected':
+                embed
+                    .setColor('#00ff00')
+                    .setTitle('🔌 WebSocket Connected')
+                    .setDescription('Connection to FACEIT chat established');
+                break;
+
+            case 'wsDisconnected':
+                embed
+                    .setColor('#ff6b6b')
+                    .setTitle('🔌 WebSocket Disconnected')
+                    .setDescription('Connection to FACEIT chat lost');
+                break;
+
+            default:
+                embed
+                    .setColor('#808080')
+                    .setTitle('📝 System Log')
+                    .setDescription(JSON.stringify(data));
+        }
+
+        await logChannel.send({ embeds: [embed] });
+    } catch (error) {
+        console.error('Error sending Discord log:', error);
     }
-    res.render('dashboard', {
-        authenticated: true,
-        username: req.session.userInfo?.nickname || 'FACEIT User',
-        userInfo: req.session.userInfo
+}
+
+// Discord command handling
+client.on('messageCreate', async message => {
+    if (!message.content.startsWith('!') || message.author.bot) return;
+
+    const args = message.content.slice(1).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
+
+    try {
+        switch (command) {
+            case 'auth':
+                const authUrl = `${process.env.BASE_URL}/auth/faceit`;
+                const authEmbed = new EmbedBuilder()
+                    .setColor('#00ff00')
+                    .setTitle('FACEIT Authentication')
+                    .setDescription(`[Click here to authenticate](${authUrl})`)
+                    .setTimestamp();
+                await message.reply({ embeds: [authEmbed] });
+                break;
+
+            case 'getmatches':
+                const matches = await faceitJS.getActiveMatches();
+                const matchesEmbed = new EmbedBuilder()
+                    .setColor('#0099ff')
+                    .setTitle('Active FACEIT Matches')
+                    .setTimestamp();
+
+                if (matches.length === 0) {
+                    matchesEmbed.setDescription('No active matches found');
+                } else {
+                    matches.forEach(match => {
+                        matchesEmbed.addFields({
+                            name: `Match ID: ${match.match_id}`,
+                            value: `Status: ${match.status}\nMap: ${match.voting?.map?.pick?.[0] || 'TBA'}`
+                        });
+                    });
+                }
+                await message.reply({ embeds: [matchesEmbed] });
+                break;
+
+            case 'sendtest':
+                if (!message.member.permissions.has('ADMINISTRATOR')) {
+                    await message.reply('You need administrator permissions to use this command.');
+                    return;
+                }
+
+                const matchId = args[0];
+                const testMessage = args.slice(1).join(' ');
+
+                if (!matchId || !testMessage) {
+                    await message.reply('Usage: !sendtest [matchId] [message]');
+                    return;
+                }
+
+                const success = await faceitJS.sendTestMessage(matchId, testMessage);
+                await message.reply(success ?
+                    '✅ Test message sent successfully' :
+                    '❌ Failed to send test message'
+                );
+                break;
+
+            case 'help':
+                const helpEmbed = new EmbedBuilder()
+                    .setColor('#0099ff')
+                    .setTitle('Available Commands')
+                    .addFields(
+                        { name: '!auth', value: 'Get the FACEIT authentication URL' },
+                        { name: '!getmatches', value: 'View all active matches' },
+                        { name: '!sendtest', value: 'Send a test message to a match (Admin only)' },
+                        { name: '!help', value: 'Show this help message' }
+                    )
+                    .setTimestamp();
+                await message.reply({ embeds: [helpEmbed] });
+                break;
+        }
+    } catch (error) {
+        console.error('Error handling Discord command:', error);
+        await message.reply('An error occurred while processing the command.');
+        await sendDiscordLog('error', {
+            message: 'Discord Command Error',
+            details: error.message,
+            command: command
+        });
+    }
+});
+
+// FaceitJS event listeners
+faceitJS.on('newMatch', async (match) => {
+    await sendDiscordLog('matchCreated', {
+        matchId: match.match_id,
+        status: match.status,
+        teams: {
+            team1: match.teams.faction1.name,
+            team2: match.teams.faction2.name
+        }
     });
 });
 
-// Error route
-app.get('/error', (req, res) => {
-    const errorMessage = req.query.error || 'An unknown error occurred';
-    res.render('error', { message: 'Authentication Error', error: errorMessage });
+faceitJS.on('vetoStarted', async (match) => {
+    await sendDiscordLog('vetoPhase', {
+        matchId: match.match_id
+    });
+});
+
+faceitJS.on('matchComplete', async (data) => {
+    await sendDiscordLog('matchComplete', {
+        matchId: data.matchId,
+        duration: data.match.duration
+    });
+});
+
+faceitJS.on('wsConnected', () => {
+    sendDiscordLog('wsConnected', {});
+});
+
+faceitJS.on('wsMaxReconnectAttempts', () => {
+    sendDiscordLog('wsDisconnected', {});
+});
+
+// Discord client setup
+client.once('ready', () => {
+    console.log(`Discord bot logged in as ${client.user.tag}`);
+    sendDiscordLog('info', { message: 'Bot started successfully' });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Server error:', err.stack);
+    sendDiscordLog('error', {
+        message: 'Server Error',
+        details: err.message
+    });
+    res.status(500).send('Something broke!');
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        discordConnected: client.isReady(),
+        wsConnected: faceitJS.wsConnection?.readyState === 1
+    });
 });
 
 // Start the server
-const server = app.listen(port, () => {
-    logger.info(`Server running on port ${port}`);
-    logger.info(`Base URL: ${getBaseUrl()}`);
-    logger.info(`⚠️ Please visit ${getBaseUrl()}/auth/faceit to authenticate the bot`);
+const startServer = async () => {
+    try {
+        await client.login(process.env.DISCORD_TOKEN);
+
+        app.listen(port, () => {
+            console.log(`Server is running on port ${port}`);
+            sendDiscordLog('info', {
+                message: 'Server started',
+                port: port
+            });
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+};
+
+startServer();
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+    console.log('SIGTERM received. Starting graceful shutdown...');
+    await sendDiscordLog('info', { message: 'Bot shutting down...' });
+
+    faceitJS.stop();
+    client.destroy();
+    process.exit(0);
 });
 
 export default app;

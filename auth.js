@@ -1,10 +1,11 @@
+// auth.js
 import express from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
 
 const router = express.Router();
 
-// Initialize logger
+// Enhanced logger
 const logger = {
     info: (message, ...args) => {
         const timestamp = new Date().toISOString();
@@ -19,7 +20,9 @@ const logger = {
         if (error?.response?.status) {
             console.error('Status code:', error.response.status);
         }
-        console.error('Full error:', error);
+        if (error?.stack) {
+            console.error('Stack trace:', error.stack);
+        }
     },
     debug: (message, data) => {
         const timestamp = new Date().toISOString();
@@ -27,26 +30,28 @@ const logger = {
     }
 };
 
-// FACEIT OAuth2 configuration from OpenID configuration
+// FACEIT OAuth2 configuration
 const config = {
-    clientId: process.env.CLIENT_ID,
-    clientSecret: process.env.CLIENT_SECRET,
-    redirectUri: process.env.REDIRECT_URI || 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback',
+    clientId: process.env.FACEIT_CLIENT_ID,
+    clientSecret: process.env.FACEIT_CLIENT_SECRET,
+    redirectUri: process.env.REDIRECT_URI || 'http://localhost:3002/callback',
     authEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/authorize',
     tokenEndpoint: 'https://api.faceit.com/auth/v1/oauth/token',
-    userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo'
+    userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo',
+    scope: 'openid profile email membership chat.messages.read chat.messages.send matches.read'
 };
 
-// Generate PKCE code verifier
+// PKCE code verifier generation
 function generateCodeVerifier() {
-    return crypto.randomBytes(32)
+    const verifier = crypto.randomBytes(32)
         .toString('base64')
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=/g, '');
+    return verifier.substring(0, 128);
 }
 
-// Generate PKCE code challenge
+// PKCE code challenge generation
 async function generateCodeChallenge(verifier) {
     const hash = crypto.createHash('sha256')
         .update(verifier)
@@ -57,149 +62,84 @@ async function generateCodeChallenge(verifier) {
     return hash;
 }
 
-// Test route to verify callback URL is accessible
-router.get('/test-callback', (req, res) => {
-    logger.info('Test callback route accessed');
-    res.send('Callback URL is accessible');
-});
+// Helper function to validate session
+function validateSession(req) {
+    if (!req.session) {
+        throw new Error('No session found');
+    }
+    if (!req.session.codeVerifier) {
+        throw new Error('No code verifier found in session');
+    }
+    return true;
+}
 
-// Authorization route - initiates OAuth2 flow with PKCE
+// Authorization route
 router.get('/auth/faceit', async (req, res) => {
-    logger.info('Auth route accessed');
     try {
-        // Generate PKCE values
+        logger.info('Starting OAuth2 authorization flow');
+
         const codeVerifier = generateCodeVerifier();
         const codeChallenge = await generateCodeChallenge(codeVerifier);
-        const state = crypto.randomBytes(16).toString('hex');
+        const state = crypto.randomBytes(32).toString('hex');
 
-        // Initialize session if it doesn't exist
         if (!req.session) {
-            logger.info('Creating new session');
             req.session = {};
         }
 
-        // Store PKCE and state values in session
         req.session.codeVerifier = codeVerifier;
         req.session.state = state;
         req.session.stateTimestamp = Date.now();
 
-        // Force session save
         await new Promise((resolve, reject) => {
             req.session.save((err) => {
                 if (err) {
-                    logger.error('Session save error:', err);
+                    logger.error('Failed to save session', err);
                     reject(err);
-                } else {
-                    logger.info('Session saved successfully');
-                    resolve();
                 }
+                resolve();
             });
         });
 
-        // Log session details
-        logger.debug('Session details:', {
-            state: state,
-            sessionState: req.session.state,
-            sessionId: req.session.id,
-            stateTimestamp: req.session.stateTimestamp,
-            hasCodeVerifier: !!req.session.codeVerifier
-        });
-
-        // Build authorization URL with PKCE
-        const params = new URLSearchParams({
+        const authParams = new URLSearchParams({
             response_type: 'code',
             client_id: config.clientId,
             redirect_uri: config.redirectUri,
-            scope: 'openid profile email membership chat.messages.read',
+            scope: config.scope,
             state: state,
             code_challenge: codeChallenge,
             code_challenge_method: 'S256'
         });
 
-        const authUrl = `${config.authEndpoint}?${params.toString()}`;
-        logger.debug('Authorization URL:', { url: authUrl });
+        const authUrl = `${config.authEndpoint}?${authParams.toString()}`;
 
-        // Set security headers
-        res.set({
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
+        logger.debug('Authorization parameters', {
+            state,
+            redirectUri: config.redirectUri,
+            hasCodeChallenge: !!codeChallenge
         });
 
-        logger.info('Redirecting to FACEIT authorization page');
         res.redirect(authUrl);
     } catch (error) {
-        logger.error('Error initiating OAuth flow:', error);
-        res.redirect('/error?error=' + encodeURIComponent('Failed to initiate authentication'));
+        logger.error('Authorization initialization failed', error);
+        res.redirect('/error?message=auth_failed');
     }
 });
 
-// OAuth callback handler
+// Callback route
 router.get('/callback', async (req, res) => {
     try {
-        logger.info('Callback route accessed');
-        logger.debug('Callback request details:', {
-            query: req.query,
-            headers: {
-                ...req.headers,
-                cookie: req.headers.cookie ? '[REDACTED]' : undefined
-            },
-            session: req.session ? {
-                id: req.session.id,
-                state: req.session.state,
-                hasCodeVerifier: !!req.session.codeVerifier
-            } : 'No session'
-        });
+        logger.info('Processing OAuth callback');
 
         const { code, state, error } = req.query;
 
-        // Check for OAuth error response
         if (error) {
-            logger.error('OAuth error received:', error);
             throw new Error(`OAuth error: ${error}`);
         }
 
-        // Validate code presence
-        if (!code) {
-            logger.error('No authorization code received');
-            throw new Error('No authorization code received');
+        validateSession(req);
+        if (state !== req.session.state) {
+            throw new Error('State mismatch');
         }
-
-        // Validate session exists
-        if (!req.session) {
-            logger.error('No session found in callback');
-            throw new Error('Session not found');
-        }
-
-        // Validate state
-        if (!state || !req.session.state || state !== req.session.state) {
-            logger.error('State validation failed:', {
-                receivedState: state,
-                sessionState: req.session.state
-            });
-            throw new Error('Invalid state parameter');
-        }
-
-        // Validate code verifier presence
-        if (!req.session.codeVerifier) {
-            logger.error('No code verifier found in session');
-            throw new Error('Missing code verifier');
-        }
-
-        logger.info('State validation passed, exchanging code for token');
-
-        // Exchange code for token using PKCE
-        logger.debug('Token request parameters:', {
-            tokenEndpoint: config.tokenEndpoint,
-            redirectUri: config.redirectUri,
-            codeLength: code.length,
-            hasCodeVerifier: !!req.session.codeVerifier,
-            clientId: config.clientId ? '[PRESENT]' : '[MISSING]',
-            clientSecret: config.clientSecret ? '[PRESENT]' : '[MISSING]'
-        });
-
-        // Add Basic Auth for token request
-        const basicAuth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
 
         const tokenResponse = await axios.post(config.tokenEndpoint,
             new URLSearchParams({
@@ -211,101 +151,73 @@ router.get('/callback', async (req, res) => {
             }).toString(),
             {
                 headers: {
-                    'Authorization': `Basic ${basicAuth}`,
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')}`
                 }
             }
         );
 
-        logger.info('Token received successfully');
-        const accessToken = tokenResponse.data.access_token;
+        const { access_token, refresh_token } = tokenResponse.data;
 
-        // Get user info
-        logger.debug('Fetching user info');
         const userInfo = await axios.get(config.userInfoEndpoint, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`
-            }
+            headers: { 'Authorization': `Bearer ${access_token}` }
         });
 
-        logger.info('User info received successfully');
-        logger.debug('User info', {
-            nickname: userInfo.data.nickname,
-            email: userInfo.data.email ? '[REDACTED]' : undefined
-        });
-
-        // Store in session
-        req.session.accessToken = accessToken;
+        req.session.accessToken = access_token;
+        req.session.refreshToken = refresh_token;
         req.session.userInfo = userInfo.data;
 
-        // Clean up session
+        delete req.session.codeVerifier;
         delete req.session.state;
         delete req.session.stateTimestamp;
-        delete req.session.codeVerifier;
 
-        // Save session
-        await new Promise((resolve, reject) => {
-            req.session.save((err) => {
-                if (err) {
-                    logger.error('Session save error:', err);
-                    reject(err);
-                } else {
-                    logger.info('Session saved with tokens');
-                    resolve();
-                }
-            });
-        });
-
-        // Set the access token in the app
         if (req.app.locals.faceitJS) {
-            logger.info('Setting access token in FaceitJS instance');
-            req.app.locals.faceitJS.setAccessToken(accessToken);
-            req.app.locals.faceitJS.startPolling();
-            logger.info('Started polling with new access token');
-        } else {
-            logger.error('FaceitJS instance not found in app.locals');
+            req.app.locals.faceitJS.setAccessToken(access_token);
         }
 
-        logger.info('Authentication successful, redirecting to dashboard');
+        logger.info('Authentication successful');
         res.redirect('/dashboard');
     } catch (error) {
-        logger.error('Error in callback:', error);
-        const errorMessage = 'Authentication failed. ' + (error.message || 'Unknown error');
-        res.redirect('/error?error=' + encodeURIComponent(errorMessage));
+        logger.error('Callback processing failed', error);
+        res.redirect('/error?message=callback_failed');
     }
 });
 
-// Test route to check session
-router.get('/test-session', (req, res) => {
-    logger.info('Test session route accessed');
-    logger.debug('Session state:', {
-        hasSession: !!req.session,
-        sessionId: req.session?.id,
-        hasAccessToken: !!req.session?.accessToken,
-        hasUserInfo: !!req.session?.userInfo
-    });
-    res.json({
-        hasSession: !!req.session,
-        sessionId: req.session?.id,
-        hasAccessToken: !!req.session?.accessToken,
-        hasUserInfo: !!req.session?.userInfo
-    });
-});
-
-// Logout route
-router.get('/logout', (req, res) => {
-    logger.info('Logout route accessed');
-    if (req.app.locals.faceitJS) {
-        req.app.locals.faceitJS.setAccessToken(null);
-        logger.info('Cleared FaceitJS access token');
-    }
-    req.session.destroy((err) => {
-        if (err) {
-            logger.error('Error destroying session:', err);
+// Token refresh route
+router.post('/refresh-token', async (req, res) => {
+    try {
+        if (!req.session?.refreshToken) {
+            throw new Error('No refresh token available');
         }
-        logger.info('Session destroyed, redirecting to home');
-        res.redirect('/');
-    });
+
+        const response = await axios.post(config.tokenEndpoint,
+            new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: req.session.refreshToken,
+                client_id: config.clientId
+            }).toString(),
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')}`
+                }
+            }
+        );
+
+        const { access_token, refresh_token } = response.data;
+
+        req.session.accessToken = access_token;
+        req.session.refreshToken = refresh_token;
+
+        if (req.app.locals.faceitJS) {
+            req.app.locals.faceitJS.setAccessToken(access_token);
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        logger.error('Token refresh failed', error);
+        res.status(401).json({ error: 'Token refresh failed' });
+    }
 });
 
 export default router;
