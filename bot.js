@@ -55,7 +55,7 @@ const app = express();
 // Must be first - trust proxy for Heroku
 app.enable('trust proxy');
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Set up view engine
@@ -116,10 +116,8 @@ const limiter = rateLimit({
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
     name: 'faceit.sid',
-    resave: false,
-    saveUninitialized: false,
-    rolling: true,
-    proxy: true,
+    resave: true,
+    saveUninitialized: true,
     cookie: {
         secure: isProduction,
         httpOnly: true,
@@ -169,40 +167,69 @@ app.use('/', authRouter);
 // Handle new matches and state changes
 faceitJS.on('newMatch', async (match) => {
     try {
-        if (match.state === 'READY') {
-            // Initialize match state
-            matchStates.set(match.match_id, {
-                rehostVotes: new Set(),
-                greeted: false,
-                eloChecked: false
-            });
+        if (match.state === 'VOTING' && match.chat_room_id) {
+            // Initialize match state if not exists
+            if (!matchStates.has(match.match_id)) {
+                matchStates.set(match.match_id, {
+                    rehostVotes: new Set(),
+                    greeted: false,
+                    eloChecked: false
+                });
+            }
 
-            // Get room ID and send welcome message
-            if (match.chat_room_id) {
-                const welcomeMessage = "Welcome to the match! Type !rehost to vote for a rehost (6/10 players needed). Match can be cancelled if ELO difference is 70 or greater.";
+            const currentMatchState = matchStates.get(match.match_id);
+
+            // Only send greeting if we haven't greeted yet
+            if (!currentMatchState.greeted) {
+                const welcomeMessage = "👋 Welcome to the match! Available commands:\n" +
+                    "!rehost - Vote for match rehost (6/10 players needed)\n" +
+                    "Match can be cancelled if ELO difference is 70 or greater.";
+
                 await faceitJS.chatApiInstance.post(`/rooms/${match.chat_room_id}/messages`, {
                     body: welcomeMessage
                 });
-                matchStates.get(match.match_id).greeted = true;
-            }
+                currentMatchState.greeted = true;
 
-            // Check ELO difference
-            const teams = match.teams;
-            if (teams?.faction1 && teams?.faction2) {
-                const team1Elo = calculateTeamElo(teams.faction1.roster);
-                const team2Elo = calculateTeamElo(teams.faction2.roster);
-                const eloDiff = Math.abs(team1Elo - team2Elo);
+                // Check ELO difference
+                const teams = match.teams;
+                if (teams?.faction1 && teams?.faction2) {
+                    const team1Elo = calculateTeamElo(teams.faction1.roster);
+                    const team2Elo = calculateTeamElo(teams.faction2.roster);
+                    const eloDiff = Math.abs(team1Elo - team2Elo);
 
-                if (eloDiff >= 70) {
-                    const message = `⚠️ Warning: ELO difference is ${eloDiff}. Match can be cancelled. Type !cancel to vote for cancellation.`;
-                    await faceitJS.chatApiInstance.post(`/rooms/${match.chat_room_id}/messages`, {
-                        body: message
-                    });
+                    if (eloDiff >= 70) {
+                        const eloMessage = `⚠️ Warning: ELO difference is ${eloDiff}. Type !cancel to vote for cancellation.`;
+                        await faceitJS.chatApiInstance.post(`/rooms/${match.chat_room_id}/messages`, {
+                            body: eloMessage
+                        });
+                    }
                 }
             }
         }
     } catch (error) {
         logger.error('Error handling new match:', error);
+    }
+});
+
+// Handle match state changes
+faceitJS.on('matchStateChange', async (match) => {
+    try {
+        // If match is cancelled or finished, clean up the state
+        if (match.state === 'CANCELLED' || match.state === 'FINISHED') {
+            if (match.chat_room_id) {
+                const message = match.state === 'CANCELLED'
+                    ? "❌ Match has been cancelled."
+                    : "🏁 Match has ended! Thanks for playing!";
+
+                await faceitJS.chatApiInstance.post(`/rooms/${match.chat_room_id}/messages`, {
+                    body: message
+                });
+            }
+            // Clean up match state
+            matchStates.delete(match.match_id);
+        }
+    } catch (error) {
+        logger.error('Error handling match state change:', error);
     }
 });
 
