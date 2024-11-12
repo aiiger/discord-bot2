@@ -52,7 +52,7 @@ const logger = {
 const app = express();
 
 // Must be first - trust proxy for Heroku
-app.set('trust proxy', 1);
+app.enable('trust proxy');
 
 const port = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -96,11 +96,11 @@ const limiter = rateLimit({
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
     name: 'faceit.sid',
-    resave: false,
-    saveUninitialized: false,
-    proxy: true,
+    resave: true,
+    saveUninitialized: true,
+    rolling: true,
     cookie: {
-        secure: isProduction, // Only use secure in production
+        secure: 'auto', // Let Express determine based on request
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax'
