@@ -94,80 +94,103 @@ router.get('/auth/faceit', async (req, res) => {
 // OAuth callback handler
 router.get('/callback', async (req, res) => {
     try {
+        const { code, state, error } = req.query;
+
         logger.info('Callback received:', {
-            hasCode: !!req.query.code,
-            state: req.query.state,
-            error: req.query.error,
+            hasCode: !!code,
+            state,
+            error,
             sessionState: req.session?.state,
-            hasSession: !!req.session
+            hasSession: !!req.session,
+            sessionId: req.session?.id,
+            cookies: req.headers.cookie
         });
 
-        // Detailed session check
-        if (!req.session) {
-            logger.error('No session found in callback');
-            return res.redirect('/error?error=' + encodeURIComponent('No session found'));
+        // Check for OAuth error response
+        if (error) {
+            logger.error('OAuth error received:', error);
+            throw new Error(`OAuth error: ${error}`);
         }
 
-        if (!req.query.state) {
+        // Detailed session validation
+        if (!req.session) {
+            logger.error('No session found in callback');
+            throw new Error('No session found');
+        }
+
+        if (!state) {
             logger.error('No state parameter in callback');
-            return res.redirect('/error?error=' + encodeURIComponent('Missing state parameter'));
+            throw new Error('Missing state parameter');
         }
 
         if (!req.session.state) {
-            logger.error('No state found in session');
-            return res.redirect('/error?error=' + encodeURIComponent('No state in session'));
-        }
-
-        if (req.query.state !== req.session.state) {
-            logger.error('State mismatch:', {
-                receivedState: req.query.state,
-                sessionState: req.session.state
+            logger.error('No state found in session:', {
+                sessionData: req.session,
+                cookies: req.headers.cookie
             });
-            return res.redirect('/error?error=' + encodeURIComponent('State mismatch'));
+            throw new Error('No state in session');
         }
 
-        // Check for authorization code
-        if (!req.query.code) {
-            logger.error('No authorization code received');
-            return res.redirect('/error?error=' + encodeURIComponent('No authorization code received'));
+        if (state !== req.session.state) {
+            logger.error('State mismatch:', {
+                receivedState: state,
+                sessionState: req.session.state,
+                sessionId: req.session.id
+            });
+            throw new Error('Invalid state parameter');
         }
 
-        // Exchange code for tokens
-        const tokenResponse = await axios.post(config.tokenEndpoint, {
-            grant_type: 'authorization_code',
-            client_id: config.clientId,
-            client_secret: config.clientSecret,
-            code: req.query.code,
-            redirect_uri: config.redirectUri
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
+        logger.info('State validation passed, exchanging code for token');
+
+        // Exchange code for token
+        const tokenResponse = await axios.post(config.tokenEndpoint,
+            new URLSearchParams({
+                grant_type: 'authorization_code',
+                client_id: config.clientId,
+                client_secret: config.clientSecret,
+                code: code,
+                redirect_uri: config.redirectUri
+            }).toString(),
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
             }
+        ).catch(error => {
+            logger.error('Token exchange failed:', {
+                status: error.response?.status,
+                data: error.response?.data,
+                config: {
+                    url: error.config?.url,
+                    headers: error.config?.headers,
+                    data: error.config?.data
+                }
+            });
+            throw error;
         });
 
         logger.info('Token received successfully');
 
-        // Get access token
         const accessToken = tokenResponse.data.access_token;
-
-        logger.info('Getting user info');
 
         // Get user info
         const userInfo = await axios.get(config.userInfoEndpoint, {
             headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Accept': 'application/json'
+                'Authorization': `Bearer ${accessToken}`
             }
+        }).catch(error => {
+            logger.error('User info request failed:', {
+                status: error.response?.status,
+                data: error.response?.data
+            });
+            throw error;
         });
 
         logger.info('User info received successfully');
 
-        // Store tokens and user info in session
+        // Store in session
         req.session.accessToken = accessToken;
         req.session.userInfo = userInfo.data;
-
-        // Clear state from session
         delete req.session.state;
 
         // Save session
@@ -177,26 +200,17 @@ router.get('/callback', async (req, res) => {
                     logger.error('Session save error:', err);
                     reject(err);
                 } else {
-                    logger.info('Session saved successfully');
+                    logger.info('Session saved with tokens');
                     resolve();
                 }
             });
         });
 
-        logger.info('Redirecting to dashboard');
+        logger.info('Authentication successful, redirecting to dashboard');
         res.redirect('/dashboard');
     } catch (error) {
         logger.error('Error in callback:', error);
-        let errorMessage = 'Authentication failed. ';
-
-        if (error.response) {
-            logger.error('Response data:', error.response.data);
-            logger.error('Status code:', error.response.status);
-            errorMessage += error.response.data?.message || error.message;
-        } else {
-            errorMessage += error.message;
-        }
-
+        const errorMessage = 'Authentication failed. ' + (error.message || 'Unknown error');
         res.redirect('/error?error=' + encodeURIComponent(errorMessage));
     }
 });

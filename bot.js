@@ -75,10 +75,7 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Get the base URL for the application
 const getBaseUrl = () => {
-    if (isProduction) {
-        return 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com';
-    }
-    return `http://localhost:${port}`;  // Use HTTP for localhost
+    return isProduction ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com' : `http://localhost:${port}`;
 };
 
 // Initialize FaceitJS instance
@@ -150,7 +147,6 @@ client.on('messageCreate', async (message) => {
                 try {
                     const matches = await faceitJS.getHubMatches(faceitJS.hubId);
                     if (matches && matches.length > 0) {
-                        // Format a shorter version of match info
                         const matchList = matches.slice(0, 5).map(match =>
                             `Match ID: ${match.match_id}\n` +
                             `Status: ${match.state || 'Unknown'}\n` +
@@ -181,13 +177,8 @@ Example:
                 break;
         }
     } catch (error) {
-        if (error.response?.status === 401) {
-            message.reply('Authentication failed. Please try authenticating again.');
-            faceitJS.accessToken = null;
-        } else {
-            message.reply(`Failed to execute command: ${error.message}`);
-        }
         logger.error('[DISCORD] Error executing command:', error);
+        message.reply(`Failed to execute command: ${error.message}`);
     }
 });
 
@@ -197,24 +188,18 @@ const limiter = rateLimit({
     max: 100,
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
-    legacyHeaders: false,
-    trustProxy: true,
-    keyGenerator: (req) => {
-        const forwardedFor = req.headers['x-forwarded-for'];
-        const clientIP = forwardedFor ? forwardedFor.split(',')[0].trim() : req.ip;
-        return clientIP;
-    }
+    legacyHeaders: false
 });
 
 // Session middleware configuration
 const sessionConfig = {
     secret: process.env.SESSION_SECRET,
     name: 'faceit.sid',
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     proxy: true,
     cookie: {
-        secure: isProduction,  // Only use secure cookies in production
+        secure: isProduction,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax'
@@ -222,31 +207,12 @@ const sessionConfig = {
 };
 
 if (isProduction) {
-    app.set('trust proxy', 1);
-    sessionConfig.cookie.secure = true;
+    app.set('trust proxy', 1);  // Trust first proxy, required for secure cookie handling
+    sessionConfig.cookie.secure = true;  // Ensure cookie is secure in production
 }
 
 // Apply middleware
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://*.faceit.com", "https://accounts.faceit.com"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:", "https:", "https://*.faceit.com", "https://cdn.faceit.com"],
-            connectSrc: ["'self'", "https://*.faceit.com", "https://api.faceit.com", "https://open.faceit.com", "https://accounts.faceit.com"],
-            fontSrc: ["'self'", "https://*.faceit.com"],
-            formAction: ["'self'", "https://*.faceit.com", "https://accounts.faceit.com"],
-            frameSrc: ["'self'", "https://*.faceit.com", "https://accounts.faceit.com"],
-            frameAncestors: ["'none'"],
-            objectSrc: ["'none'"],
-            baseUri: ["'self'"]
-        }
-    },
-    crossOriginEmbedderPolicy: false,
-    crossOriginResourcePolicy: false
-}));
-
+app.use(helmet());
 app.use(limiter);
 app.use((req, res, next) => {
     logger.info(`${req.method} ${req.path} - IP: ${req.ip}`);
@@ -273,7 +239,6 @@ faceitJS.on('newMatch', async (match) => {
         });
 
         if (match.state === 'VOTING' && match.chat_room_id) {
-            // Initialize match state if not exists
             if (!matchStates.has(match.match_id)) {
                 matchStates.set(match.match_id, {
                     rehostVotes: new Set(),
@@ -284,7 +249,6 @@ faceitJS.on('newMatch', async (match) => {
 
             const currentMatchState = matchStates.get(match.match_id);
 
-            // Only send greeting if we haven't greeted yet
             if (!currentMatchState.greeted) {
                 const welcomeMessage = "👋 Welcome to the match! Available commands:\n" +
                     "!rehost - Vote for match rehost (6/10 players needed)\n" +
@@ -294,7 +258,6 @@ faceitJS.on('newMatch', async (match) => {
                 currentMatchState.greeted = true;
                 logger.info('[MATCH] Sent welcome message to match:', match.match_id);
 
-                // Check ELO difference
                 const teams = match.teams;
                 if (teams?.faction1 && teams?.faction2) {
                     const team1Elo = calculateTeamElo(teams.faction1.roster);
@@ -333,7 +296,6 @@ faceitJS.on('matchStateChange', async (match) => {
             hasRoomId: !!match.chat_room_id
         });
 
-        // If match is cancelled or finished, clean up the state
         if (match.state === 'CANCELLED' || match.state === 'FINISHED') {
             if (match.chat_room_id) {
                 const message = match.state === 'CANCELLED'
@@ -346,7 +308,6 @@ faceitJS.on('matchStateChange', async (match) => {
                     state: match.state
                 });
             }
-            // Clean up match state
             matchStates.delete(match.match_id);
             logger.info('[MATCH] Cleaned up match state:', match.match_id);
         }
@@ -382,7 +343,6 @@ faceitJS.on('chatMessage', async (message) => {
         const playerId = message.user_id;
 
         if (command === '!rehost') {
-            // Handle rehost voting
             matchState.rehostVotes.add(playerId);
             const votesNeeded = 6;
             const currentVotes = matchState.rehostVotes.size;
@@ -403,7 +363,6 @@ faceitJS.on('chatMessage', async (message) => {
                     `✅ Rehost vote passed! Please wait for admin to rehost the match.`
                 );
                 logger.info('[CHAT] Rehost vote passed:', { matchId });
-                // Reset votes after passing
                 matchState.rehostVotes.clear();
             }
         }
@@ -433,10 +392,7 @@ app.get('/dashboard', (req, res) => {
 // Error route
 app.get('/error', (req, res) => {
     const errorMessage = req.query.error || 'An unknown error occurred';
-    res.render('error', {
-        message: 'Authentication Error',
-        error: errorMessage
-    });
+    res.render('error', { message: 'Authentication Error', error: errorMessage });
 });
 
 // Start the server
@@ -445,7 +401,7 @@ const server = app.listen(port, () => {
     logger.info(`Base URL: ${getBaseUrl()}`);
 });
 
-// Start polling when access token is available
+// Poll for matches if an access token is available
 app.use((req, res, next) => {
     if (req.session?.accessToken && !faceitJS.accessToken) {
         faceitJS.setAccessToken(req.session.accessToken);
