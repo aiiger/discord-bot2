@@ -113,6 +113,19 @@ async function sendGreetingToMatch(matchId, matchDetails) {
             logger.info(`Sent greeting message to match ${matchId} during veto phase`);
         } catch (error) {
             logger.error(`Failed to send greeting to match ${matchId}:`, error);
+            if (error.message === 'No access token available') {
+                const authUrl = `${getBaseUrl()}/auth/faceit`;
+                logger.info(`⚠️ Authentication required! Please visit ${authUrl} to authenticate the bot`);
+                // If running in Discord, try to notify a channel
+                try {
+                    const channel = await client.channels.fetch(process.env.NOTIFICATION_CHANNEL_ID);
+                    if (channel) {
+                        await channel.send(`⚠️ Bot needs authentication! Please visit ${authUrl} to authenticate the bot.`);
+                    }
+                } catch (discordError) {
+                    logger.error('Failed to send Discord notification:', discordError);
+                }
+            }
         }
     }
 }
@@ -121,21 +134,30 @@ async function sendGreetingToMatch(matchId, matchDetails) {
 async function checkMatchesInVeto() {
     try {
         if (!faceitJS.accessToken) {
-            logger.info('No access token available. Skipping match check.');
+            const authUrl = `${getBaseUrl()}/auth/faceit`;
+            logger.info(`⚠️ Authentication required! Please visit ${authUrl} to authenticate the bot`);
             return;
         }
 
         const matches = await faceitJS.getHubMatches(faceitJS.hubId);
         if (matches && matches.length > 0) {
+            logger.info(`Found ${matches.length} matches to check`);
             for (const match of matches) {
                 // Check if match is in veto phase (VOTING state)
                 if (match.status === 'VOTING' || match.state === 'VOTING') {
+                    logger.info(`Match ${match.match_id} is in veto phase, sending greeting`);
                     await sendGreetingToMatch(match.match_id, match);
                 }
             }
         }
     } catch (error) {
-        logger.error('Error checking for matches in veto phase:', error);
+        if (error.response?.status === 401) {
+            faceitJS.accessToken = null; // Clear invalid token
+            const authUrl = `${getBaseUrl()}/auth/faceit`;
+            logger.info(`⚠️ Authentication expired! Please visit ${authUrl} to re-authenticate the bot`);
+        } else {
+            logger.error('Error checking for matches in veto phase:', error);
+        }
     }
 }
 
@@ -175,7 +197,8 @@ client.on('messageCreate', async (message) => {
                 const testMessage = args.slice(2).join(' ');
 
                 if (!faceitJS.accessToken) {
-                    message.reply('Please authenticate first by visiting the FACEIT bot website');
+                    const authUrl = `${getBaseUrl()}/auth/faceit`;
+                    message.reply(`⚠️ Authentication required! Please visit ${authUrl} to authenticate the bot`);
                     return;
                 }
 
@@ -185,7 +208,8 @@ client.on('messageCreate', async (message) => {
                     logger.info(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
                 } catch (error) {
                     if (error.response?.status === 401) {
-                        message.reply('Authentication failed. Please try authenticating again.');
+                        const authUrl = `${getBaseUrl()}/auth/faceit`;
+                        message.reply(`⚠️ Authentication expired! Please visit ${authUrl} to re-authenticate the bot`);
                         faceitJS.accessToken = null;
                     } else {
                         message.reply(`Failed to send message: ${error.message}`);
@@ -216,15 +240,22 @@ client.on('messageCreate', async (message) => {
                 }
                 break;
 
+            case '!auth':
+                const authUrl = `${getBaseUrl()}/auth/faceit`;
+                message.reply(`Please visit ${authUrl} to authenticate the bot`);
+                break;
+
             case '!testhelp':
                 const helpMessage = `
 Available test commands:
 !getmatches - Get recent matches from your hub
 !sendtest [matchId] [message] - Send a custom message to match chat
+!auth - Get the authentication URL
 
 Example:
-1. Use !getmatches to get match IDs
-2. Use !sendtest with a match ID to test messaging
+1. Use !auth to get the authentication URL
+2. Use !getmatches to get match IDs
+3. Use !sendtest with a match ID to test messaging
 `;
                 message.reply(helpMessage);
                 break;
@@ -248,27 +279,27 @@ const limiter = rateLimit({
 const sessionConfig = {
     secret: process.env.SESSION_SECRET,
     name: 'faceit.sid',
-    resave: true,  // Changed to true to ensure session is saved
-    saveUninitialized: true,  // Changed to true to ensure session is created
+    resave: true,
+    saveUninitialized: true,
     proxy: true,
-    rolling: true,  // Reset expiration on each request
+    rolling: true,
     cookie: {
         secure: isProduction,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax',
-        path: '/'  // Ensure cookie is available for all paths
+        path: '/'
     }
 };
 
 if (isProduction) {
-    app.set('trust proxy', 1);  // Trust first proxy, required for secure cookie handling
-    sessionConfig.cookie.secure = true;  // Ensure cookie is secure in production
+    app.set('trust proxy', 1);
+    sessionConfig.cookie.secure = true;
 }
 
 // Apply middleware
 app.use(helmet({
-    contentSecurityPolicy: false  // Disable CSP for now to ensure callback works
+    contentSecurityPolicy: false
 }));
 app.use(limiter);
 app.use((req, res, next) => {
@@ -289,7 +320,10 @@ app.use('/', authRouter);
 // Routes
 app.get('/', (req, res) => {
     logger.info('Home route accessed by IP:', req.ip);
-    res.render('login');
+    res.render('login', {
+        authenticated: !!faceitJS.accessToken,
+        baseUrl: getBaseUrl()
+    });
 });
 
 // Dashboard route
@@ -314,6 +348,7 @@ app.get('/error', (req, res) => {
 const server = app.listen(port, () => {
     logger.info(`Server running on port ${port}`);
     logger.info(`Base URL: ${getBaseUrl()}`);
+    logger.info(`⚠️ Please visit ${getBaseUrl()}/auth/faceit to authenticate the bot`);
 });
 
 export default app;
