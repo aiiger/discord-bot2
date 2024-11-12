@@ -72,15 +72,41 @@ const getBaseUrl = (req) => {
 };
 
 // Initialize Redis client
-const redisClient = createClient({
-    url: process.env.REDIS_URL || process.env.REDIS_TLS_URL,
-    socket: {
-        tls: isProduction,
-        rejectUnauthorized: false
-    }
-});
+let redisConfig = {};
 
-redisClient.connect().catch(console.error);
+if (isProduction) {
+    // Parse Redis URL for production
+    const redisUrl = process.env.REDIS_URL || process.env.REDIS_TLS_URL;
+    if (!redisUrl) {
+        throw new Error('Redis URL not found in environment variables');
+    }
+
+    redisConfig = {
+        url: redisUrl,
+        socket: {
+            tls: true,
+            rejectUnauthorized: false
+        }
+    };
+    logger.info('Configured Redis for production with TLS');
+} else {
+    // Local development configuration
+    redisConfig = {
+        url: 'redis://localhost:6379'
+    };
+    logger.info('Configured Redis for local development');
+}
+
+const redisClient = createClient(redisConfig);
+
+redisClient.on('error', (err) => logger.error('Redis Client Error:', err));
+redisClient.on('connect', () => logger.info('Connected to Redis'));
+
+// Connect to Redis
+redisClient.connect().catch((err) => {
+    logger.error('Failed to connect to Redis:', err);
+    process.exit(1); // Exit if we can't connect to Redis
+});
 
 // Initialize Redis store
 const redisStore = new RedisStore({
