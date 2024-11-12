@@ -106,16 +106,18 @@ const sessionConfig = {
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
-            defaultSrc: ["'self'", "https://api.faceit.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.faceit.com"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.faceit.com"],
-            imgSrc: ["'self'", "data:", "https:", "https://cdn.faceit.com"],
-            connectSrc: ["'self'", "https://api.faceit.com", "https://open.faceit.com"],
-            fontSrc: ["'self'", "https://cdn.faceit.com"],
-            formAction: ["'self'", "https://api.faceit.com", "https://open.faceit.com"],
-            frameSrc: ["'self'", "https://open.faceit.com"]
+            defaultSrc: ["'self'", "https://*.faceit.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://*.faceit.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://*.faceit.com"],
+            imgSrc: ["'self'", "data:", "https:", "https://*.faceit.com", "https://cdn.faceit.com"],
+            connectSrc: ["'self'", "https://*.faceit.com", "https://api.faceit.com", "https://open.faceit.com"],
+            fontSrc: ["'self'", "https://*.faceit.com"],
+            formAction: ["'self'", "https://*.faceit.com"],
+            frameSrc: ["'self'", "https://*.faceit.com"]
         }
-    }
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false
 }));
 
 app.use(limiter);
