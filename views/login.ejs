@@ -69,6 +69,13 @@
 			text-align: left;
 			word-break: break-all;
 		}
+
+		.error-message {
+			color: #ff3333;
+			margin-top: 10px;
+			font-size: 14px;
+			display: none;
+		}
 	</style>
 </head>
 
@@ -76,12 +83,9 @@
 	<div class="container">
 		<img src="https://cdn.faceit.com/frontend/291/assets/FACEIT_LOGO_RGB.svg" alt="FACEIT Logo" class="logo">
 		<h1>FACEIT Bot Authentication</h1>
-		<!-- SDK will inject the login button here -->
-		<div id="faceitLogin"></div>
-		<!-- Manual login button -->
-		<button onclick="initiateFaceitLogin()" class="login-button">Login with FACEIT</button>
+		<button id="loginButton" class="login-button">Login with FACEIT</button>
 		<p class="info">Click the button above to authenticate with FACEIT.</p>
-		<!-- Debug info -->
+		<p id="errorMessage" class="error-message"></p>
 		<div class="debug-info">
 			<p>Client ID: <%= clientId %>
 			</p>
@@ -90,75 +94,110 @@
 		</div>
 	</div>
 
-	<!-- Include FACEIT OAuth SDK -->
-	<script src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
-	<script type="text/javascript">
-		console.log('Initializing FACEIT SDK with:', {
-			clientId: '<%= clientId %>',
-			redirectUri: '<%= redirectUri %>'
-		});
+	<script>
+		// Function to generate random string for state
+		function generateRandomString(length) {
+			const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+			let text = '';
+			for (let i = 0; i < length; i++) {
+				text += possible.charAt(Math.floor(Math.random() * possible.length));
+			}
+			return text;
+		}
 
-		// Callback function to handle authentication result
-		function handleAuth(response) {
-			console.log('Auth callback received:', response);
-			if (response && response.token) {
-				console.log('Token received, sending to backend');
-				// Send token to our backend
+		// Function to generate code verifier for PKCE
+		function generateCodeVerifier() {
+			return generateRandomString(128);
+		}
+
+		// Function to generate code challenge from verifier
+		async function generateCodeChallenge(verifier) {
+			const encoder = new TextEncoder();
+			const data = encoder.encode(verifier);
+			const digest = await crypto.subtle.digest('SHA-256', data);
+			return btoa(String.fromCharCode(...new Uint8Array(digest)))
+				.replace(/\+/g, '-')
+				.replace(/\//g, '_')
+				.replace(/=+$/, '');
+		}
+
+		// Function to show error message
+		function showError(message) {
+			const errorElement = document.getElementById('errorMessage');
+			errorElement.textContent = message;
+			errorElement.style.display = 'block';
+		}
+
+		// Initialize auth flow
+		async function initAuth() {
+			try {
+				const state = generateRandomString(32);
+				const codeVerifier = generateCodeVerifier();
+				const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+				// Store PKCE and state values
+				sessionStorage.setItem('pkce_verifier', codeVerifier);
+				sessionStorage.setItem('pkce_state', state);
+
+				const params = new URLSearchParams({
+					response_type: 'code',
+					client_id: '<%= clientId %>',
+					redirect_uri: '<%= redirectUri %>',
+					scope: 'openid profile',
+					state: state,
+					code_challenge: codeChallenge,
+					code_challenge_method: 'S256'
+				});
+
+				const authUrl = `https://accounts.faceit.com/oauth/authorize?${params.toString()}`;
+				window.location.href = authUrl;
+			} catch (error) {
+				console.error('Error initializing auth:', error);
+				showError('Failed to initialize authentication. Please try again.');
+			}
+		}
+
+		// Add click event listener to login button
+		document.getElementById('loginButton').addEventListener('click', initAuth);
+
+		// Handle the OAuth callback
+		if (window.location.search) {
+			const params = new URLSearchParams(window.location.search);
+			const code = params.get('code');
+			const state = params.get('state');
+			const storedState = sessionStorage.getItem('pkce_state');
+			const codeVerifier = sessionStorage.getItem('pkce_verifier');
+
+			if (code && state === storedState && codeVerifier) {
+				// Clean up session storage
+				sessionStorage.removeItem('pkce_state');
+				sessionStorage.removeItem('pkce_verifier');
+
+				// Exchange code for token
 				fetch('/callback', {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json'
 					},
 					body: JSON.stringify({
-						token: response.token
+						code,
+						code_verifier: codeVerifier
 					})
 				})
 					.then(res => res.json())
 					.then(data => {
-						console.log('Backend response:', data);
 						if (data.success && data.redirect) {
 							window.location.href = data.redirect;
 						} else {
-							console.error('Authentication failed:', data.error);
-							alert('Authentication failed. Please try again.');
+							showError('Authentication failed. Please try again.');
 						}
 					})
 					.catch(error => {
-						console.error('Error sending token to backend:', error);
-						alert('Authentication failed. Please try again.');
+						console.error('Error:', error);
+						showError('Authentication failed. Please try again.');
 					});
-			} else {
-				console.error('No token received from FACEIT');
-				alert('Authentication failed. Please try again.');
-			}
-		}
-
-		// Initialize FACEIT SDK
-		var initParams = {
-			client_id: '<%= clientId %>', // Get client ID passed from the server
-			redirect_uri: '<%= redirectUri %>', // Get redirect URI passed from the server
-			response_type: 'token',
-			callback: handleAuth
-		};
-
-		// Initialize SDK
-		console.log('Calling FACEIT.init with params:', initParams);
-		try {
-			FACEIT.init(initParams);
-			console.log('FACEIT SDK initialized successfully');
-		} catch (error) {
-			console.error('Error initializing FACEIT SDK:', error);
-		}
-
-		// Manual login function
-		function initiateFaceitLogin() {
-			console.log('Manual login button clicked');
-			try {
-				FACEIT.openAuthenticationWindow();
-				console.log('Authentication window opened');
-			} catch (error) {
-				console.error('Error opening authentication window:', error);
-				alert('Failed to open authentication window. Please try again.');
+			} else if (params.get('error')) {
+				showError(`Authentication failed: ${params.get('error_description') || params.get('error')}`);
 			}
 		}
 	</script>

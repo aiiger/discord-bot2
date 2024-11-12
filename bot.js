@@ -113,15 +113,17 @@ const sessionConfig = {
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
-            defaultSrc: ["'self'", "https://*.faceit.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://*.faceit.com", "https://cdn.faceit.com"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://*.faceit.com"],
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://*.faceit.com", "https://accounts.faceit.com"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "https:", "https://*.faceit.com", "https://cdn.faceit.com"],
             connectSrc: ["'self'", "https://*.faceit.com", "https://api.faceit.com", "https://open.faceit.com", "https://accounts.faceit.com"],
             fontSrc: ["'self'", "https://*.faceit.com"],
             formAction: ["'self'", "https://*.faceit.com", "https://accounts.faceit.com"],
             frameSrc: ["'self'", "https://*.faceit.com", "https://accounts.faceit.com"],
-            frameAncestors: ["'self'", "https://*.faceit.com", "https://accounts.faceit.com"]
+            frameAncestors: ["'none'"],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"]
         }
     },
     crossOriginEmbedderPolicy: false,
