@@ -100,8 +100,8 @@ const limiter = rateLimit({
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
     name: 'faceit_session',
-    resave: true, // Changed to true for MemoryStore
-    saveUninitialized: true, // Changed to true for MemoryStore
+    resave: true,
+    saveUninitialized: true,
     rolling: true,
     cookie: {
         secure: isProduction,
@@ -217,6 +217,23 @@ app.get('/dashboard', (req, res) => {
     res.render('dashboard', {
         authenticated: true,
         username: 'FACEIT User'
+    });
+});
+
+// Error route
+app.get('/error', (req, res) => {
+    res.render('error', {
+        message: 'Authentication failed',
+        error: req.query.error || 'Unknown error'
+    });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    logger.error('Error:', err);
+    res.status(500).render('error', {
+        message: 'Internal Server Error',
+        error: isProduction ? {} : err
     });
 });
 

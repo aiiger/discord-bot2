@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FACEIT Bot - Error</title>
+    <title>Error - FACEIT Bot</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -34,8 +34,16 @@
         }
 
         .error-message {
-            color: #ff4444;
             margin-bottom: 20px;
+            color: #ff5500;
+        }
+
+        .error-details {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #999;
+            text-align: left;
+            word-break: break-word;
         }
 
         .back-button {
@@ -49,6 +57,7 @@
             text-decoration: none;
             display: inline-block;
             transition: background-color 0.3s;
+            margin-top: 20px;
         }
 
         .back-button:hover {
@@ -67,16 +76,14 @@
         <img src="https://cdn.faceit.com/frontend/291/assets/FACEIT_LOGO_RGB.svg" alt="FACEIT Logo" class="logo">
         <h1>Error</h1>
         <div class="error-message">
-            <p>
-                <%= message %>
-            </p>
-            <% if (typeof error !=='undefined' ) { %>
-                <p>
-                    <%= error %>
-                </p>
-                <% } %>
+            <%= message %>
         </div>
-        <a href="/" class="back-button">Back to Login</a>
+        <% if (error) { %>
+            <div class="error-details">
+                <%= error %>
+            </div>
+            <% } %>
+                <a href="/" class="back-button">Back to Home</a>
     </div>
 </body>
 
