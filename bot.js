@@ -54,7 +54,7 @@ const app = express();
 // Must be first - trust proxy for Heroku
 app.enable('trust proxy');
 
-const port = process.env.PORT || 3001; // Changed to 3001
+const port = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Get the base URL for the application
@@ -96,8 +96,8 @@ const limiter = rateLimit({
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
     name: 'faceit.sid',
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     rolling: true,
     proxy: true,
     cookie: {
@@ -108,6 +108,22 @@ const sessionConfig = {
         path: '/'
     }
 };
+
+// Use Redis session store in production
+if (isProduction) {
+    import('connect-redis').then((RedisStore) => {
+        import('redis').then((redis) => {
+            const redisClient = redis.createClient({
+                url: process.env.REDIS_URL
+            });
+            redisClient.connect().catch(console.error);
+            sessionConfig.store = new RedisStore.default({
+                client: redisClient,
+                prefix: 'faceit:'
+            });
+        });
+    });
+}
 
 // Apply middleware
 app.use(helmet({
@@ -207,7 +223,7 @@ client.on('messageCreate', async (message) => {
 // Routes
 app.get('/', (req, res) => {
     logger.info('Home route accessed by IP:', req.ip);
-    res.render('login');
+    res.render('login', { clientId: process.env.CLIENT_ID });
 });
 
 // Dashboard route
