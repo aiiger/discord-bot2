@@ -205,14 +205,16 @@ const limiter = rateLimit({
 const sessionConfig = {
     secret: process.env.SESSION_SECRET,
     name: 'faceit.sid',
-    resave: false,
-    saveUninitialized: false,
+    resave: true,  // Changed to true to ensure session is saved
+    saveUninitialized: true,  // Changed to true to ensure session is created
     proxy: true,
+    rolling: true,  // Reset expiration on each request
     cookie: {
         secure: isProduction,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax'
+        sameSite: 'lax',
+        path: '/'  // Ensure cookie is available for all paths
     }
 };
 
@@ -222,7 +224,9 @@ if (isProduction) {
 }
 
 // Apply middleware
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false  // Disable CSP for now to ensure callback works
+}));
 app.use(limiter);
 app.use((req, res, next) => {
     logger.info(`${req.method} ${req.path} - IP: ${req.ip}`);
@@ -238,199 +242,6 @@ app.use(express.urlencoded({ extended: true }));
 // Import and use auth routes
 import authRouter from './auth.js';
 app.use('/', authRouter);
-
-// Handle new matches and state changes
-faceitJS.on('newMatch', async (match) => {
-    try {
-        logger.info('[MATCH EVENT] New match detected:', {
-            matchId: match.match_id,
-            state: match.state,
-            hasRoomId: !!match.chat_room_id,
-            teams: match.teams ? {
-                faction1Count: match.teams.faction1?.roster?.length,
-                faction2Count: match.teams.faction2?.roster?.length
-            } : null
-        });
-
-        if (match.state === 'VOTING' && match.chat_room_id) {
-            logger.info('[MATCH EVENT] Match in VOTING state with chat room:', {
-                matchId: match.match_id,
-                roomId: match.chat_room_id
-            });
-
-            if (!matchStates.has(match.match_id)) {
-                matchStates.set(match.match_id, {
-                    rehostVotes: new Set(),
-                    greeted: false,
-                    eloChecked: false
-                });
-                logger.info('[MATCH EVENT] Created new match state:', {
-                    matchId: match.match_id,
-                    state: matchStates.get(match.match_id)
-                });
-            }
-
-            const currentMatchState = matchStates.get(match.match_id);
-            logger.info('[MATCH EVENT] Current match state:', {
-                matchId: match.match_id,
-                state: currentMatchState
-            });
-
-            if (!currentMatchState.greeted) {
-                const welcomeMessage = "👋 Welcome to the match! Available commands:\n" +
-                    "!rehost - Vote for match rehost (6/10 players needed)\n" +
-                    "Match can be cancelled if ELO difference is 70 or greater.";
-
-                logger.info('[MATCH EVENT] Attempting to send welcome message:', {
-                    matchId: match.match_id,
-                    roomId: match.chat_room_id,
-                    message: welcomeMessage
-                });
-
-                try {
-                    await faceitJS.sendChatMessage(match.chat_room_id, welcomeMessage);
-                    currentMatchState.greeted = true;
-                    logger.info('[MATCH EVENT] Welcome message sent successfully:', {
-                        matchId: match.match_id
-                    });
-                } catch (error) {
-                    logger.error('[MATCH EVENT] Failed to send welcome message:', error);
-                }
-
-                const teams = match.teams;
-                if (teams?.faction1 && teams?.faction2) {
-                    const team1Elo = calculateTeamElo(teams.faction1.roster);
-                    const team2Elo = calculateTeamElo(teams.faction2.roster);
-                    const eloDiff = Math.abs(team1Elo - team2Elo);
-
-                    logger.info('[MATCH EVENT] ELO difference calculated:', {
-                        matchId: match.match_id,
-                        team1Elo,
-                        team2Elo,
-                        difference: eloDiff
-                    });
-
-                    if (eloDiff >= 70) {
-                        const eloMessage = `⚠️ Warning: ELO difference is ${eloDiff}. Type !cancel to vote for cancellation.`;
-                        try {
-                            await faceitJS.sendChatMessage(match.chat_room_id, eloMessage);
-                            logger.info('[MATCH EVENT] ELO warning message sent:', {
-                                matchId: match.match_id,
-                                eloDifference: eloDiff
-                            });
-                        } catch (error) {
-                            logger.error('[MATCH EVENT] Failed to send ELO warning:', error);
-                        }
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        logger.error('[MATCH EVENT] Error handling new match:', error);
-    }
-});
-
-// Handle match state changes
-faceitJS.on('matchStateChange', async (match) => {
-    try {
-        logger.info('[MATCH EVENT] State change detected:', {
-            matchId: match.match_id,
-            newState: match.state,
-            hasRoomId: !!match.chat_room_id,
-            teams: match.teams ? {
-                faction1Count: match.teams.faction1?.roster?.length,
-                faction2Count: match.teams.faction2?.roster?.length
-            } : null
-        });
-
-        if (match.state === 'CANCELLED' || match.state === 'FINISHED') {
-            if (match.chat_room_id) {
-                const message = match.state === 'CANCELLED'
-                    ? "❌ Match has been cancelled."
-                    : "🏁 Match has ended! Thanks for playing!";
-
-                try {
-                    await faceitJS.sendChatMessage(match.chat_room_id, message);
-                    logger.info('[MATCH EVENT] End/cancel message sent:', {
-                        matchId: match.match_id,
-                        state: match.state
-                    });
-                } catch (error) {
-                    logger.error('[MATCH EVENT] Failed to send end/cancel message:', error);
-                }
-            }
-            matchStates.delete(match.match_id);
-            logger.info('[MATCH EVENT] Cleaned up match state:', match.match_id);
-        }
-    } catch (error) {
-        logger.error('[MATCH EVENT] Error handling match state change:', error);
-    }
-});
-
-// Calculate team ELO
-function calculateTeamElo(roster) {
-    if (!roster || !Array.isArray(roster)) return 0;
-    const totalElo = roster.reduce((sum, player) => sum + (player.elo || 0), 0);
-    return Math.round(totalElo / roster.length);
-}
-
-// Handle chat messages
-faceitJS.on('chatMessage', async (message) => {
-    try {
-        if (!message.room_id || !message.body) return;
-
-        logger.info('[CHAT EVENT] Message received:', {
-            roomId: message.room_id,
-            userId: message.user_id,
-            body: message.body
-        });
-
-        const matchId = message.room_id;
-        const matchState = matchStates.get(matchId);
-
-        if (!matchState) {
-            logger.info('[CHAT EVENT] No match state found for message:', {
-                roomId: message.room_id,
-                matchId
-            });
-            return;
-        }
-
-        const command = message.body.toLowerCase();
-        const playerId = message.user_id;
-
-        if (command === '!rehost') {
-            matchState.rehostVotes.add(playerId);
-            const votesNeeded = 6;
-            const currentVotes = matchState.rehostVotes.size;
-
-            logger.info('[CHAT EVENT] Rehost vote received:', {
-                matchId,
-                currentVotes,
-                votesNeeded,
-                voterId: playerId
-            });
-
-            try {
-                await faceitJS.sendChatMessage(matchId,
-                    `Rehost vote: ${currentVotes}/10 players (${votesNeeded} needed)`
-                );
-
-                if (currentVotes >= votesNeeded) {
-                    await faceitJS.sendChatMessage(matchId,
-                        `✅ Rehost vote passed! Please wait for admin to rehost the match.`
-                    );
-                    logger.info('[CHAT EVENT] Rehost vote passed:', { matchId });
-                    matchState.rehostVotes.clear();
-                }
-            } catch (error) {
-                logger.error('[CHAT EVENT] Failed to send rehost vote message:', error);
-            }
-        }
-    } catch (error) {
-        logger.error('[CHAT EVENT] Error handling chat message:', error);
-    }
-});
 
 // Routes
 app.get('/', (req, res) => {
