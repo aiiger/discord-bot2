@@ -99,11 +99,13 @@ const sessionConfig = {
     resave: true,
     saveUninitialized: true,
     rolling: true,
+    proxy: true,
     cookie: {
-        secure: 'auto', // Let Express determine based on request
+        secure: isProduction, // Only use secure in production
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax'
+        sameSite: 'lax',
+        path: '/'
     }
 };
 
