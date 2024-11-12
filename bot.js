@@ -46,6 +46,13 @@ const logger = {
             console.error('Request data:', error.config.data);
         }
         console.error('Full error:', error);
+    },
+    debug: (message, data = null) => {
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] DEBUG: ${message}`);
+        if (data) {
+            console.log('Debug data:', JSON.stringify(data, null, 2));
+        }
     }
 };
 
@@ -80,6 +87,7 @@ const getBaseUrl = () => {
 
 // Initialize FaceitJS instance
 const faceitJS = new FaceitJS();
+app.locals.faceitJS = faceitJS;  // Store FaceitJS instance in app.locals
 
 // Store match states and voting
 const matchStates = new Map();
@@ -452,17 +460,6 @@ app.get('/error', (req, res) => {
 const server = app.listen(port, () => {
     logger.info(`Server running on port ${port}`);
     logger.info(`Base URL: ${getBaseUrl()}`);
-});
-
-// Poll for matches if an access token is available
-app.use((req, res, next) => {
-    if (req.session?.accessToken && !faceitJS.accessToken) {
-        logger.info('[AUTH] Setting access token and starting polling');
-        faceitJS.setAccessToken(req.session.accessToken);
-        faceitJS.startPolling();
-        logger.info('[AUTH] Started polling with new access token');
-    }
-    next();
 });
 
 export default app;

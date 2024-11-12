@@ -32,7 +32,7 @@ const config = {
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
     redirectUri: process.env.REDIRECT_URI || 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback',
-    authEndpoint: 'https://accounts.faceit.com/accounts',  // Changed back to accounts endpoint
+    authEndpoint: 'https://accounts.faceit.com/accounts',
     tokenEndpoint: 'https://api.faceit.com/auth/v1/oauth/token',
     userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo'
 };
@@ -254,6 +254,16 @@ router.get('/callback', async (req, res) => {
                 }
             });
         });
+
+        // Set the access token in the app
+        if (req.app.locals.faceitJS) {
+            logger.debug('Setting access token in FaceitJS instance');
+            req.app.locals.faceitJS.setAccessToken(accessToken);
+            req.app.locals.faceitJS.startPolling();
+            logger.info('Started polling with new access token');
+        } else {
+            logger.error('FaceitJS instance not found in app.locals');
+        }
 
         logger.info('Authentication successful, redirecting to dashboard');
         res.redirect('/dashboard');
