@@ -19,19 +19,6 @@ const logger = {
         if (error?.response?.status) {
             console.error('Status code:', error.response.status);
         }
-        if (error?.config?.url) {
-            console.error('Request URL:', error.config.url);
-        }
-        if (error?.config?.headers) {
-            const sanitizedHeaders = { ...error.config.headers };
-            if (sanitizedHeaders.Authorization) {
-                sanitizedHeaders.Authorization = 'Bearer [REDACTED]';
-            }
-            console.error('Request headers:', sanitizedHeaders);
-        }
-        if (error?.config?.data) {
-            console.error('Request data:', error.config.data);
-        }
         console.error('Full error:', error);
     },
     debug: (message, data = null) => {
@@ -42,6 +29,45 @@ const logger = {
         }
     }
 };
+
+// Error mapping
+const errorMapping = {
+    400: 'game_not_found',
+    403: 'game_user_forbidden',
+    500: 'game_user_server_error'
+};
+
+// Data transformations
+function transformRequest(req) {
+    if (req.body) {
+        // Map game name
+        if (req.body.gameName) {
+            req.body.faceit_game_name = req.body.gameName;
+            delete req.body.gameName;
+        }
+        // Map platform ID
+        if (req.body.platformId) {
+            req.body.faceit_user_platform_id = req.body.platformId;
+            delete req.body.platformId;
+        }
+    }
+    return req;
+}
+
+function transformResponse(resp) {
+    if (resp.data) {
+        // Map ELO calculation
+        if (resp.data.user?.levelNumber) {
+            resp.data.elo = (10 * resp.data.user.levelNumber) + 30;
+        }
+        // Map player ELO
+        if (resp.data.elo) {
+            resp.data.playerElo = resp.data.elo;
+            delete resp.data.elo;
+        }
+    }
+    return resp;
+}
 
 export class FaceitJS extends EventEmitter {
     constructor(accessToken = null) {
@@ -97,6 +123,14 @@ export class FaceitJS extends EventEmitter {
     }
 
     setupInterceptors() {
+        // Add request transformation
+        this.dataApiInstance.interceptors.request.use(transformRequest);
+        this.chatApiInstance.interceptors.request.use(transformRequest);
+
+        // Add response transformation
+        this.dataApiInstance.interceptors.response.use(transformResponse);
+        this.chatApiInstance.interceptors.response.use(transformResponse);
+
         // Add access token to chat API requests
         this.chatApiInstance.interceptors.request.use((config) => {
             if (!this.accessToken) {
@@ -112,17 +146,22 @@ export class FaceitJS extends EventEmitter {
         });
 
         // Add error handling interceptor
-        this.chatApiInstance.interceptors.response.use(
-            response => response,
-            async error => {
-                if (error.response?.status === 401) {
+        const errorHandler = async error => {
+            if (error.response) {
+                const status = error.response.status;
+                if (status in errorMapping) {
+                    error.response.data = { error: errorMapping[status] };
+                }
+                if (status === 401) {
                     logger.error('[AUTH ERROR] Unauthorized request:', error);
                     this.emit('unauthorized', error);
-                    throw error;
                 }
-                throw error;
             }
-        );
+            throw error;
+        };
+
+        this.dataApiInstance.interceptors.response.use(response => response, errorHandler);
+        this.chatApiInstance.interceptors.response.use(response => response, errorHandler);
     }
 
     setAccessToken(token) {
