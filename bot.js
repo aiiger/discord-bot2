@@ -9,6 +9,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createClient } from 'redis';
+import RedisStore from 'connect-redis';
 
 dotenv.config();
 
@@ -69,6 +71,23 @@ const getBaseUrl = (req) => {
     return `http://localhost:${port}`;
 };
 
+// Initialize Redis client
+const redisClient = createClient({
+    url: process.env.REDIS_URL || process.env.REDIS_TLS_URL,
+    socket: {
+        tls: isProduction,
+        rejectUnauthorized: false
+    }
+});
+
+redisClient.connect().catch(console.error);
+
+// Initialize Redis store
+const redisStore = new RedisStore({
+    client: redisClient,
+    prefix: 'faceit:'
+});
+
 // Initialize FaceitJS instance
 const faceitJS = new FaceitJS();
 
@@ -90,6 +109,7 @@ const limiter = rateLimit({
 
 // Session middleware configuration
 const sessionConfig = {
+    store: redisStore,
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
     resave: false,
