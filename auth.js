@@ -32,7 +32,7 @@ const config = {
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
     redirectUri: process.env.REDIRECT_URI || 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback',
-    authEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/authorize',  // Fixed auth endpoint
+    authEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/authorize',
     tokenEndpoint: 'https://api.faceit.com/auth/v1/oauth/token',
     userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo'
 };
@@ -104,13 +104,16 @@ router.get('/auth/faceit', async (req, res) => {
             response_type: 'code',
             client_id: config.clientId,
             redirect_uri: config.redirectUri,
-            scope: 'openid profile email membership',  // Updated scopes from OpenID configuration
+            scope: 'openid profile email membership chat.messages.read',
             state: state,
             code_challenge: codeChallenge,
-            code_challenge_method: 'S256'
+            code_challenge_method: 'S256',
+            prompt: 'consent',  // Force consent screen
+            access_type: 'offline',  // Get refresh token
+            faceit_game_name: 'csgo',  // Add game name
+            faceit_user_platform_id: 'steam'  // Add platform ID
         });
 
-        // Ensure we use the full auth endpoint URL
         const authUrl = `${config.authEndpoint}?${params.toString()}`;
         logger.debug('Authorization URL:', { url: authUrl });
 
