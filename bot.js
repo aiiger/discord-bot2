@@ -210,7 +210,11 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
-    trustProxy: true
+    trustProxy: true,
+    skip: (req) => {
+        // Skip rate limiting for local development
+        return !isProduction;
+    }
 });
 
 // Session middleware configuration
@@ -276,6 +280,13 @@ app.use((req, res) => {
         message: 'Page Not Found',
         error: 'The requested page does not exist.'
     });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received. Starting graceful shutdown...');
+    // Close any open connections or cleanup here
+    process.exit(0);
 });
 
 // Start the server
