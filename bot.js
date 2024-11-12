@@ -58,6 +58,10 @@ app.enable('trust proxy');
 const port = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Set up view engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
 // Get the base URL for the application
 const getBaseUrl = (req) => {
     if (isProduction) {
@@ -91,7 +95,6 @@ client.login(process.env.DISCORD_TOKEN).then(() => {
 // Discord client ready event
 client.once('ready', () => {
     logger.info(`Discord bot logged in as ${client.user.tag}`);
-    faceitJS.startPolling(); // Start polling for matches once Discord bot is ready
 });
 
 // Rate limiting configuration for Heroku
@@ -161,6 +164,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Import and use auth routes
 import authRouter from './auth.js';
+app.use('/', authRouter);
 
 // Handle new matches and state changes
 faceitJS.on('newMatch', async (match) => {
@@ -311,47 +315,33 @@ app.get('/dashboard', (req, res) => {
     }
     res.render('dashboard', {
         authenticated: true,
-        username: 'FACEIT User'
+        username: 'FACEIT User',
+        userInfo: req.session.userInfo
     });
 });
 
 // Error route
-app.get('/callback', async (req, res) => {
-    logger.info('Callback route accessed:', req.query);
-
-    if (req.query.error) {
-        logger.error('OAuth Error:', req.query.error_description || req.query.error);
-        return res.redirect(`/error?error=${encodeURIComponent(req.query.error_description || req.query.error)}`);
-    }
-
-    const code = req.query.code;
-    if (!code) {
-        logger.error('No authorization code received');
-        return res.redirect('/error?error=No authorization code received');
-    }
-
-    try {
-        const tokenResponse = await axios.post('https://accounts.faceit.com/oauth/token', {
-            grant_type: 'authorization_code',
-            code: code,
-            redirect_uri: process.env.REDIRECT_URI,
-            client_id: process.env.CLIENT_ID,
-            client_secret: process.env.CLIENT_SECRET
-        });
-
-        req.session.accessToken = tokenResponse.data.access_token;
-        logger.info('Access token obtained and stored in session');
-
-        res.redirect('/dashboard');
-    } catch (error) {
-        logger.error('Failed to exchange authorization code for access token:', error);
-        res.redirect('/error?error=Failed to obtain access token');
-    }
+app.get('/error', (req, res) => {
+    const errorMessage = req.query.error || 'An unknown error occurred';
+    res.render('error', {
+        message: 'Authentication Error',
+        error: errorMessage
+    });
 });
 
 // Start the server
 const server = app.listen(port, () => {
     logger.info(`Server running on port ${port}`);
+});
+
+// Start polling when access token is available
+app.use((req, res, next) => {
+    if (req.session?.accessToken && !faceitJS.accessToken) {
+        faceitJS.setAccessToken(req.session.accessToken);
+        faceitJS.startPolling();
+        logger.info('Started polling with new access token');
+    }
+    next();
 });
 
 export default app;
