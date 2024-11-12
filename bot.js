@@ -1,6 +1,7 @@
 // FACEIT OAuth2 Bot with PKCE Support
 import express from 'express';
 import session from 'express-session';
+import FileStore from 'session-file-store';
 import { FaceitJS } from './FaceitJS.js';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
@@ -61,6 +62,15 @@ const port = process.env.PORT || 3000;
 // Force production mode for Heroku
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Initialize session store
+const FileStoreSession = FileStore(session);
+const sessionStore = new FileStoreSession({
+    path: './sessions',
+    ttl: 86400, // 1 day
+    retries: 0,
+    reapInterval: 3600 // Clean up expired sessions every hour
+});
+
 // Get the base URL for the application
 const getBaseUrl = (req) => {
     if (isProduction) {
@@ -98,14 +108,16 @@ const limiter = rateLimit({
 
 // Session middleware configuration
 const sessionConfig = {
+    store: sessionStore,
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Reset expiration on activity
     cookie: {
         secure: isProduction,
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
         sameSite: 'lax'
     }
 };
@@ -236,6 +248,7 @@ process.on('uncaughtException', (error) => {
 function shutdown() {
     logger.info('Shutting down gracefully...');
     faceitJS.stopPolling();
+    sessionStore.close();
     process.exit(0);
 }
 
