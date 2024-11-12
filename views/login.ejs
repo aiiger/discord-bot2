@@ -4,7 +4,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>FACEIT Bot Login</title>
+	<title>FACEIT Account Linking</title>
 	<style>
 		body {
 			font-family: Arial, sans-serif;
@@ -24,31 +24,35 @@
 			border-radius: 8px;
 			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 			text-align: center;
-			max-width: 400px;
+			max-width: 500px;
 			width: 100%;
 		}
 
 		h1 {
-			margin-bottom: 30px;
+			margin-bottom: 20px;
 			color: #ff5500;
 		}
 
-		.info {
-			margin-top: 20px;
-			font-size: 14px;
-			color: #999;
+		.flow-steps {
+			text-align: left;
+			margin: 20px 0;
+			padding: 0 20px;
 		}
 
-		.logo {
-			width: 150px;
-			margin-bottom: 30px;
+		.flow-steps li {
+			margin-bottom: 15px;
+			color: #cccccc;
 		}
 
-		.login-button {
+		.flow-steps li.active {
+			color: #ff5500;
+		}
+
+		.link-button {
 			background-color: #ff5500;
 			color: white;
 			border: none;
-			padding: 12px 24px;
+			padding: 15px 30px;
 			border-radius: 4px;
 			cursor: pointer;
 			font-size: 16px;
@@ -58,16 +62,13 @@
 			margin-top: 20px;
 		}
 
-		.login-button:hover {
+		.link-button:hover {
 			background-color: #ff6a1f;
 		}
 
-		.debug-info {
-			margin-top: 20px;
-			font-size: 12px;
-			color: #666;
-			text-align: left;
-			word-break: break-all;
+		.faceit-logo {
+			width: 150px;
+			margin-bottom: 30px;
 		}
 
 		.error-message {
@@ -75,23 +76,46 @@
 			margin-top: 10px;
 			font-size: 14px;
 			display: none;
+			padding: 10px;
+			background-color: rgba(255, 51, 51, 0.1);
+			border-radius: 4px;
+		}
+
+		.info-box {
+			background-color: #363636;
+			padding: 15px;
+			border-radius: 4px;
+			margin-top: 20px;
+			font-size: 14px;
+			color: #999;
 		}
 	</style>
 </head>
 
 <body>
 	<div class="container">
-		<img src="https://cdn.faceit.com/frontend/291/assets/FACEIT_LOGO_RGB.svg" alt="FACEIT Logo" class="logo">
-		<h1>FACEIT Bot Authentication</h1>
-		<a href="<%= authUrl %>" id="loginButton" class="login-button">Login with FACEIT</a>
-		id="loginButton" class="login-button">Login with FACEIT</a>
-		<p class="info">Click the button above to authenticate with FACEIT.</p>
-		<p id="errorMessage" class="error-message"></p>
-		<div class="debug-info">
-			<p>Client ID: <%= clientId %>
-			</p>
-			<p>Redirect URI: <%= redirectUri %>
-			</p>
+		<img src="https://cdn.faceit.com/frontend/291/assets/FACEIT_LOGO_RGB.svg" alt="FACEIT Logo" class="faceit-logo">
+		<h1>Link Your FACEIT Account</h1>
+
+		<div class="flow-steps">
+			<ol>
+				<li class="active">Click the button below to start account linking</li>
+				<li>Authorize access to your FACEIT account</li>
+				<li>Return to complete the linking process</li>
+			</ol>
+		</div>
+
+		<a href="<%= authUrl %>" class="link-button">Link FACEIT Account</a>
+
+		<div id="errorMessage" class="error-message"></div>
+
+		<div class="info-box">
+			By linking your account, you'll enable the bot to:
+			<ul style="text-align: left; margin-top: 10px;">
+				<li>Monitor your hub matches</li>
+				<li>Handle rehost voting</li>
+				<li>Manage match cancellations</li>
+			</ul>
 		</div>
 	</div>
 
@@ -108,20 +132,9 @@
 		const error = urlParams.get('error');
 		const errorDescription = urlParams.get('error_description');
 		if (error) {
-			console.error('Auth error:', error);
-			console.error('Error description:', errorDescription);
 			showError(errorDescription || error);
 		}
-
-		// Log any code parameter
-		const code = urlParams.get('code');
-		if (code) {
-			console.log('Received authorization code:', code);
-		}
-
-		// Log the auth URL for debugging
-		console.log('Auth URL:', '<%= authUrl %>');
-	</script>>
+	</script>
 </body>
 
 </html>

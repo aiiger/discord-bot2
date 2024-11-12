@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -78,6 +79,19 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent
     ]
+});
+
+// Discord client login
+client.login(process.env.DISCORD_TOKEN).then(() => {
+    logger.info('Discord bot logged in successfully');
+}).catch(error => {
+    logger.error('Failed to log in to Discord:', error);
+});
+
+// Discord client ready event
+client.once('ready', () => {
+    logger.info(`Discord bot logged in as ${client.user.tag}`);
+    faceitJS.startPolling(); // Start polling for matches once Discord bot is ready
 });
 
 // Rate limiting configuration for Heroku
@@ -333,6 +347,11 @@ app.get('/callback', async (req, res) => {
         logger.error('Failed to exchange authorization code for access token:', error);
         res.redirect('/error?error=Failed to obtain access token');
     }
+});
+
+// Start the server
+const server = app.listen(port, () => {
+    logger.info(`Server running on port ${port}`);
 });
 
 export default app;
