@@ -27,13 +27,13 @@ const logger = {
     }
 };
 
-// FACEIT OAuth2 configuration
+// FACEIT OAuth2 configuration from OpenID configuration
 const config = {
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
     redirectUri: process.env.REDIRECT_URI || 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback',
-    authEndpoint: 'https://accounts.faceit.com/accounts',
-    tokenEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/token',  // Changed to accounts subdomain
+    authEndpoint: 'https://accounts.faceit.com',
+    tokenEndpoint: 'https://api.faceit.com/auth/v1/oauth/token',
     userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo'
 };
 
@@ -104,7 +104,7 @@ router.get('/auth/faceit', async (req, res) => {
             response_type: 'code',
             client_id: config.clientId,
             redirect_uri: config.redirectUri,
-            scope: 'openid profile email membership chat.messages.read',  // Added all required scopes
+            scope: 'openid profile email membership',  // Updated scopes from OpenID configuration
             state: state,
             code_challenge: codeChallenge,
             code_challenge_method: 'S256'
