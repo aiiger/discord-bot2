@@ -10,6 +10,8 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
+import { createClient } from 'redis';
+import RedisStore from 'connect-redis';
 
 dotenv.config();
 
@@ -25,6 +27,31 @@ app.set('trust proxy', 1);
 
 const port = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
+
+// Initialize Redis client
+const redisClient = createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+        tls: isProduction,
+        rejectUnauthorized: false
+    }
+});
+
+redisClient.on('error', function (err) {
+    console.error('Redis Client Error:', err);
+});
+
+redisClient.on('connect', function () {
+    console.log('Connected to Redis successfully');
+});
+
+await redisClient.connect().catch(console.error);
+
+// Initialize Redis store
+const redisStore = new RedisStore({
+    client: redisClient,
+    prefix: "faceit-bot:"
+});
 
 // Force HTTPS in production
 if (isProduction) {
@@ -219,10 +246,11 @@ const limiter = rateLimit({
 
 // Session middleware configuration
 const sessionConfig = {
+    store: redisStore,
     secret: process.env.SESSION_SECRET,
     name: 'faceit.sid',
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     proxy: true,
     rolling: true,
     cookie: {
@@ -283,9 +311,10 @@ app.use((req, res) => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
     console.log('SIGTERM received. Starting graceful shutdown...');
-    // Close any open connections or cleanup here
+    // Close Redis connection
+    await redisClient.quit();
     process.exit(0);
 });
 
