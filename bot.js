@@ -154,8 +154,10 @@ client.on('messageCreate', async (message) => {
                         ).join('\n');
 
                         message.reply(`Recent matches:\n${matchList}\n\nUse !sendtest [matchId] [message] to test sending a message.`);
+                        logger.info('[DISCORD] Retrieved matches:', { count: matches.length });
                     } else {
                         message.reply('No recent matches found.');
+                        logger.info('[DISCORD] No matches found');
                     }
                 } catch (error) {
                     message.reply('Error getting matches: ' + error.message);
@@ -235,28 +237,57 @@ faceitJS.on('newMatch', async (match) => {
         logger.info('[MATCH EVENT] New match detected:', {
             matchId: match.match_id,
             state: match.state,
-            hasRoomId: !!match.chat_room_id
+            hasRoomId: !!match.chat_room_id,
+            teams: match.teams ? {
+                faction1Count: match.teams.faction1?.roster?.length,
+                faction2Count: match.teams.faction2?.roster?.length
+            } : null
         });
 
         if (match.state === 'VOTING' && match.chat_room_id) {
+            logger.info('[MATCH EVENT] Match in VOTING state with chat room:', {
+                matchId: match.match_id,
+                roomId: match.chat_room_id
+            });
+
             if (!matchStates.has(match.match_id)) {
                 matchStates.set(match.match_id, {
                     rehostVotes: new Set(),
                     greeted: false,
                     eloChecked: false
                 });
+                logger.info('[MATCH EVENT] Created new match state:', {
+                    matchId: match.match_id,
+                    state: matchStates.get(match.match_id)
+                });
             }
 
             const currentMatchState = matchStates.get(match.match_id);
+            logger.info('[MATCH EVENT] Current match state:', {
+                matchId: match.match_id,
+                state: currentMatchState
+            });
 
             if (!currentMatchState.greeted) {
                 const welcomeMessage = "👋 Welcome to the match! Available commands:\n" +
                     "!rehost - Vote for match rehost (6/10 players needed)\n" +
                     "Match can be cancelled if ELO difference is 70 or greater.";
 
-                await faceitJS.sendChatMessage(match.chat_room_id, welcomeMessage);
-                currentMatchState.greeted = true;
-                logger.info('[MATCH] Sent welcome message to match:', match.match_id);
+                logger.info('[MATCH EVENT] Attempting to send welcome message:', {
+                    matchId: match.match_id,
+                    roomId: match.chat_room_id,
+                    message: welcomeMessage
+                });
+
+                try {
+                    await faceitJS.sendChatMessage(match.chat_room_id, welcomeMessage);
+                    currentMatchState.greeted = true;
+                    logger.info('[MATCH EVENT] Welcome message sent successfully:', {
+                        matchId: match.match_id
+                    });
+                } catch (error) {
+                    logger.error('[MATCH EVENT] Failed to send welcome message:', error);
+                }
 
                 const teams = match.teams;
                 if (teams?.faction1 && teams?.faction2) {
@@ -264,7 +295,7 @@ faceitJS.on('newMatch', async (match) => {
                     const team2Elo = calculateTeamElo(teams.faction2.roster);
                     const eloDiff = Math.abs(team1Elo - team2Elo);
 
-                    logger.info('[MATCH] ELO difference calculated:', {
+                    logger.info('[MATCH EVENT] ELO difference calculated:', {
                         matchId: match.match_id,
                         team1Elo,
                         team2Elo,
@@ -273,17 +304,21 @@ faceitJS.on('newMatch', async (match) => {
 
                     if (eloDiff >= 70) {
                         const eloMessage = `⚠️ Warning: ELO difference is ${eloDiff}. Type !cancel to vote for cancellation.`;
-                        await faceitJS.sendChatMessage(match.chat_room_id, eloMessage);
-                        logger.info('[MATCH] Sent ELO warning message:', {
-                            matchId: match.match_id,
-                            eloDifference: eloDiff
-                        });
+                        try {
+                            await faceitJS.sendChatMessage(match.chat_room_id, eloMessage);
+                            logger.info('[MATCH EVENT] ELO warning message sent:', {
+                                matchId: match.match_id,
+                                eloDifference: eloDiff
+                            });
+                        } catch (error) {
+                            logger.error('[MATCH EVENT] Failed to send ELO warning:', error);
+                        }
                     }
                 }
             }
         }
     } catch (error) {
-        logger.error('Error handling new match:', error);
+        logger.error('[MATCH EVENT] Error handling new match:', error);
     }
 });
 
@@ -293,7 +328,11 @@ faceitJS.on('matchStateChange', async (match) => {
         logger.info('[MATCH EVENT] State change detected:', {
             matchId: match.match_id,
             newState: match.state,
-            hasRoomId: !!match.chat_room_id
+            hasRoomId: !!match.chat_room_id,
+            teams: match.teams ? {
+                faction1Count: match.teams.faction1?.roster?.length,
+                faction2Count: match.teams.faction2?.roster?.length
+            } : null
         });
 
         if (match.state === 'CANCELLED' || match.state === 'FINISHED') {
@@ -302,17 +341,21 @@ faceitJS.on('matchStateChange', async (match) => {
                     ? "❌ Match has been cancelled."
                     : "🏁 Match has ended! Thanks for playing!";
 
-                await faceitJS.sendChatMessage(match.chat_room_id, message);
-                logger.info('[MATCH] Sent end/cancel message:', {
-                    matchId: match.match_id,
-                    state: match.state
-                });
+                try {
+                    await faceitJS.sendChatMessage(match.chat_room_id, message);
+                    logger.info('[MATCH EVENT] End/cancel message sent:', {
+                        matchId: match.match_id,
+                        state: match.state
+                    });
+                } catch (error) {
+                    logger.error('[MATCH EVENT] Failed to send end/cancel message:', error);
+                }
             }
             matchStates.delete(match.match_id);
-            logger.info('[MATCH] Cleaned up match state:', match.match_id);
+            logger.info('[MATCH EVENT] Cleaned up match state:', match.match_id);
         }
     } catch (error) {
-        logger.error('Error handling match state change:', error);
+        logger.error('[MATCH EVENT] Error handling match state change:', error);
     }
 });
 
@@ -328,7 +371,7 @@ faceitJS.on('chatMessage', async (message) => {
     try {
         if (!message.room_id || !message.body) return;
 
-        logger.info('[CHAT] Message received:', {
+        logger.info('[CHAT EVENT] Message received:', {
             roomId: message.room_id,
             userId: message.user_id,
             body: message.body
@@ -337,7 +380,13 @@ faceitJS.on('chatMessage', async (message) => {
         const matchId = message.room_id;
         const matchState = matchStates.get(matchId);
 
-        if (!matchState) return;
+        if (!matchState) {
+            logger.info('[CHAT EVENT] No match state found for message:', {
+                roomId: message.room_id,
+                matchId
+            });
+            return;
+        }
 
         const command = message.body.toLowerCase();
         const playerId = message.user_id;
@@ -347,27 +396,31 @@ faceitJS.on('chatMessage', async (message) => {
             const votesNeeded = 6;
             const currentVotes = matchState.rehostVotes.size;
 
-            logger.info('[CHAT] Rehost vote received:', {
+            logger.info('[CHAT EVENT] Rehost vote received:', {
                 matchId,
                 currentVotes,
                 votesNeeded,
                 voterId: playerId
             });
 
-            await faceitJS.sendChatMessage(matchId,
-                `Rehost vote: ${currentVotes}/10 players (${votesNeeded} needed)`
-            );
-
-            if (currentVotes >= votesNeeded) {
+            try {
                 await faceitJS.sendChatMessage(matchId,
-                    `✅ Rehost vote passed! Please wait for admin to rehost the match.`
+                    `Rehost vote: ${currentVotes}/10 players (${votesNeeded} needed)`
                 );
-                logger.info('[CHAT] Rehost vote passed:', { matchId });
-                matchState.rehostVotes.clear();
+
+                if (currentVotes >= votesNeeded) {
+                    await faceitJS.sendChatMessage(matchId,
+                        `✅ Rehost vote passed! Please wait for admin to rehost the match.`
+                    );
+                    logger.info('[CHAT EVENT] Rehost vote passed:', { matchId });
+                    matchState.rehostVotes.clear();
+                }
+            } catch (error) {
+                logger.error('[CHAT EVENT] Failed to send rehost vote message:', error);
             }
         }
     } catch (error) {
-        logger.error('Error handling chat message:', error);
+        logger.error('[CHAT EVENT] Error handling chat message:', error);
     }
 });
 
@@ -404,9 +457,10 @@ const server = app.listen(port, () => {
 // Poll for matches if an access token is available
 app.use((req, res, next) => {
     if (req.session?.accessToken && !faceitJS.accessToken) {
+        logger.info('[AUTH] Setting access token and starting polling');
         faceitJS.setAccessToken(req.session.accessToken);
         faceitJS.startPolling();
-        logger.info('Started polling with new access token');
+        logger.info('[AUTH] Started polling with new access token');
     }
     next();
 });
