@@ -116,15 +116,25 @@ client.on('messageCreate', async (message) => {
                 const testMessage = args.slice(2).join(' ');
 
                 if (!faceitJS.accessToken) {
-                    message.reply('Please authenticate first by visiting: ' + getBaseUrl(req) + '/auth/faceit');
+                    message.reply('Please authenticate first by visiting the FACEIT bot website');
                     return;
                 }
 
-                await faceitJS.chatApiInstance.post(`/rooms/${matchId}/messages`, {
-                    body: testMessage
-                });
-                message.reply(`Successfully sent message to match room ${matchId}`);
-                logger.info(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
+                try {
+                    await faceitJS.chatApiInstance.post(`/rooms/${matchId}/messages`, {
+                        body: testMessage
+                    });
+                    message.reply(`Successfully sent message to match room ${matchId}`);
+                    logger.info(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
+                } catch (error) {
+                    if (error.response?.status === 401) {
+                        message.reply('Authentication failed. Please try authenticating again.');
+                        faceitJS.accessToken = null;
+                    } else {
+                        message.reply(`Failed to send message: ${error.message}`);
+                    }
+                    logger.error('[DISCORD] Error sending test message:', error);
+                }
                 break;
 
             case '!getmatches':
