@@ -104,7 +104,7 @@
 			if (response && response.token) {
 				console.log('Token received, sending to backend');
 				// Send token to our backend
-				fetch('/auth/callback', {
+				fetch('/callback', {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json'

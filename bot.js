@@ -207,7 +207,12 @@ client.on('messageCreate', async (message) => {
 // Routes
 app.get('/', (req, res) => {
     logger.info('Home route accessed by IP:', req.ip);
-    res.render('login', { clientId: process.env.CLIENT_ID });
+    const baseUrl = getBaseUrl(req);
+    const redirectUri = process.env.REDIRECT_URI || `${baseUrl}/callback`;
+    res.render('login', {
+        clientId: process.env.CLIENT_ID,
+        redirectUri: redirectUri
+    });
 });
 
 // Dashboard route

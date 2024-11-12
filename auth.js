@@ -3,11 +3,19 @@ import axios from 'axios';
 
 const router = express.Router();
 
+// Get the base URL for the application
+const getBaseUrl = () => {
+    if (process.env.NODE_ENV === 'production') {
+        return 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com';
+    }
+    return `http://localhost:${process.env.PORT || 3001}`;
+};
+
 // FACEIT OAuth2 configuration
 const config = {
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
-    redirectUri: process.env.REDIRECT_URI || 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/auth/callback'
+    redirectUri: process.env.REDIRECT_URI || `${getBaseUrl()}/callback`
 };
 
 // Login route - renders the login page with FACEIT SDK
@@ -26,7 +34,7 @@ router.get('/auth/faceit', (req, res) => {
 });
 
 // Handle token from FACEIT SDK
-router.post('/auth/callback', async (req, res) => {
+router.post('/callback', async (req, res) => {
     try {
         console.info('Received callback with body:', JSON.stringify(req.body));
         const { token } = req.body;
