@@ -20,6 +20,10 @@ const logger = {
             console.error('Status code:', error.response.status);
         }
         console.error('Full error:', error);
+    },
+    debug: (message, data) => {
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] AUTH DEBUG: ${message}`, JSON.stringify(data, null, 2));
     }
 };
 
@@ -68,7 +72,7 @@ router.get('/auth/faceit', async (req, res) => {
         });
 
         // Log session details
-        logger.info('Session details:', {
+        logger.debug('Session details:', {
             state: state,
             sessionState: req.session.state,
             sessionId: req.session.id,
@@ -86,7 +90,7 @@ router.get('/auth/faceit', async (req, res) => {
         });
 
         const authUrl = `${config.authEndpoint}?${params.toString()}`;
-        logger.info('Authorization URL:', authUrl);
+        logger.debug('Authorization URL:', { url: authUrl });
 
         // Set security headers
         res.set({
@@ -106,24 +110,32 @@ router.get('/auth/faceit', async (req, res) => {
 // OAuth callback handler
 router.get('/callback', async (req, res) => {
     try {
-        logger.info('Raw callback URL:', req.url);
-        logger.info('Query parameters:', req.query);
-        logger.info('Headers:', req.headers);
+        logger.debug('Callback received', {
+            url: req.url,
+            query: req.query,
+            headers: {
+                ...req.headers,
+                cookie: req.headers.cookie ? '[REDACTED]' : undefined
+            },
+            method: req.method,
+            protocol: req.protocol,
+            secure: req.secure,
+            hostname: req.hostname,
+            originalUrl: req.originalUrl,
+            baseUrl: req.baseUrl,
+            path: req.path
+        });
 
         const { code, state, error } = req.query;
 
         // Log detailed callback information
-        logger.info('Callback details:', {
+        logger.debug('Callback parameters', {
             hasCode: !!code,
             state,
             error,
-            method: req.method,
-            path: req.path,
-            url: req.url,
-            headers: {
-                cookie: req.headers.cookie,
-                referer: req.headers.referer
-            }
+            sessionExists: !!req.session,
+            sessionState: req.session?.state,
+            sessionId: req.session?.id
         });
 
         // Initialize session if it doesn't exist
@@ -133,7 +145,7 @@ router.get('/callback', async (req, res) => {
         }
 
         // Log session state
-        logger.info('Session state:', {
+        logger.debug('Session state', {
             sessionState: req.session.state,
             stateTimestamp: req.session.stateTimestamp,
             sessionId: req.session.id,
@@ -162,7 +174,7 @@ router.get('/callback', async (req, res) => {
         if (!req.session.state) {
             logger.error('No state found in session:', {
                 sessionData: req.session,
-                cookies: req.headers.cookie
+                cookies: req.headers.cookie ? '[REDACTED]' : undefined
             });
             throw new Error('No state in session');
         }
@@ -179,6 +191,12 @@ router.get('/callback', async (req, res) => {
         logger.info('State validation passed, exchanging code for token');
 
         // Exchange code for token
+        logger.debug('Exchanging code for token', {
+            tokenEndpoint: config.tokenEndpoint,
+            redirectUri: config.redirectUri,
+            codeLength: code.length
+        });
+
         const tokenResponse = await axios.post(config.tokenEndpoint,
             new URLSearchParams({
                 grant_type: 'authorization_code',
@@ -198,6 +216,7 @@ router.get('/callback', async (req, res) => {
         const accessToken = tokenResponse.data.access_token;
 
         // Get user info
+        logger.debug('Fetching user info');
         const userInfo = await axios.get(config.userInfoEndpoint, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`
@@ -205,6 +224,10 @@ router.get('/callback', async (req, res) => {
         });
 
         logger.info('User info received successfully');
+        logger.debug('User info', {
+            nickname: userInfo.data.nickname,
+            email: userInfo.data.email ? '[REDACTED]' : undefined
+        });
 
         // Store in session
         req.session.accessToken = accessToken;
