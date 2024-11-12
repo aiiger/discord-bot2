@@ -137,40 +137,21 @@ router.get('/auth/faceit', async (req, res) => {
 // OAuth callback handler
 router.get('/callback', async (req, res) => {
     try {
-        logger.debug('Callback received', {
-            url: req.url,
+        logger.info('Callback route accessed');
+        logger.debug('Callback request details:', {
             query: req.query,
             headers: {
                 ...req.headers,
                 cookie: req.headers.cookie ? '[REDACTED]' : undefined
             },
-            method: req.method,
-            protocol: req.protocol,
-            secure: req.secure,
-            hostname: req.hostname,
-            originalUrl: req.originalUrl,
-            baseUrl: req.baseUrl,
-            path: req.path
+            session: req.session ? {
+                id: req.session.id,
+                state: req.session.state,
+                hasCodeVerifier: !!req.session.codeVerifier
+            } : 'No session'
         });
 
         const { code, state, error } = req.query;
-
-        // Log detailed callback information
-        logger.debug('Callback parameters', {
-            hasCode: !!code,
-            state,
-            error,
-            sessionExists: !!req.session,
-            sessionState: req.session?.state,
-            sessionId: req.session?.id,
-            hasCodeVerifier: !!req.session?.codeVerifier
-        });
-
-        // Initialize session if it doesn't exist
-        if (!req.session) {
-            logger.error('No session object in callback request');
-            throw new Error('Session initialization failed');
-        }
 
         // Check for OAuth error response
         if (error) {
@@ -182,6 +163,12 @@ router.get('/callback', async (req, res) => {
         if (!code) {
             logger.error('No authorization code received');
             throw new Error('No authorization code received');
+        }
+
+        // Validate session exists
+        if (!req.session) {
+            logger.error('No session found in callback');
+            throw new Error('Session not found');
         }
 
         // Validate state
@@ -202,11 +189,13 @@ router.get('/callback', async (req, res) => {
         logger.info('State validation passed, exchanging code for token');
 
         // Exchange code for token using PKCE
-        logger.debug('Exchanging code for token', {
+        logger.debug('Token request parameters:', {
             tokenEndpoint: config.tokenEndpoint,
             redirectUri: config.redirectUri,
             codeLength: code.length,
-            hasCodeVerifier: !!req.session.codeVerifier
+            hasCodeVerifier: !!req.session.codeVerifier,
+            clientId: config.clientId ? '[PRESENT]' : '[MISSING]',
+            clientSecret: config.clientSecret ? '[PRESENT]' : '[MISSING]'
         });
 
         // Add Basic Auth for token request
@@ -248,6 +237,8 @@ router.get('/callback', async (req, res) => {
         // Store in session
         req.session.accessToken = accessToken;
         req.session.userInfo = userInfo.data;
+
+        // Clean up session
         delete req.session.state;
         delete req.session.stateTimestamp;
         delete req.session.codeVerifier;
@@ -267,7 +258,7 @@ router.get('/callback', async (req, res) => {
 
         // Set the access token in the app
         if (req.app.locals.faceitJS) {
-            logger.debug('Setting access token in FaceitJS instance');
+            logger.info('Setting access token in FaceitJS instance');
             req.app.locals.faceitJS.setAccessToken(accessToken);
             req.app.locals.faceitJS.startPolling();
             logger.info('Started polling with new access token');
@@ -284,9 +275,30 @@ router.get('/callback', async (req, res) => {
     }
 });
 
+// Test route to check session
+router.get('/test-session', (req, res) => {
+    logger.info('Test session route accessed');
+    logger.debug('Session state:', {
+        hasSession: !!req.session,
+        sessionId: req.session?.id,
+        hasAccessToken: !!req.session?.accessToken,
+        hasUserInfo: !!req.session?.userInfo
+    });
+    res.json({
+        hasSession: !!req.session,
+        sessionId: req.session?.id,
+        hasAccessToken: !!req.session?.accessToken,
+        hasUserInfo: !!req.session?.userInfo
+    });
+});
+
 // Logout route
 router.get('/logout', (req, res) => {
     logger.info('Logout route accessed');
+    if (req.app.locals.faceitJS) {
+        req.app.locals.faceitJS.setAccessToken(null);
+        logger.info('Cleared FaceitJS access token');
+    }
     req.session.destroy((err) => {
         if (err) {
             logger.error('Error destroying session:', err);
