@@ -57,6 +57,12 @@ async function generateCodeChallenge(verifier) {
     return hash;
 }
 
+// Test route to verify callback URL is accessible
+router.get('/test-callback', (req, res) => {
+    logger.info('Test callback route accessed');
+    res.send('Callback URL is accessible');
+});
+
 // Authorization route - initiates OAuth2 flow with PKCE
 router.get('/auth/faceit', async (req, res) => {
     logger.info('Auth route accessed');
@@ -107,11 +113,7 @@ router.get('/auth/faceit', async (req, res) => {
             scope: 'openid profile email membership chat.messages.read',
             state: state,
             code_challenge: codeChallenge,
-            code_challenge_method: 'S256',
-            prompt: 'consent',  // Force consent screen
-            access_type: 'offline',  // Get refresh token
-            faceit_game_name: 'csgo',  // Add game name
-            faceit_user_platform_id: 'steam'  // Add platform ID
+            code_challenge_method: 'S256'
         });
 
         const authUrl = `${config.authEndpoint}?${params.toString()}`;
