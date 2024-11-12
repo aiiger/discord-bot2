@@ -9,8 +9,6 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createClient } from 'redis';
-import RedisStore from 'connect-redis';
 
 dotenv.config();
 
@@ -71,49 +69,6 @@ const getBaseUrl = (req) => {
     return `http://localhost:${port}`;
 };
 
-// Initialize Redis client
-let redisConfig = {};
-
-if (isProduction) {
-    // Parse Redis URL for production
-    const redisUrl = process.env.REDIS_URL || process.env.REDIS_TLS_URL;
-    if (!redisUrl) {
-        throw new Error('Redis URL not found in environment variables');
-    }
-
-    redisConfig = {
-        url: redisUrl,
-        socket: {
-            tls: true,
-            rejectUnauthorized: false
-        }
-    };
-    logger.info('Configured Redis for production with TLS');
-} else {
-    // Local development configuration
-    redisConfig = {
-        url: 'redis://localhost:6379'
-    };
-    logger.info('Configured Redis for local development');
-}
-
-const redisClient = createClient(redisConfig);
-
-redisClient.on('error', (err) => logger.error('Redis Client Error:', err));
-redisClient.on('connect', () => logger.info('Connected to Redis'));
-
-// Connect to Redis
-redisClient.connect().catch((err) => {
-    logger.error('Failed to connect to Redis:', err);
-    process.exit(1); // Exit if we can't connect to Redis
-});
-
-// Initialize Redis store
-const redisStore = new RedisStore({
-    client: redisClient,
-    prefix: 'faceit:'
-});
-
 // Initialize FaceitJS instance
 const faceitJS = new FaceitJS();
 
@@ -130,12 +85,12 @@ const client = new Client({
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again later.'
+    message: 'Too many requests from this IP, please try again later.',
+    trustProxy: true // Trust Heroku's proxy
 });
 
 // Session middleware configuration
 const sessionConfig = {
-    store: redisStore,
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
     resave: false,
