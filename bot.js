@@ -239,66 +239,37 @@ app.get('/dashboard', (req, res) => {
 });
 
 // Error route
-app.get('/error', (req, res) => {
-    res.render('error', {
-        message: 'Authentication failed',
-        error: req.query.error || 'Unknown error'
-    });
-});
+app.get('/callback', async (req, res) => {
+    logger.info('Callback route accessed:', req.query);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-    logger.error('Error:', err);
-    res.status(500).render('error', {
-        message: 'Internal Server Error',
-        error: isProduction ? {} : err
-    });
-});
+    if (req.query.error) {
+        logger.error('OAuth Error:', req.query.error_description || req.query.error);
+        return res.redirect(`/error?error=${encodeURIComponent(req.query.error_description || req.query.error)}`);
+    }
 
-// Error handling
-client.on('error', (error) => {
-    logger.error('Discord client error:', error);
-});
+    const code = req.query.code;
+    if (!code) {
+        logger.error('No authorization code received');
+        return res.redirect('/error?error=No authorization code received');
+    }
 
-process.on('unhandledRejection', (error) => {
-    logger.error('Unhandled promise rejection:', error);
-});
-
-process.on('uncaughtException', (error) => {
-    logger.error('Uncaught exception:', error);
-});
-
-// Graceful shutdown
-function shutdown() {
-    logger.info('Shutting down gracefully...');
-    faceitJS.stopPolling();
-    process.exit(0);
-}
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
-
-// Start server and login to Discord
-Promise.all([
-    new Promise((resolve) => {
-        const server = app.listen(port, () => {
-            logger.info(`Server running on port ${port}`);
-            resolve(server);
+    try {
+        const tokenResponse = await axios.post('https://accounts.faceit.com/oauth/token', {
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: process.env.REDIRECT_URI,
+            client_id: process.env.CLIENT_ID,
+            client_secret: process.env.CLIENT_SECRET
         });
-    }),
-    client.login(process.env.DISCORD_TOKEN).then(() => {
-        logger.info('Discord bot logged in successfully');
-        // Check if we already have an access token in the session
-        if (faceitJS.accessToken) {
-            faceitJS.startPolling();
-            logger.info('Started FACEIT match state polling with existing token');
-        } else {
-            logger.info('Waiting for authentication before starting polling');
-        }
-    })
-]).catch(error => {
-    logger.error('Failed to start services:', error);
-    process.exit(1);
+
+        req.session.accessToken = tokenResponse.data.access_token;
+        logger.info('Access token obtained and stored in session');
+
+        res.redirect('/dashboard');
+    } catch (error) {
+        logger.error('Failed to exchange authorization code for access token:', error);
+        res.redirect('/error?error=Failed to obtain access token');
+    }
 });
 
 export default app;
