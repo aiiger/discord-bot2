@@ -90,26 +90,27 @@ const limiter = rateLimit({
     }
 });
 
+// Configure trust proxy for Heroku
+app.set('trust proxy', 1);
+
 // Session middleware configuration
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
     name: 'faceit.sid',
-    proxy: true, // Required for Heroku
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
+    rolling: true,
+    proxy: true,
     cookie: {
-        secure: isProduction,
+        secure: true, // Always use secure cookies in production and development
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         sameSite: 'lax',
-        path: '/',
-        domain: isProduction ? '.herokuapp.com' : undefined
+        path: '/'
     }
 };
 
 // Apply middleware
-app.set('trust proxy', 1); // Required for Heroku
-
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -133,7 +134,9 @@ app.use((req, res, next) => {
     next();
 });
 
+// Initialize session middleware
 app.use(session(sessionConfig));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
