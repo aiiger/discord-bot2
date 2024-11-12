@@ -40,10 +40,18 @@ router.get('/auth/faceit', async (req, res) => {
         // Generate state for security
         const state = crypto.randomBytes(16).toString('hex');
 
+        // Initialize session if it doesn't exist
+        if (!req.session) {
+            logger.info('Creating new session');
+            req.session = {};
+        }
+
         // Log session before modification
         logger.info('Session before state:', req.session);
 
+        // Store state in session
         req.session.state = state;
+        req.session.stateTimestamp = Date.now();
 
         // Force session save
         await new Promise((resolve, reject) => {
@@ -62,9 +70,11 @@ router.get('/auth/faceit', async (req, res) => {
         logger.info('Session after save:', {
             state: state,
             sessionState: req.session.state,
-            sessionId: req.session.id
+            sessionId: req.session.id,
+            stateTimestamp: req.session.stateTimestamp
         });
 
+        // Build authorization URL
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: config.clientId,
@@ -74,8 +84,7 @@ router.get('/auth/faceit', async (req, res) => {
         });
 
         const authUrl = `${config.authEndpoint}?${params.toString()}`;
-
-        logger.info('Redirecting to:', authUrl);
+        logger.info('Authorization URL:', authUrl);
 
         // Set security headers
         res.set({
@@ -84,6 +93,7 @@ router.get('/auth/faceit', async (req, res) => {
             'Expires': '0'
         });
 
+        logger.info('Redirecting to FACEIT authorization page');
         res.redirect(authUrl);
     } catch (error) {
         logger.error('Error initiating OAuth flow:', error);
@@ -96,14 +106,26 @@ router.get('/callback', async (req, res) => {
     try {
         const { code, state, error } = req.query;
 
-        logger.info('Callback received:', {
+        logger.info('Raw callback URL:', req.url);
+        logger.info('Callback received with query parameters:', {
             hasCode: !!code,
             state,
             error,
-            sessionState: req.session?.state,
-            hasSession: !!req.session,
-            sessionId: req.session?.id,
-            cookies: req.headers.cookie
+            method: req.method,
+            headers: req.headers
+        });
+
+        // Initialize session if it doesn't exist
+        if (!req.session) {
+            logger.error('No session object in callback request');
+            throw new Error('Session initialization failed');
+        }
+
+        logger.info('Session state in callback:', {
+            sessionState: req.session.state,
+            stateTimestamp: req.session.stateTimestamp,
+            sessionId: req.session.id,
+            timeSinceStateSet: req.session.stateTimestamp ? Date.now() - req.session.stateTimestamp : null
         });
 
         // Check for OAuth error response
@@ -112,32 +134,28 @@ router.get('/callback', async (req, res) => {
             throw new Error(`OAuth error: ${error}`);
         }
 
-        // Detailed session validation
-        if (!req.session) {
-            logger.error('No session found in callback');
-            throw new Error('No session found');
+        // Validate code presence
+        if (!code) {
+            logger.error('No authorization code received');
+            throw new Error('No authorization code received');
         }
 
-        if (!state) {
-            logger.error('No state parameter in callback');
-            throw new Error('Missing state parameter');
-        }
-
-        if (!req.session.state) {
-            logger.error('No state found in session:', {
-                sessionData: req.session,
-                cookies: req.headers.cookie
+        // Validate state
+        if (!state || !req.session.state) {
+            logger.error('State validation failed:', {
+                receivedState: state,
+                sessionState: req.session.state
             });
-            throw new Error('No state in session');
+            throw new Error('Invalid state parameter');
         }
 
         if (state !== req.session.state) {
             logger.error('State mismatch:', {
                 receivedState: state,
                 sessionState: req.session.state,
-                sessionId: req.session.id
+                timeSinceStateSet: req.session.stateTimestamp ? Date.now() - req.session.stateTimestamp : null
             });
-            throw new Error('Invalid state parameter');
+            throw new Error('State parameter mismatch');
         }
 
         logger.info('State validation passed, exchanging code for token');
@@ -156,21 +174,9 @@ router.get('/callback', async (req, res) => {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 }
             }
-        ).catch(error => {
-            logger.error('Token exchange failed:', {
-                status: error.response?.status,
-                data: error.response?.data,
-                config: {
-                    url: error.config?.url,
-                    headers: error.config?.headers,
-                    data: error.config?.data
-                }
-            });
-            throw error;
-        });
+        );
 
         logger.info('Token received successfully');
-
         const accessToken = tokenResponse.data.access_token;
 
         // Get user info
@@ -178,12 +184,6 @@ router.get('/callback', async (req, res) => {
             headers: {
                 'Authorization': `Bearer ${accessToken}`
             }
-        }).catch(error => {
-            logger.error('User info request failed:', {
-                status: error.response?.status,
-                data: error.response?.data
-            });
-            throw error;
         });
 
         logger.info('User info received successfully');
@@ -192,6 +192,7 @@ router.get('/callback', async (req, res) => {
         req.session.accessToken = accessToken;
         req.session.userInfo = userInfo.data;
         delete req.session.state;
+        delete req.session.stateTimestamp;
 
         // Save session
         await new Promise((resolve, reject) => {
