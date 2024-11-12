@@ -1,4 +1,4 @@
-// FACEIT OAuth2 Bot with PKCE Support
+// FACEIT OAuth2 Bot with SDK Support
 import express from 'express';
 import session from 'express-session';
 import { FaceitJS } from './FaceitJS.js';
@@ -54,7 +54,7 @@ const app = express();
 // Must be first - trust proxy for Heroku
 app.enable('trust proxy');
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001; // Changed to 3001
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Get the base URL for the application
@@ -101,7 +101,7 @@ const sessionConfig = {
     rolling: true,
     proxy: true,
     cookie: {
-        secure: isProduction, // Only use secure in production
+        secure: isProduction,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax',
@@ -114,13 +114,14 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'", "https://*.faceit.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://*.faceit.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://*.faceit.com", "https://cdn.faceit.com"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://*.faceit.com"],
             imgSrc: ["'self'", "data:", "https:", "https://*.faceit.com", "https://cdn.faceit.com"],
-            connectSrc: ["'self'", "https://*.faceit.com", "https://api.faceit.com", "https://open.faceit.com"],
+            connectSrc: ["'self'", "https://*.faceit.com", "https://api.faceit.com", "https://open.faceit.com", "https://accounts.faceit.com"],
             fontSrc: ["'self'", "https://*.faceit.com"],
-            formAction: ["'self'", "https://*.faceit.com"],
-            frameSrc: ["'self'", "https://*.faceit.com"]
+            formAction: ["'self'", "https://*.faceit.com", "https://accounts.faceit.com"],
+            frameSrc: ["'self'", "https://*.faceit.com", "https://accounts.faceit.com"],
+            frameAncestors: ["'self'", "https://*.faceit.com", "https://accounts.faceit.com"]
         }
     },
     crossOriginEmbedderPolicy: false,

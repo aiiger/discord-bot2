@@ -33,23 +33,6 @@
 			color: #ff5500;
 		}
 
-		.login-button {
-			background-color: #ff5500;
-			color: white;
-			border: none;
-			padding: 12px 24px;
-			border-radius: 4px;
-			cursor: pointer;
-			font-size: 16px;
-			text-decoration: none;
-			display: inline-block;
-			transition: background-color 0.3s;
-		}
-
-		.login-button:hover {
-			background-color: #ff6a1f;
-		}
-
 		.info {
 			margin-top: 20px;
 			font-size: 14px;
@@ -61,15 +44,62 @@
 			margin-bottom: 30px;
 		}
 	</style>
+	<!-- Include FACEIT OAuth SDK -->
+	<script src="https://cdn.faceit.com/oauth/faceit-oauth-sdk-1.3.0.min.js"></script>
 </head>
 
 <body>
 	<div class="container">
 		<img src="https://cdn.faceit.com/frontend/291/assets/FACEIT_LOGO_RGB.svg" alt="FACEIT Logo" class="logo">
 		<h1>FACEIT Bot Authentication</h1>
-		<a href="/auth/faceit" class="login-button">Login with FACEIT</a>
+		<!-- SDK will inject the login button here -->
+		<div id="faceitLogin"></div>
 		<p class="info">Click the button above to authenticate with FACEIT.</p>
 	</div>
+
+	<script type="text/javascript">
+		// Callback function to handle authentication result
+		function handleAuth(response) {
+			if (response && response.token) {
+				// Send token to our backend
+				fetch('/auth/callback', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						token: response.token
+					})
+				})
+					.then(res => res.json())
+					.then(data => {
+						if (data.success && data.redirect) {
+							window.location.href = data.redirect;
+						} else {
+							console.error('Authentication failed:', data.error);
+							alert('Authentication failed. Please try again.');
+						}
+					})
+					.catch(error => {
+						console.error('Error sending token to backend:', error);
+						alert('Authentication failed. Please try again.');
+					});
+			} else {
+				console.error('No token received from FACEIT');
+				alert('Authentication failed. Please try again.');
+			}
+		}
+
+		// Initialize FACEIT SDK
+		var initParams = {
+			client_id: '<%= clientId %>', // Get client ID passed from the server
+			response_type: 'token',
+			callback: handleAuth
+		};
+
+		// Initialize SDK
+		FACEIT.init(initParams);
+	</script>
 </body>
 
 </html>
