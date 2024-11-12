@@ -33,6 +33,13 @@ const logger = {
             console.error('Request data:', error.config.data);
         }
         console.error('Full error:', error);
+    },
+    debug: (message, data = null) => {
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] DEBUG: ${message}`);
+        if (data) {
+            console.log('Debug data:', JSON.stringify(data, null, 2));
+        }
     }
 };
 
@@ -56,6 +63,12 @@ export class FaceitJS extends EventEmitter {
         if (!process.env.HUB_ID || !process.env.FACEIT_API_KEY) {
             throw new Error('Missing required environment variables: HUB_ID and FACEIT_API_KEY are required');
         }
+
+        logger.debug('Initializing with config:', {
+            hubId: this.hubId,
+            hasApiKey: !!this.apiKey,
+            hasAccessToken: !!this.accessToken
+        });
 
         this.lastMessageTimestamps = new Map();
         this.pollingInterval = null;
@@ -115,12 +128,20 @@ export class FaceitJS extends EventEmitter {
     setAccessToken(token) {
         this.accessToken = token;
         logger.info('Access token updated');
+        logger.debug('New access token status:', { hasToken: !!token });
     }
 
     async getHubMatches(hubId) {
         try {
             const endpoint = this.matchesEndpoint.replace('{hubId}', hubId);
+            logger.debug('Fetching hub matches:', { endpoint, hubId });
+
             const response = await this.dataApiInstance.get(endpoint);
+            logger.debug('Hub matches response:', {
+                status: response.status,
+                matchCount: response.data?.items?.length || 0
+            });
+
             return response.data.items || [];
         } catch (error) {
             logger.error('[HUB ERROR] Failed to get hub matches:', error);
@@ -131,7 +152,15 @@ export class FaceitJS extends EventEmitter {
     async getMatchDetails(matchId) {
         try {
             const endpoint = this.matchDetailsEndpoint.replace('{matchId}', matchId);
+            logger.debug('Fetching match details:', { endpoint, matchId });
+
             const response = await this.dataApiInstance.get(endpoint);
+            logger.debug('Match details response:', {
+                status: response.status,
+                matchState: response.data?.state,
+                hasRoomId: !!response.data?.chat_room_id
+            });
+
             return response.data;
         } catch (error) {
             logger.error('[MATCH ERROR] Failed to get match details:', error);
@@ -142,6 +171,8 @@ export class FaceitJS extends EventEmitter {
     async sendChatMessage(roomId, message) {
         try {
             const endpoint = this.chatMessagesEndpoint.replace('{roomId}', roomId);
+            logger.debug('Sending chat message:', { roomId, message });
+
             await this.chatApiInstance.post(endpoint, { body: message });
             logger.info(`[CHAT] Message sent to room ${roomId}: ${message}`);
             return true;
@@ -160,12 +191,19 @@ export class FaceitJS extends EventEmitter {
         try {
             const lastTimestamp = this.lastMessageTimestamps.get(roomId) || 0;
             const endpoint = this.chatMessagesEndpoint.replace('{roomId}', roomId);
+            logger.debug('Polling room messages:', { roomId, lastTimestamp });
+
             const response = await this.chatApiInstance.get(endpoint, {
                 params: { timestamp_from: lastTimestamp }
             });
 
             if (response.data && Array.isArray(response.data.messages)) {
                 const messages = response.data.messages;
+                logger.debug('Room messages received:', {
+                    roomId,
+                    messageCount: messages.length
+                });
+
                 if (messages.length > 0) {
                     const latestTimestamp = Math.max(...messages.map(m => m.timestamp));
                     this.lastMessageTimestamps.set(roomId, latestTimestamp);
@@ -195,6 +233,11 @@ export class FaceitJS extends EventEmitter {
         }
 
         logger.info('[POLLING] Starting match state polling');
+        logger.debug('Polling configuration:', {
+            hubId: this.hubId,
+            hasAccessToken: !!this.accessToken,
+            interval: '15 seconds'
+        });
 
         // Poll every 15 seconds
         this.pollingInterval = setInterval(async () => {
@@ -207,6 +250,11 @@ export class FaceitJS extends EventEmitter {
                 }
 
                 logger.info(`[HUB] Found ${activeMatches.length} ongoing matches`);
+                logger.debug('Active matches:', activeMatches.map(m => ({
+                    matchId: m.match_id,
+                    state: m.state,
+                    hasRoomId: !!m.chat_room_id
+                })));
 
                 for (const match of activeMatches) {
                     if (!match || !match.match_id) {
@@ -222,6 +270,16 @@ export class FaceitJS extends EventEmitter {
                     const prevState = this.previousMatchStates.get(matchId);
 
                     logger.info(`[MATCH INFO] Match ${matchId} is in state: ${currentState}`);
+                    logger.debug('Match details:', {
+                        matchId,
+                        currentState,
+                        previousState: prevState,
+                        hasRoomId: !!matchDetails.chat_room_id,
+                        teams: matchDetails.teams ? {
+                            faction1Count: matchDetails.teams.faction1?.roster?.length,
+                            faction2Count: matchDetails.teams.faction2?.roster?.length
+                        } : null
+                    });
 
                     if (!prevState) {
                         logger.info(`[MATCH NEW] Found new match ${matchId} in state: ${currentState}`);

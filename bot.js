@@ -78,7 +78,7 @@ const getBaseUrl = () => {
     if (isProduction) {
         return 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com';
     }
-    return `http://localhost:${port}`;
+    return `http://localhost:${port}`;  // Use HTTP for localhost
 };
 
 // Initialize FaceitJS instance
@@ -214,7 +214,7 @@ const sessionConfig = {
     saveUninitialized: true,
     proxy: true,
     cookie: {
-        secure: isProduction,
+        secure: isProduction,  // Only use secure cookies in production
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax'
@@ -266,6 +266,12 @@ app.use('/', authRouter);
 // Handle new matches and state changes
 faceitJS.on('newMatch', async (match) => {
     try {
+        logger.info('[MATCH EVENT] New match detected:', {
+            matchId: match.match_id,
+            state: match.state,
+            hasRoomId: !!match.chat_room_id
+        });
+
         if (match.state === 'VOTING' && match.chat_room_id) {
             // Initialize match state if not exists
             if (!matchStates.has(match.match_id)) {
@@ -286,6 +292,7 @@ faceitJS.on('newMatch', async (match) => {
 
                 await faceitJS.sendChatMessage(match.chat_room_id, welcomeMessage);
                 currentMatchState.greeted = true;
+                logger.info('[MATCH] Sent welcome message to match:', match.match_id);
 
                 // Check ELO difference
                 const teams = match.teams;
@@ -294,9 +301,20 @@ faceitJS.on('newMatch', async (match) => {
                     const team2Elo = calculateTeamElo(teams.faction2.roster);
                     const eloDiff = Math.abs(team1Elo - team2Elo);
 
+                    logger.info('[MATCH] ELO difference calculated:', {
+                        matchId: match.match_id,
+                        team1Elo,
+                        team2Elo,
+                        difference: eloDiff
+                    });
+
                     if (eloDiff >= 70) {
                         const eloMessage = `⚠️ Warning: ELO difference is ${eloDiff}. Type !cancel to vote for cancellation.`;
                         await faceitJS.sendChatMessage(match.chat_room_id, eloMessage);
+                        logger.info('[MATCH] Sent ELO warning message:', {
+                            matchId: match.match_id,
+                            eloDifference: eloDiff
+                        });
                     }
                 }
             }
@@ -309,6 +327,12 @@ faceitJS.on('newMatch', async (match) => {
 // Handle match state changes
 faceitJS.on('matchStateChange', async (match) => {
     try {
+        logger.info('[MATCH EVENT] State change detected:', {
+            matchId: match.match_id,
+            newState: match.state,
+            hasRoomId: !!match.chat_room_id
+        });
+
         // If match is cancelled or finished, clean up the state
         if (match.state === 'CANCELLED' || match.state === 'FINISHED') {
             if (match.chat_room_id) {
@@ -317,9 +341,14 @@ faceitJS.on('matchStateChange', async (match) => {
                     : "🏁 Match has ended! Thanks for playing!";
 
                 await faceitJS.sendChatMessage(match.chat_room_id, message);
+                logger.info('[MATCH] Sent end/cancel message:', {
+                    matchId: match.match_id,
+                    state: match.state
+                });
             }
             // Clean up match state
             matchStates.delete(match.match_id);
+            logger.info('[MATCH] Cleaned up match state:', match.match_id);
         }
     } catch (error) {
         logger.error('Error handling match state change:', error);
@@ -338,6 +367,12 @@ faceitJS.on('chatMessage', async (message) => {
     try {
         if (!message.room_id || !message.body) return;
 
+        logger.info('[CHAT] Message received:', {
+            roomId: message.room_id,
+            userId: message.user_id,
+            body: message.body
+        });
+
         const matchId = message.room_id;
         const matchState = matchStates.get(matchId);
 
@@ -352,6 +387,13 @@ faceitJS.on('chatMessage', async (message) => {
             const votesNeeded = 6;
             const currentVotes = matchState.rehostVotes.size;
 
+            logger.info('[CHAT] Rehost vote received:', {
+                matchId,
+                currentVotes,
+                votesNeeded,
+                voterId: playerId
+            });
+
             await faceitJS.sendChatMessage(matchId,
                 `Rehost vote: ${currentVotes}/10 players (${votesNeeded} needed)`
             );
@@ -360,6 +402,7 @@ faceitJS.on('chatMessage', async (message) => {
                 await faceitJS.sendChatMessage(matchId,
                     `✅ Rehost vote passed! Please wait for admin to rehost the match.`
                 );
+                logger.info('[CHAT] Rehost vote passed:', { matchId });
                 // Reset votes after passing
                 matchState.rehostVotes.clear();
             }
@@ -399,6 +442,7 @@ app.get('/error', (req, res) => {
 // Start the server
 const server = app.listen(port, () => {
     logger.info(`Server running on port ${port}`);
+    logger.info(`Base URL: ${getBaseUrl()}`);
 });
 
 // Start polling when access token is available

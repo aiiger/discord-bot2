@@ -4,47 +4,80 @@ import crypto from 'crypto';
 
 const router = express.Router();
 
+// Initialize logger
+const logger = {
+    info: (message, ...args) => {
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] AUTH INFO: ${message}`, ...args);
+    },
+    error: (message, error) => {
+        const timestamp = new Date().toISOString();
+        console.error(`[${timestamp}] AUTH ERROR: ${message}`);
+        if (error?.response?.data) {
+            console.error('Response data:', error.response.data);
+        }
+        if (error?.response?.status) {
+            console.error('Status code:', error.response.status);
+        }
+        console.error('Full error:', error);
+    }
+};
+
 // FACEIT OAuth2 configuration
 const config = {
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
     redirectUri: process.env.REDIRECT_URI || 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback',
-    authEndpoint: 'https://accounts.faceit.com/oauth/authorize',  // Changed to accounts.faceit.com
-    tokenEndpoint: 'https://api.faceit.com/auth/v1/oauth/token',
+    authEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/authorize',
+    tokenEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/token',
     userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo'
 };
 
 // Authorization route - initiates OAuth2 flow
 router.get('/auth/faceit', async (req, res) => {
+    logger.info('Auth route accessed');
     try {
         // Generate state for security
         const state = crypto.randomBytes(16).toString('hex');
+
+        // Log session before modification
+        logger.info('Session before state:', req.session);
+
         req.session.state = state;
+
+        // Force session save
         await new Promise((resolve, reject) => {
             req.session.save((err) => {
-                if (err) reject(err);
-                else resolve();
+                if (err) {
+                    logger.error('Session save error:', err);
+                    reject(err);
+                } else {
+                    logger.info('Session saved successfully');
+                    resolve();
+                }
             });
         });
 
-        // Build authorization URL
+        // Log session after save
+        logger.info('Session after save:', {
+            state: state,
+            sessionState: req.session.state,
+            sessionId: req.session.id
+        });
+
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: config.clientId,
             redirect_uri: config.redirectUri,
-            scope: 'openid profile email',  // Removed chat scope as it's not needed for initial auth
+            scope: 'openid profile email',
             state: state
         });
 
         const authUrl = `${config.authEndpoint}?${params.toString()}`;
 
-        // Log the auth URL for debugging
-        console.log('Auth URL:', authUrl);
-        console.log('Session state:', state);
-        console.log('Client ID:', config.clientId);
-        console.log('Redirect URI:', config.redirectUri);
+        logger.info('Redirecting to:', authUrl);
 
-        // Set required headers
+        // Set security headers
         res.set({
             'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
             'Pragma': 'no-cache',
@@ -53,7 +86,7 @@ router.get('/auth/faceit', async (req, res) => {
 
         res.redirect(authUrl);
     } catch (error) {
-        console.error('Error initiating OAuth flow:', error);
+        logger.error('Error initiating OAuth flow:', error);
         res.redirect('/error?error=' + encodeURIComponent('Failed to initiate authentication'));
     }
 });
@@ -61,56 +94,64 @@ router.get('/auth/faceit', async (req, res) => {
 // OAuth callback handler
 router.get('/callback', async (req, res) => {
     try {
-        const { code, state, error } = req.query;
-
-        console.log('Callback received:', {
-            hasCode: !!code,
-            state,
-            error,
+        logger.info('Callback received:', {
+            hasCode: !!req.query.code,
+            state: req.query.state,
+            error: req.query.error,
             sessionState: req.session?.state,
             hasSession: !!req.session
         });
 
-        // Check for OAuth errors
-        if (error) {
-            throw new Error(`OAuth error: ${error}`);
+        // Detailed session check
+        if (!req.session) {
+            logger.error('No session found in callback');
+            return res.redirect('/error?error=' + encodeURIComponent('No session found'));
         }
 
-        // Verify state parameter
-        if (!state || !req.session || state !== req.session.state) {
-            console.error('State mismatch:', {
-                receivedState: state,
-                sessionState: req.session?.state,
-                hasSession: !!req.session
+        if (!req.query.state) {
+            logger.error('No state parameter in callback');
+            return res.redirect('/error?error=' + encodeURIComponent('Missing state parameter'));
+        }
+
+        if (!req.session.state) {
+            logger.error('No state found in session');
+            return res.redirect('/error?error=' + encodeURIComponent('No state in session'));
+        }
+
+        if (req.query.state !== req.session.state) {
+            logger.error('State mismatch:', {
+                receivedState: req.query.state,
+                sessionState: req.session.state
             });
-            throw new Error('Invalid state parameter');
+            return res.redirect('/error?error=' + encodeURIComponent('State mismatch'));
         }
 
-        console.log('Exchanging code for token...');
+        // Check for authorization code
+        if (!req.query.code) {
+            logger.error('No authorization code received');
+            return res.redirect('/error?error=' + encodeURIComponent('No authorization code received'));
+        }
 
         // Exchange code for tokens
-        const tokenResponse = await axios.post(config.tokenEndpoint,
-            new URLSearchParams({
-                grant_type: 'authorization_code',
-                client_id: config.clientId,
-                client_secret: config.clientSecret,
-                code: code,
-                redirect_uri: config.redirectUri
-            }).toString(),
-            {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Accept': 'application/json'
-                }
+        const tokenResponse = await axios.post(config.tokenEndpoint, {
+            grant_type: 'authorization_code',
+            client_id: config.clientId,
+            client_secret: config.clientSecret,
+            code: req.query.code,
+            redirect_uri: config.redirectUri
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             }
-        );
+        });
 
-        console.log('Token received');
+        logger.info('Token received successfully');
 
         // Get access token
         const accessToken = tokenResponse.data.access_token;
 
-        console.log('Getting user info...');
+        logger.info('Getting user info');
 
         // Get user info
         const userInfo = await axios.get(config.userInfoEndpoint, {
@@ -120,7 +161,7 @@ router.get('/callback', async (req, res) => {
             }
         });
 
-        console.log('User info received');
+        logger.info('User info received successfully');
 
         // Store tokens and user info in session
         req.session.accessToken = accessToken;
@@ -132,20 +173,25 @@ router.get('/callback', async (req, res) => {
         // Save session
         await new Promise((resolve, reject) => {
             req.session.save((err) => {
-                if (err) reject(err);
-                else resolve();
+                if (err) {
+                    logger.error('Session save error:', err);
+                    reject(err);
+                } else {
+                    logger.info('Session saved successfully');
+                    resolve();
+                }
             });
         });
 
-        console.log('Session saved, redirecting to dashboard');
+        logger.info('Redirecting to dashboard');
         res.redirect('/dashboard');
     } catch (error) {
-        console.error('Error in callback:', error);
+        logger.error('Error in callback:', error);
         let errorMessage = 'Authentication failed. ';
 
         if (error.response) {
-            console.error('Response data:', error.response.data);
-            console.error('Status code:', error.response.status);
+            logger.error('Response data:', error.response.data);
+            logger.error('Status code:', error.response.status);
             errorMessage += error.response.data?.message || error.message;
         } else {
             errorMessage += error.message;
@@ -157,10 +203,12 @@ router.get('/callback', async (req, res) => {
 
 // Logout route
 router.get('/logout', (req, res) => {
+    logger.info('Logout route accessed');
     req.session.destroy((err) => {
         if (err) {
-            console.error('Error destroying session:', err);
+            logger.error('Error destroying session:', err);
         }
+        logger.info('Session destroyed, redirecting to home');
         res.redirect('/');
     });
 });
