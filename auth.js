@@ -28,15 +28,14 @@ function storePKCE(req) {
     const pkce = generatePKCE();
     const state = crypto.randomBytes(16).toString('hex');
 
-    // Store in session
-    if (!req.session.oauth) {
-        req.session.oauth = {};
+    // Initialize session if needed
+    if (!req.session) {
+        req.session = {};
     }
-    req.session.oauth.pkce = pkce;
-    req.session.oauth.state = state;
 
-    // Force session save
-    req.session.save();
+    // Store PKCE and state
+    req.session.pkce = pkce;
+    req.session.state = state;
 
     return { pkce, state };
 }
@@ -75,8 +74,13 @@ router.get('/callback', async (req, res) => {
             throw new Error(`OAuth error: ${error}`);
         }
 
-        // Verify state parameter and session exists
-        if (!req.session.oauth || !state || state !== req.session.oauth.state) {
+        // Check if session exists
+        if (!req.session) {
+            throw new Error('Session not found');
+        }
+
+        // Verify state parameter
+        if (!state || !req.session.state || state !== req.session.state) {
             throw new Error('Invalid state parameter or session expired');
         }
 
@@ -87,7 +91,7 @@ router.get('/callback', async (req, res) => {
                 client_id: config.clientId,
                 code: code,
                 redirect_uri: config.redirectUri,
-                code_verifier: req.session.oauth.pkce.verifier
+                code_verifier: req.session.pkce.verifier
             }).toString(),
             {
                 headers: {
@@ -110,59 +114,15 @@ router.get('/callback', async (req, res) => {
         req.session.accessToken = accessToken;
         req.session.userInfo = userInfo.data;
 
-        // Clear OAuth data from session
-        delete req.session.oauth;
+        // Clear PKCE and state from session
+        delete req.session.pkce;
+        delete req.session.state;
 
-        // Force session save
-        req.session.save((err) => {
-            if (err) {
-                console.error('Error saving session:', err);
-                throw new Error('Failed to save session');
-            }
-
-            // If there's a voucher code in the session, redeem it
-            if (req.session.voucherCode) {
-                try {
-                    axios.post('https://api.faceit.com/vouchers/v1/redeem', {
-                        code: req.session.voucherCode
-                    }, {
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`,
-                            'Content-Type': 'application/json'
-                        }
-                    }).then(() => {
-                        delete req.session.voucherCode;
-                        req.session.save();
-                    }).catch(error => {
-                        console.error('Error redeeming voucher:', error);
-                    });
-                } catch (voucherError) {
-                    console.error('Error redeeming voucher:', voucherError);
-                }
-            }
-
-            res.redirect('/dashboard');
-        });
+        res.redirect('/dashboard');
     } catch (error) {
         console.error('Error in callback:', error);
         res.redirect('/error?error=' + encodeURIComponent(error.message));
     }
-});
-
-// Store voucher code
-router.post('/voucher', (req, res) => {
-    const { code } = req.body;
-    if (!code) {
-        return res.status(400).json({ error: 'Voucher code is required' });
-    }
-    req.session.voucherCode = code;
-    req.session.save((err) => {
-        if (err) {
-            console.error('Error saving voucher code:', err);
-            return res.status(500).json({ error: 'Failed to store voucher code' });
-        }
-        res.json({ message: 'Voucher code stored' });
-    });
 });
 
 // Logout route
