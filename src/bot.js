@@ -10,8 +10,6 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
-import { createClient } from 'redis';
-import RedisStore from 'connect-redis';
 
 dotenv.config();
 
@@ -22,41 +20,21 @@ const __dirname = path.dirname(__filename);
 // Initialize Express
 const app = express();
 
+app.set('trust proxy', 1); // Add this line
+
+// Additional error handling
+app.use((req, res, next) => {
+    res.on('finish', () => {
+        console.log(`${req.method} ${req.url} ${res.statusCode}`);
+    });
+    next();
+});
+
 // Must be first - trust proxy for Heroku
 app.set('trust proxy', 1);
 
 const port = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
-
-// Initialize Redis client
-const redisClient = createClient({
-    url: process.env.REDISCLOUD_URL,
-    socket: {
-        tls: false,
-        rejectUnauthorized: false
-    }
-});
-
-redisClient.on('error', function (err) {
-    console.error('Redis Client Error:', err);
-});
-
-redisClient.on('connect', function () {
-    console.log('Connected to Redis successfully');
-});
-
-redisClient.on('reconnecting', function () {
-    console.log('Redis client reconnecting...');
-});
-
-await redisClient.connect().catch(console.error);
-
-// Initialize Redis store
-const redisStore = new RedisStore({
-    client: redisClient,
-    prefix: "faceit-bot:",
-    disableTouch: true
-});
 
 // Force HTTPS in production
 if (isProduction) {
@@ -251,11 +229,10 @@ const limiter = rateLimit({
 
 // Session middleware configuration
 const sessionConfig = {
-    store: redisStore,
     secret: process.env.SESSION_SECRET,
     name: 'faceit.sid',
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     proxy: true,
     rolling: true,
     cookie: {
@@ -316,15 +293,14 @@ app.use((req, res) => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
+process.on('SIGTERM', () => {
     console.log('SIGTERM received. Starting graceful shutdown...');
-    // Close Redis connection
-    await redisClient.quit();
+    // Close any open connections or cleanup here
     process.exit(0);
 });
 
 // Start the server
-const server = app.listen(port, () => {
+app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
 
