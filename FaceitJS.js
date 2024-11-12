@@ -136,10 +136,18 @@ export class FaceitJS extends EventEmitter {
             const endpoint = this.matchesEndpoint.replace('{hubId}', hubId);
             logger.debug('Fetching hub matches:', { endpoint, hubId });
 
-            const response = await this.dataApiInstance.get(endpoint);
+            // Add query parameters for all match types
+            const params = {
+                type: 'all',  // Get all match types
+                offset: 0,    // Start from the beginning
+                limit: 20     // Get up to 20 matches
+            };
+
+            const response = await this.dataApiInstance.get(endpoint, { params });
             logger.debug('Hub matches response:', {
                 status: response.status,
-                matchCount: response.data?.items?.length || 0
+                matchCount: response.data?.items?.length || 0,
+                params
             });
 
             return response.data.items || [];
