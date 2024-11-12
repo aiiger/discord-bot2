@@ -88,11 +88,8 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
-    // Configure for Heroku
     trustProxy: 2,
-    // Custom key generator that handles Heroku's forwarded IPs
     keyGenerator: (req) => {
-        // Get the leftmost (client) IP from X-Forwarded-For
         const forwardedFor = req.headers['x-forwarded-for'];
         const clientIP = forwardedFor ? forwardedFor.split(',')[0].trim() : req.ip;
         return clientIP;
@@ -168,13 +165,11 @@ client.on('messageCreate', async (message) => {
         const testMessage = args.slice(2).join(' ');
 
         try {
-            const accessToken = req.session.accessToken;
-            if (!accessToken) {
+            if (!faceitJS.accessToken) {
                 message.reply('Please authenticate first by visiting: ' + getBaseUrl(req) + '/auth/faceit');
                 return;
             }
 
-            faceitJS.setAccessToken(accessToken);
             const response = await faceitJS.chatApiInstance.post(`/rooms/${matchId}/messages`, {
                 body: testMessage
             });
@@ -183,7 +178,7 @@ client.on('messageCreate', async (message) => {
         } catch (error) {
             if (error.response?.status === 401) {
                 message.reply('Authentication failed. Please try authenticating again.');
-                delete req.session.accessToken;
+                faceitJS.accessToken = null;
             } else {
                 message.reply(`Failed to send message: ${error.message}`);
             }
@@ -211,6 +206,16 @@ process.on('uncaughtException', (error) => {
     logger.error('Uncaught exception:', error);
 });
 
+// Graceful shutdown
+function shutdown() {
+    logger.info('Shutting down gracefully...');
+    faceitJS.stopPolling();
+    process.exit(0);
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
 // Start server and login to Discord
 Promise.all([
     new Promise((resolve) => {
@@ -221,8 +226,8 @@ Promise.all([
     }),
     client.login(process.env.DISCORD_TOKEN).then(() => {
         logger.info('Discord bot logged in successfully');
-        faceitJS.startPolling();
-        logger.info('Started FACEIT match state polling');
+        // Don't start polling until we have an access token
+        logger.info('Waiting for authentication before starting polling');
     })
 ]).catch(error => {
     logger.error('Failed to start services:', error);
