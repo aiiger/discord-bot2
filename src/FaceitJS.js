@@ -1,300 +1,153 @@
-// FaceitJS.js
 const axios = require('axios');
-const { EventEmitter } = require('events');
-const WebSocket = require('ws');
+const dotenv = require('dotenv');
+const fs = require('fs');
+const path = require('path');
 
-class FaceitJS extends EventEmitter {
+dotenv.config();
+
+class FaceitJS {
     constructor() {
-        super();
-        this.apiBase = 'https://open.faceit.com/data/v4';
-        this.chatApiBase = 'https://api.faceit.com/chat/v1';
-        this.matchApiBase = 'https://api.faceit.com/match/v1';
-
-        this.hubId = process.env.HUB_ID;
-        this.apiKey = process.env.FACEIT_API_KEY;
         this.accessToken = null;
+        this.hubId = process.env.HUB_ID;
+        console.log('[FACEIT] Initializing with Hub ID:', this.hubId);
+        this.setupAxiosInstances();
+        this.loadSavedToken();
+    }
 
-        this.wsConnection = null;
-        this.wsReconnectAttempts = 0;
-        this.maxReconnectAttempts = 5;
-        this.pollingInterval = null;
+    loadSavedToken() {
+        try {
+            const tokenPath = path.join(__dirname, 'token.json');
+            if (fs.existsSync(tokenPath)) {
+                const tokenData = JSON.parse(fs.readFileSync(tokenPath, 'utf8'));
+                if (tokenData.accessToken) {
+                    console.log('[FACEIT] Found saved token, restoring...');
+                    this.setAccessToken(tokenData.accessToken);
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error('[FACEIT] Error loading saved token:', error);
+        }
+        return false;
+    }
 
-        this.activeMatches = new Map();
-        this.matchStates = new Map();
-        this.vetoStates = new Map();
+    setupAxiosInstances() {
+        console.log('[FACEIT] Setting up API instances');
 
-        // Initialize API instances in constructor
-        this.setupApiInstances();
+        // Create axios instance for authenticated requests
+        this.authenticatedApi = axios.create({
+            baseURL: 'https://api.faceit.com',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Add request interceptor to add auth header
+        this.authenticatedApi.interceptors.request.use((config) => {
+            if (this.accessToken) {
+                config.headers['Authorization'] = `Bearer ${this.accessToken}`;
+            }
+            return config;
+        });
+
+        // Add response interceptor for error handling
+        this.authenticatedApi.interceptors.response.use(
+            response => response,
+            error => {
+                console.error('[FACEIT] API Error:', error.message);
+                if (error.response) {
+                    console.error('[FACEIT] Response status:', error.response.status);
+                    console.error('[FACEIT] Response data:', error.response.data);
+                }
+                if (error.response?.status === 401) {
+                    console.log('[FACEIT] Token expired or invalid, clearing...');
+                    this.setAccessToken(null);
+                    // Try to load a saved token
+                    if (!this.loadSavedToken()) {
+                        throw new Error('Authentication required');
+                    }
+                }
+                throw error;
+            }
+        );
     }
 
     setAccessToken(token) {
         this.accessToken = token;
-        this.setupApiInstances();
         if (token) {
-            this.connectWebSocket();
-            this.startPolling();
-        }
-    }
-
-    setupApiInstances() {
-        this.dataApiInstance = axios.create({
-            baseURL: this.apiBase,
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Accept': 'application/json'
-            }
-        });
-
-        this.chatApiInstance = axios.create({
-            baseURL: this.chatApiBase,
-            headers: {
-                'Authorization': `Bearer ${this.accessToken}`,
-                'Accept': 'application/json'
-            }
-        });
-
-        this.matchApiInstance = axios.create({
-            baseURL: this.matchApiBase,
-            headers: {
-                'Authorization': `Bearer ${this.accessToken}`,
-                'Accept': 'application/json'
-            }
-        });
-    }
-
-    async connectWebSocket() {
-        try {
-            if (this.wsConnection) {
-                this.wsConnection.terminate();
-            }
-
-            this.wsConnection = new WebSocket('wss://api.faceit.com/chat/v1/ws', {
-                headers: {
-                    'Authorization': `Bearer ${this.accessToken}`
-                }
-            });
-
-            this.wsConnection.on('open', () => {
-                console.log('[WS] Connection established');
-                this.wsReconnectAttempts = 0;
-                this.emit('wsConnected');
-            });
-
-            this.wsConnection.on('message', async (data) => {
-                try {
-                    const message = JSON.parse(data);
-                    if (message.event === 'message' && message.payload) {
-                        await this.handleChatMessage(message.payload);
-                    }
-                } catch (error) {
-                    console.error('[WS] Error processing message:', error);
-                }
-            });
-
-            this.wsConnection.on('close', () => {
-                console.log('[WS] Connection closed');
-                this.handleReconnect();
-            });
-
-            this.wsConnection.on('error', (error) => {
-                console.error('[WS] Error:', error);
-                this.handleReconnect();
-            });
-
-        } catch (error) {
-            console.error('[WS] Connection error:', error);
-            this.handleReconnect();
-        }
-    }
-
-    async startPolling() {
-        if (this.pollingInterval) {
-            clearInterval(this.pollingInterval);
-        }
-
-        console.log('[POLLING] Starting match polling');
-        await this.checkMatches(); // Initial check
-
-        this.pollingInterval = setInterval(async () => {
+            console.log('[FACEIT] Access token set successfully');
+            // Save token to file
             try {
-                await this.checkMatches();
+                fs.writeFileSync(
+                    path.join(__dirname, 'token.json'),
+                    JSON.stringify({ accessToken: token }),
+                    'utf8'
+                );
+                console.log('[FACEIT] Token saved to file');
             } catch (error) {
-                console.error('[POLLING] Error:', error);
-                this.emit('pollingError', error);
+                console.error('[FACEIT] Error saving token to file:', error);
             }
-        }, 30000); // Check every 30 seconds
-    }
-
-    async checkMatches() {
-        try {
-            const response = await this.dataApiInstance.get(`/hubs/${this.hubId}/matches`, {
-                params: {
-                    status: 'ONGOING',
-                    limit: 50
-                }
-            });
-
-            const matches = response.data.items;
-
-            for (const match of matches) {
-                const matchId = match.match_id;
-                const currentState = this.matchStates.get(matchId);
-
-                // New match detection
-                if (!this.activeMatches.has(matchId)) {
-                    this.activeMatches.set(matchId, match);
-                    this.matchStates.set(matchId, {
-                        status: match.status,
-                        vetoComplete: false,
-                        greetingSent: false
-                    });
-                    this.emit('newMatch', match);
-                    await this.handleMatchState(match);
-                } else if (currentState.status !== match.status) {
-                    // Status change detection
-                    this.matchStates.set(matchId, {
-                        ...currentState,
-                        status: match.status
-                    });
-                    this.emit('matchStatusChange', { matchId, oldStatus: currentState.status, newStatus: match.status });
-                    await this.handleMatchState(match);
-                }
-
-                // Veto phase check
-                if (match.status === 'VOTING' && !currentState?.greetingSent) {
-                    await this.handleVetoPhase(match);
-                }
-            }
-
-            // Cleanup finished matches
-            for (const [matchId, match] of this.activeMatches.entries()) {
-                if (!matches.some(m => m.match_id === matchId)) {
-                    this.activeMatches.delete(matchId);
-                    this.matchStates.delete(matchId);
-                    this.emit('matchComplete', { matchId, match });
-                }
-            }
-
-        } catch (error) {
-            console.error('[MATCHES] Check error:', error);
-            throw error;
-        }
-    }
-
-    async handleMatchState(match) {
-        const state = this.matchStates.get(match.match_id);
-
-        switch (match.status) {
-            case 'VOTING':
-                if (!state.greetingSent) {
-                    await this.handleVetoPhase(match);
-                }
-                break;
-            case 'READY':
-                await this.sendChatMessage(match.match_id,
-                    "📢 Match is ready! Please join the server."
-                );
-                break;
-            case 'ONGOING':
-                if (state.status !== 'ONGOING') {
-                    await this.sendChatMessage(match.match_id,
-                        "🎮 Match has started! Good luck and have fun!"
-                    );
-                }
-                break;
-            case 'CANCELLED':
-                await this.sendChatMessage(match.match_id,
-                    "⚠️ Match has been cancelled."
-                );
-                break;
-            case 'FINISHED':
-                await this.sendChatMessage(match.match_id,
-                    "🏁 Match has ended. GG WP!"
-                );
-                break;
-        }
-    }
-
-    async handleVetoPhase(match) {
-        try {
-            const state = this.matchStates.get(match.match_id);
-            if (!state.greetingSent) {
-                await this.sendChatMessage(match.match_id,
-                    "👋 Welcome to the map veto phase!\n" +
-                    "Use !veto [map] to ban a map.\n" +
-                    "Available commands: !maps, !veto, !help"
-                );
-
-                this.matchStates.set(match.match_id, {
-                    ...state,
-                    greetingSent: true
-                });
-
-                this.emit('vetoStarted', match);
-            }
-        } catch (error) {
-            console.error('[VETO] Error:', error);
-        }
-    }
-
-    handleReconnect() {
-        if (this.wsReconnectAttempts < this.maxReconnectAttempts) {
-            this.wsReconnectAttempts++;
-            console.log(`[WS] Reconnecting (${this.wsReconnectAttempts}/${this.maxReconnectAttempts})`);
-            setTimeout(() => this.connectWebSocket(), 5000 * this.wsReconnectAttempts);
         } else {
-            console.error('[WS] Max reconnection attempts reached');
-            this.emit('wsMaxReconnectAttempts');
-        }
-    }
-
-    async sendChatMessage(matchId, message) {
-        try {
-            await this.chatApiInstance.post(`/rooms/${matchId}/messages`, {
-                message: message
-            });
-            return true;
-        } catch (error) {
-            console.error('[CHAT] Send error:', error);
-            return false;
+            console.log('[FACEIT] Access token cleared');
+            // Remove token file
+            try {
+                const tokenPath = path.join(__dirname, 'token.json');
+                if (fs.existsSync(tokenPath)) {
+                    fs.unlinkSync(tokenPath);
+                    console.log('[FACEIT] Token file removed');
+                }
+            } catch (error) {
+                console.error('[FACEIT] Error removing token file:', error);
+            }
         }
     }
 
     async getActiveMatches() {
         try {
-            if (!this.dataApiInstance) {
-                this.setupApiInstances();
+            if (!this.accessToken) {
+                // Try to load saved token
+                if (!this.loadSavedToken()) {
+                    throw new Error('Authentication required');
+                }
             }
 
-            const response = await this.dataApiInstance.get(`/hubs/${this.hubId}/matches`, {
-                params: {
-                    status: 'ONGOING',
-                    limit: 50
-                }
-            });
-            return response.data.items;
+            console.log('[MATCHES] Fetching active matches');
+            const response = await this.authenticatedApi.get(`/hubs/v1/hub/${this.hubId}/matches`);
+            const matches = response.data.items || [];
+            console.log(`[MATCHES] Retrieved ${matches.length} matches`);
+            return matches;
         } catch (error) {
-            console.error('[MATCHES] Get error:', error);
+            console.error('[MATCHES] Error fetching matches:', error.message);
+            if (error.response?.data) {
+                console.error('[MATCHES] Response data:', error.response.data);
+            }
             throw error;
         }
     }
 
-    async sendTestMessage(matchId, message) {
+    async sendChatMessage(matchId, message) {
         try {
-            const success = await this.sendChatMessage(matchId, message);
-            return success;
-        } catch (error) {
-            console.error('[TEST] Message error:', error);
-            return false;
-        }
-    }
+            if (!this.accessToken) {
+                // Try to load saved token
+                if (!this.loadSavedToken()) {
+                    throw new Error('Authentication required');
+                }
+            }
 
-    stop() {
-        if (this.pollingInterval) {
-            clearInterval(this.pollingInterval);
-        }
-        if (this.wsConnection) {
-            this.wsConnection.terminate();
+            console.log(`[CHAT] Sending message to match ${matchId}`);
+            const response = await this.authenticatedApi.post(
+                `/chat/v1/rooms/match-${matchId}`,
+                { message }
+            );
+            console.log(`[CHAT] Message sent successfully to match ${matchId}`);
+            return response.data;
+        } catch (error) {
+            console.error(`[CHAT] Error sending message to match ${matchId}:`, error.message);
+            if (error.response?.data) {
+                console.error('[CHAT] Response data:', error.response.data);
+            }
+            throw error;
         }
     }
 }

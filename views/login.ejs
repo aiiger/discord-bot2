@@ -4,108 +4,99 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>FACEIT Account Linking</title>
+	<title>Link FACEIT Account</title>
 	<style>
 		body {
 			font-family: Arial, sans-serif;
 			background-color: #1a1a1a;
 			color: #ffffff;
+			margin: 0;
+			padding: 20px;
 			display: flex;
 			justify-content: center;
 			align-items: center;
 			min-height: 100vh;
-			margin: 0;
-			padding: 20px;
 		}
 
 		.container {
 			background-color: #2d2d2d;
-			padding: 40px;
+			padding: 30px;
 			border-radius: 8px;
-			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-			text-align: center;
-			max-width: 500px;
+			max-width: 600px;
 			width: 100%;
+			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 		}
 
 		h1 {
-			margin-bottom: 20px;
 			color: #ff5500;
+			text-align: center;
+			margin-bottom: 30px;
 		}
 
-		.flow-steps {
-			text-align: left;
-			margin: 20px 0;
-			padding: 0 20px;
+		.steps {
+			margin-bottom: 30px;
 		}
 
-		.flow-steps li {
-			margin-bottom: 15px;
+		.steps ol {
+			padding-left: 20px;
+		}
+
+		.steps li {
+			margin-bottom: 10px;
 			color: #cccccc;
 		}
 
-		.flow-steps li.active {
-			color: #ff5500;
-		}
-
-		.link-button {
+		.auth-button {
 			background-color: #ff5500;
 			color: white;
 			border: none;
-			padding: 15px 30px;
+			padding: 12px 24px;
 			border-radius: 4px;
 			cursor: pointer;
 			font-size: 16px;
+			display: block;
+			margin: 0 auto;
 			text-decoration: none;
-			display: inline-block;
+			text-align: center;
 			transition: background-color 0.3s;
-			margin-top: 20px;
 		}
 
-		.link-button:hover {
+		.auth-button:hover {
 			background-color: #ff6a1f;
 		}
 
-		.info-box {
-			background-color: #363636;
-			padding: 15px;
-			border-radius: 4px;
-			margin-top: 20px;
-			font-size: 14px;
-			color: #999;
-		}
-
-		.error-message {
-			color: #ff3333;
-			margin-top: 10px;
-			font-size: 14px;
-			display: none;
-			padding: 10px;
-			background-color: rgba(255, 51, 51, 0.1);
-			border-radius: 4px;
-		}
-
 		.instructions {
-			margin-top: 20px;
-			padding: 15px;
+			margin-top: 30px;
+			padding: 20px;
 			background-color: #363636;
 			border-radius: 4px;
-			text-align: left;
 		}
 
-		.instructions h3 {
+		.instructions h2 {
 			color: #ff5500;
 			margin-top: 0;
 		}
 
-		.instructions ol {
-			margin: 10px 0;
-			padding-left: 20px;
+		.note {
+			margin-top: 20px;
+			color: #ff5500;
 		}
 
-		.instructions li {
-			margin-bottom: 10px;
-			color: #cccccc;
+		.status {
+			text-align: center;
+			margin-top: 20px;
+			padding: 10px;
+			border-radius: 4px;
+		}
+
+		.status-authenticated {
+			background-color: #4CAF50;
+			color: white;
+		}
+
+		.status-not-authenticated {
+			background-color: #f44336;
+			color: white;
 		}
 	</style>
 </head>
@@ -114,55 +105,34 @@
 	<div class="container">
 		<h1>Link Your FACEIT Account</h1>
 
-		<div class="flow-steps">
+		<div class="steps">
 			<ol>
-				<li class="active">Click the button below to start account linking</li>
+				<li>Click the button below to start account linking</li>
 				<li>Authorize access to your FACEIT account</li>
 				<li>Return to complete the linking process</li>
 			</ol>
 		</div>
 
-		<a href="/auth/faceit" class="link-button">Link FACEIT Account</a>
-
-		<div id="errorMessage" class="error-message"></div>
+		<a href="/auth/faceit" class="auth-button">Link FACEIT Account</a>
 
 		<div class="instructions">
-			<h3>How to Link Your Account:</h3>
+			<h2>How to Link Your Account:</h2>
 			<ol>
 				<li>Click the "Link FACEIT Account" button above</li>
 				<li>Log in to your FACEIT account if not already logged in</li>
 				<li>On the FACEIT authorization page, click "Allow" or "Authorize"</li>
 				<li>Wait to be redirected back to this application</li>
 			</ol>
-			<p style="color: #ff5500; margin-top: 15px;">Note: Make sure to complete the authorization on FACEIT's
-				website when redirected.</p>
+
+			<div class="note">
+				Note: Make sure to complete the authorization on FACEIT's website when redirected.
+			</div>
 		</div>
 
-		<div class="info-box">
-			By linking your account, you'll enable the bot to:
-			<ul style="text-align: left; margin-top: 10px;">
-				<li>Monitor your hub matches</li>
-				<li>Handle rehost voting</li>
-				<li>Manage match cancellations</li>
-			</ul>
+		<div class="status <%= authenticated ? 'status-authenticated' : 'status-not-authenticated' %>">
+			Status: <%= authenticated ? 'Authenticated' : 'Not Authenticated' %>
 		</div>
 	</div>
-
-	<script>
-		// Function to show error message
-		function showError(message) {
-			const errorElement = document.getElementById('errorMessage');
-			errorElement.textContent = message;
-			errorElement.style.display = 'block';
-		}
-
-		// Check for error parameters
-		const urlParams = new URLSearchParams(window.location.search);
-		const error = urlParams.get('error');
-		if (error) {
-			showError(error);
-		}
-	</script>
 </body>
 
 </html>

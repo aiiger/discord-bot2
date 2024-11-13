@@ -1,10 +1,11 @@
 // auth.js
 const express = require('express');
 const axios = require('axios');
-const crypto = require('crypto');
 const dotenv = require('dotenv');
+const fs = require('fs');
+const path = require('path');
+const { generateCodeVerifier } = require('./crypto');
 
-// Load environment variables
 dotenv.config();
 
 const router = express.Router();
@@ -27,10 +28,6 @@ const logger = {
         if (error?.stack) {
             console.error('Stack trace:', error.stack);
         }
-    },
-    debug: (message, data) => {
-        const timestamp = new Date().toISOString();
-        console.log(`[${timestamp}] AUTH DEBUG: ${message}`, JSON.stringify(data, null, 2));
     }
 };
 
@@ -38,67 +35,18 @@ const logger = {
 const config = {
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
-    redirectUri: 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback',
-    authEndpoint: 'https://accounts.faceit.com/accounts',
-    tokenEndpoint: 'https://api.faceit.com/auth/v1/oauth/token',
-    userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo',
-    scope: 'openid profile email membership'
+    redirectUri: process.env.REDIRECT_URI
 };
 
-// Add debug logging for environment variables
-logger.debug('OAuth2 Configuration', {
-    hasClientId: !!config.clientId,
-    hasClientSecret: !!config.clientSecret,
-    redirectUri: config.redirectUri,
-    scope: config.scope,
-    // Add actual values for debugging
-    actualClientId: config.clientId,
-    actualClientSecret: config.clientSecret ? '[REDACTED]' : undefined
-});
-
-// PKCE code verifier generation
-function generateCodeVerifier() {
-    const verifier = crypto.randomBytes(32)
-        .toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
-    return verifier.substring(0, 128);
-}
-
-// PKCE code challenge generation
-async function generateCodeChallenge(verifier) {
-    const hash = crypto.createHash('sha256')
-        .update(verifier)
-        .digest('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
-    return hash;
-}
-
-// Helper function to validate session
-function validateSession(req) {
-    if (!req.session) {
-        throw new Error('No session found');
+// Helper function to save token to file
+function saveTokenToFile(token) {
+    try {
+        const tokenPath = path.join(__dirname, 'token.json');
+        fs.writeFileSync(tokenPath, JSON.stringify({ accessToken: token }), 'utf8');
+        logger.info('Token saved to file');
+    } catch (error) {
+        logger.error('Failed to save token to file', error);
     }
-    if (!req.session.codeVerifier) {
-        throw new Error('No code verifier found in session');
-    }
-    return true;
-}
-
-// Helper function to save session
-function saveSession(req) {
-    return new Promise((resolve, reject) => {
-        req.session.save((err) => {
-            if (err) {
-                logger.error('Failed to save session', err);
-                reject(err);
-            }
-            resolve();
-        });
-    });
 }
 
 // Authorization route
@@ -106,54 +54,27 @@ router.get('/auth/faceit', async (req, res) => {
     try {
         logger.info('Starting OAuth2 authorization flow');
 
+        // Generate code verifier
         const codeVerifier = generateCodeVerifier();
-        const codeChallenge = await generateCodeChallenge(codeVerifier);
-        const state = crypto.randomBytes(32).toString('hex');
-
-        if (!req.session) {
-            req.session = {};
-        }
-
         req.session.codeVerifier = codeVerifier;
-        req.session.state = state;
-        req.session.stateTimestamp = Date.now();
 
-        logger.debug('Session before save', {
-            hasCodeVerifier: !!req.session.codeVerifier,
-            hasState: !!req.session.state,
-            sessionID: req.sessionID
-        });
-
-        await saveSession(req);
-
-        logger.debug('Session after save', {
-            hasCodeVerifier: !!req.session.codeVerifier,
-            hasState: !!req.session.state,
-            sessionID: req.sessionID
-        });
-
+        // Exactly match the example code's URL parameters
         const authParams = new URLSearchParams({
-            response_type: 'code',
             client_id: config.clientId,
-            redirect_uri: config.redirectUri,
-            scope: config.scope,
-            state: state,
-            code_challenge: codeChallenge,
-            code_challenge_method: 'S256'
+            response_type: 'code',
+            code_challenge: codeVerifier,
+            code_challenge_method: 'plain',
+            redirect_popup: 'true',
+            redirect_uri: config.redirectUri
         });
 
-        const authUrl = `${config.authEndpoint}?${authParams.toString()}`;
-
-        logger.debug('Authorization parameters', {
-            state,
-            redirectUri: config.redirectUri,
-            hasCodeChallenge: !!codeChallenge
-        });
-
+        // Use the exact URL format from the example with /oauth/authorize path
+        const authUrl = `https://accounts.faceit.com/oauth/authorize?${authParams.toString()}`;
+        logger.info('Redirecting to auth URL:', authUrl);
         res.redirect(authUrl);
     } catch (error) {
         logger.error('Authorization initialization failed', error);
-        res.redirect('/error?message=auth_failed');
+        res.redirect('/error?message=' + encodeURIComponent('Failed to start authorization. Please try again.'));
     }
 });
 
@@ -161,30 +82,24 @@ router.get('/auth/faceit', async (req, res) => {
 router.get('/callback', async (req, res) => {
     try {
         logger.info('Processing OAuth callback');
-        logger.debug('Session state at callback', {
-            hasCodeVerifier: !!req.session?.codeVerifier,
-            hasState: !!req.session?.state,
-            sessionID: req.sessionID
-        });
-
-        const { code, state, error } = req.query;
+        const { code, error } = req.query;
 
         if (error) {
             throw new Error(`OAuth error: ${error}`);
         }
 
-        validateSession(req);
-        if (state !== req.session.state) {
-            throw new Error('State mismatch');
+        if (!code) {
+            throw new Error('No code received');
         }
 
-        const tokenResponse = await axios.post(config.tokenEndpoint,
+        logger.info('Exchanging code for access token');
+        const tokenResponse = await axios.post('https://api.faceit.com/auth/v1/oauth/token',
             new URLSearchParams({
                 grant_type: 'authorization_code',
                 client_id: config.clientId,
                 code: code,
-                redirect_uri: config.redirectUri,
-                code_verifier: req.session.codeVerifier
+                code_verifier: req.session.codeVerifier,
+                redirect_uri: config.redirectUri
             }).toString(),
             {
                 headers: {
@@ -195,8 +110,10 @@ router.get('/callback', async (req, res) => {
         );
 
         const { access_token, refresh_token } = tokenResponse.data;
+        logger.info('Successfully obtained access token');
 
-        const userInfo = await axios.get(config.userInfoEndpoint, {
+        logger.info('Fetching user info');
+        const userInfo = await axios.get('https://api.faceit.com/auth/v1/resources/userinfo', {
             headers: { 'Authorization': `Bearer ${access_token}` }
         });
 
@@ -204,69 +121,46 @@ router.get('/callback', async (req, res) => {
         req.session.refreshToken = refresh_token;
         req.session.userInfo = userInfo.data;
 
-        delete req.session.codeVerifier;
-        delete req.session.state;
-        delete req.session.stateTimestamp;
-
-        await saveSession(req);
+        // Save token to file
+        saveTokenToFile(access_token);
 
         // Set the access token in the shared FaceitJS instance
         if (req.app.locals.faceitJS) {
             logger.info('Setting access token in FaceitJS instance');
             req.app.locals.faceitJS.setAccessToken(access_token);
-        } else {
-            logger.error('FaceitJS instance not found in app.locals');
         }
 
-        logger.info('Authentication successful');
+        logger.info('Authentication successful, redirecting to dashboard');
         res.redirect('/dashboard');
     } catch (error) {
         logger.error('Callback processing failed', error);
-        res.redirect('/error?message=callback_failed');
+        res.redirect('/error?message=' + encodeURIComponent('Authentication failed. Please try again.'));
     }
 });
 
-// Token refresh route
-router.post('/refresh-token', async (req, res) => {
-    try {
-        if (!req.session?.refreshToken) {
-            throw new Error('No refresh token available');
-        }
+// Logout route
+router.get('/logout', (req, res) => {
+    logger.info('Processing logout request');
 
-        const response = await axios.post(config.tokenEndpoint,
-            new URLSearchParams({
-                grant_type: 'refresh_token',
-                refresh_token: req.session.refreshToken,
-                client_id: config.clientId
-            }).toString(),
-            {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')}`
-                }
-            }
-        );
-
-        const { access_token, refresh_token } = response.data;
-
-        req.session.accessToken = access_token;
-        req.session.refreshToken = refresh_token;
-
-        await saveSession(req);
-
-        // Update the access token in the shared FaceitJS instance
-        if (req.app.locals.faceitJS) {
-            logger.info('Updating access token in FaceitJS instance');
-            req.app.locals.faceitJS.setAccessToken(access_token);
-        } else {
-            logger.error('FaceitJS instance not found in app.locals');
-        }
-
-        res.json({ success: true });
-    } catch (error) {
-        logger.error('Token refresh failed', error);
-        res.status(401).json({ error: 'Token refresh failed' });
+    if (req.app.locals.faceitJS) {
+        logger.info('Clearing access token from FaceitJS instance');
+        req.app.locals.faceitJS.setAccessToken(null);
     }
+
+    try {
+        fs.unlinkSync(path.join(__dirname, 'token.json'));
+        logger.info('Token file removed');
+    } catch (error) {
+        logger.error('Error removing token file', error);
+    }
+
+    req.session.destroy((err) => {
+        if (err) {
+            logger.error('Error destroying session', err);
+        }
+        logger.info('Session destroyed, redirecting to home');
+        res.redirect('/');
+    });
 });
 
 module.exports = router;

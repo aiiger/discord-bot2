@@ -10,43 +10,46 @@
             font-family: Arial, sans-serif;
             background-color: #1a1a1a;
             color: #ffffff;
+            margin: 0;
+            padding: 20px;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            margin: 0;
-            padding: 20px;
         }
 
         .container {
             background-color: #2d2d2d;
-            padding: 40px;
+            padding: 30px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 400px;
+            max-width: 600px;
             width: 100%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         h1 {
-            margin-bottom: 30px;
             color: #ff5500;
+            text-align: center;
+            margin-bottom: 30px;
         }
 
-        .error-message {
+        .error-box {
+            background-color: #f44336;
+            color: white;
+            padding: 20px;
+            border-radius: 4px;
             margin-bottom: 20px;
-            color: #ff5500;
+            text-align: center;
         }
 
         .error-details {
+            background-color: #363636;
+            padding: 20px;
+            border-radius: 4px;
             margin-top: 20px;
-            font-size: 14px;
-            color: #999;
-            text-align: left;
-            word-break: break-word;
         }
 
-        .back-button {
+        .button {
             background-color: #ff5500;
             color: white;
             border: none;
@@ -54,36 +57,36 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
+            display: block;
+            margin: 20px auto;
             text-decoration: none;
-            display: inline-block;
+            text-align: center;
             transition: background-color 0.3s;
-            margin-top: 20px;
         }
 
-        .back-button:hover {
+        .button:hover {
             background-color: #ff6a1f;
-        }
-
-        .logo {
-            width: 150px;
-            margin-bottom: 30px;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <img src="https://cdn.faceit.com/frontend/291/assets/FACEIT_LOGO_RGB.svg" alt="FACEIT Logo" class="logo">
         <h1>Error</h1>
-        <div class="error-message">
-            <%= message %>
+
+        <div class="error-box">
+            <h2>
+                <%= message %>
+            </h2>
         </div>
-        <% if (error) { %>
-            <div class="error-details">
+
+        <div class="error-details">
+            <p>
                 <%= error %>
-            </div>
-            <% } %>
-                <a href="/" class="back-button">Back to Home</a>
+            </p>
+        </div>
+
+        <a href="/" class="button">Return to Home</a>
     </div>
 </body>
 

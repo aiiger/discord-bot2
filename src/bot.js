@@ -8,8 +8,7 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-const Redis = require('ioredis');
-const connectRedis = require('connect-redis');
+const fs = require('fs');
 
 dotenv.config();
 
@@ -23,18 +22,14 @@ console.log('REDIRECT_URI:', process.env.REDIRECT_URI);
 // Initialize Express
 const app = express();
 
-app.set('trust proxy', 1); // Add this line
-
 // Additional error handling
 app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     res.on('finish', () => {
-        console.log(`${req.method} ${req.url} ${res.statusCode}`);
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} ${res.statusCode}`);
     });
     next();
 });
-
-// Must be first - trust proxy for Heroku
-app.set('trust proxy', 1);
 
 const port = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -67,6 +62,20 @@ const getBaseUrl = () => {
 const faceitJS = new FaceitJS();
 app.locals.faceitJS = faceitJS;  // Store FaceitJS instance in app.locals
 
+// Try to load saved token
+try {
+    const tokenPath = path.join(__dirname, 'token.json');
+    if (fs.existsSync(tokenPath)) {
+        const tokenData = JSON.parse(fs.readFileSync(tokenPath, 'utf8'));
+        if (tokenData.accessToken) {
+            console.log('[AUTH] Found saved access token, restoring...');
+            faceitJS.setAccessToken(tokenData.accessToken);
+        }
+    }
+} catch (error) {
+    console.error('[AUTH] Error loading saved token:', error);
+}
+
 // Store match states and voting
 const matchStates = new Map();
 // Store processed matches to avoid duplicate greetings
@@ -86,12 +95,17 @@ const client = new Client({
 async function sendGreetingToMatch(matchId, matchDetails) {
     if (!processedMatches.has(matchId)) {
         try {
-            const greetingMessage = "👋 Hello! Map veto phase has started. I'm here to assist and monitor the process. Good luck! 🎮";
+            console.log(`[MATCH ${matchId}] Attempting to send greeting message`);
+            const greetingMessage = "👋 Hello! Map veto phase has started. I'm here to assist and monitor the process. Good luck! 🎮\n\nAvailable commands:\n!rehost - Vote for match rehost (requires 6/10 players)\n!cancel - Request match cancellation (requires elo differential ≥70)";
             await app.locals.faceitJS.sendChatMessage(matchId, greetingMessage);
             processedMatches.add(matchId);
-            console.log(`Sent greeting message to match ${matchId} during veto phase`);
+            console.log(`[MATCH ${matchId}] Greeting message sent successfully`);
         } catch (error) {
-            console.error(`Failed to send greeting to match ${matchId}:`, error);
+            console.error(`[MATCH ${matchId}] Failed to send greeting:`, error);
+            if (error.response) {
+                console.error('Response status:', error.response.status);
+                console.error('Response data:', error.response.data);
+            }
         }
     }
 }
@@ -100,23 +114,39 @@ async function sendGreetingToMatch(matchId, matchDetails) {
 async function checkMatchesInVeto() {
     try {
         if (!app.locals.faceitJS.accessToken) {
-            console.log(`Authentication required. Please visit ${getBaseUrl()} to authenticate the bot.`);
+            console.log(`[${new Date().toISOString()}] Authentication required. Please visit ${getBaseUrl()} to authenticate the bot.`);
             return;
         }
 
+        console.log('[MATCHES] Checking for active matches...');
         const matches = await app.locals.faceitJS.getActiveMatches();
+        console.log(`[MATCHES] Found ${matches ? matches.length : 0} active matches`);
+
         if (matches && matches.length > 0) {
             for (const match of matches) {
+                console.log(`[MATCH ${match.match_id}] Status: ${match.status || match.state}`);
                 // Check if match is in veto phase (VOTING state)
                 if (match.status === 'VOTING' || match.state === 'VOTING') {
+                    console.log(`[MATCH ${match.match_id}] Match is in veto phase`);
                     await sendGreetingToMatch(match.match_id, match);
                 }
             }
         }
     } catch (error) {
-        console.error('Error checking for matches in veto phase:', error);
+        console.error('[MATCHES] Error checking matches:', error);
+        if (error.response) {
+            console.error('Response status:', error.response.status);
+            console.error('Response data:', error.response.data);
+        }
         if (error.response?.status === 401) {
+            console.log('[AUTH] Access token expired or invalid. Clearing token.');
             app.locals.faceitJS.accessToken = null;
+            // Remove saved token
+            try {
+                fs.unlinkSync(path.join(__dirname, 'token.json'));
+            } catch (err) {
+                console.error('[AUTH] Error removing invalid token:', err);
+            }
         }
     }
 }
@@ -146,7 +176,7 @@ client.on('messageCreate', async (message) => {
     const args = message.content.split(' ');
     const command = args[0].toLowerCase();
 
-    console.log(`Received command: ${command}`);
+    console.log(`[DISCORD] Received command: ${command}`);
 
     try {
         switch (command) {
@@ -180,16 +210,17 @@ client.on('messageCreate', async (message) => {
                 break;
 
             case '!getmatches':
-                console.log('Processing !getmatches command...');
+                console.log('[DISCORD] Processing !getmatches command');
                 try {
                     const matches = await app.locals.faceitJS.getActiveMatches();
-                    console.log('Retrieved matches:', matches);
+                    console.log('[DISCORD] Retrieved matches:', matches);
                     if (matches && matches.length > 0) {
-                        const matchList = matches.slice(0, 5).map(match =>
-                            `Match ID: ${match.match_id}\n` +
-                            `Status: ${match.state || 'Unknown'}\n` +
-                            `Room: ${match.chat_room_id || 'No room'}\n`
-                        ).join('\n');
+                        const matchList = matches.slice(0, 5).map(match => {
+                            const matchUrl = match.faceit_url.replace('{lang}', 'en');
+                            return `Match ID: ${match.match_id}\n` +
+                                `Status: ${match.status || 'Unknown'}\n` +
+                                `Room: ${matchUrl}\n`;
+                        }).join('\n');
 
                         message.reply(`Recent matches:\n${matchList}\n\nUse !sendtest [matchId] [message] to test sending a message.`);
                         console.log('[DISCORD] Retrieved matches:', { count: matches.length });
@@ -199,7 +230,7 @@ client.on('messageCreate', async (message) => {
                     }
                 } catch (error) {
                     message.reply('Error getting matches: ' + error.message);
-                    console.error('Error getting matches:', error);
+                    console.error('[DISCORD] Error getting matches:', error);
                 }
                 break;
 
@@ -229,41 +260,25 @@ Example:
     }
 });
 
-// Rate limiting configuration for Heroku
+// Rate limiting configuration
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
-    trustProxy: true,
     skip: (req) => {
         // Skip rate limiting for local development
         return !isProduction;
     }
 });
 
-// Redis configuration
-const RedisStore = connectRedis(session);
-const redisClient = new Redis(process.env.REDIS_URL);
-
-redisClient.on('error', (err) => {
-    console.error('Redis error:', err);
-});
-
-redisClient.on('connect', () => {
-    console.log('Connected to Redis successfully');
-});
-
 // Session middleware configuration
 const sessionConfig = {
-    store: new RedisStore({ client: redisClient }),
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || 'development_secret',
     name: 'faceit.sid',
     resave: false,
     saveUninitialized: false,
-    proxy: true,
-    rolling: true,
     cookie: {
         secure: isProduction,
         httpOnly: true,
@@ -275,7 +290,20 @@ const sessionConfig = {
 
 // Apply middleware
 app.use(helmet({
-    contentSecurityPolicy: false
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'", "*.faceit.com", "*.cloudflare.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "*.faceit.com", "*.cloudflare.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "*.faceit.com", "*.cloudflare.com"],
+            imgSrc: ["'self'", "data:", "*.faceit.com", "*.cloudflare.com"],
+            connectSrc: ["'self'", "*.faceit.com", "*.cloudflare.com"],
+            frameSrc: ["'self'", "*.faceit.com", "*.cloudflare.com"],
+            workerSrc: ["'self'", "blob:", "*.faceit.com", "*.cloudflare.com"]
+        }
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false
 }));
 app.use(limiter);
 app.use(session(sessionConfig));
@@ -288,7 +316,13 @@ app.use('/', authRouter);
 
 // Routes
 app.get('/', (req, res) => {
-    console.log('Home route accessed by IP:', req.ip);
+    console.log('[WEB] Home route accessed by IP:', req.ip);
+    console.log('[AUTH] Current session state:', {
+        hasAccessToken: !!req.session?.accessToken,
+        hasUserInfo: !!req.session?.userInfo,
+        faceitJSHasToken: !!app.locals.faceitJS.accessToken
+    });
+
     res.render('login', {
         authenticated: !!app.locals.faceitJS.accessToken,
         baseUrl: getBaseUrl()
@@ -297,9 +331,36 @@ app.get('/', (req, res) => {
 
 // Dashboard route
 app.get('/dashboard', (req, res) => {
+    console.log('[WEB] Dashboard accessed');
+    console.log('[AUTH] Dashboard session state:', {
+        hasAccessToken: !!req.session?.accessToken,
+        hasUserInfo: !!req.session?.userInfo,
+        faceitJSHasToken: !!app.locals.faceitJS.accessToken
+    });
+
     if (!req.session.accessToken) {
+        console.log('[AUTH] No access token in session, redirecting to login');
         return res.redirect('/');
     }
+
+    // Save token to file
+    try {
+        fs.writeFileSync(
+            path.join(__dirname, 'token.json'),
+            JSON.stringify({ accessToken: req.session.accessToken }),
+            'utf8'
+        );
+        console.log('[AUTH] Access token saved to file');
+    } catch (error) {
+        console.error('[AUTH] Error saving token to file:', error);
+    }
+
+    // Ensure FaceitJS instance has the token
+    if (!app.locals.faceitJS.accessToken && req.session.accessToken) {
+        console.log('[AUTH] Restoring access token to FaceitJS instance');
+        app.locals.faceitJS.setAccessToken(req.session.accessToken);
+    }
+
     res.render('dashboard', {
         authenticated: true,
         username: req.session.userInfo?.nickname || 'FACEIT User',
@@ -310,29 +371,23 @@ app.get('/dashboard', (req, res) => {
 // Error route
 app.get('/error', (req, res) => {
     const errorMessage = req.query.error || 'An unknown error occurred';
+    console.error('[ERROR] Error page accessed:', errorMessage);
     res.render('error', { message: 'Authentication Error', error: errorMessage });
 });
 
 // Handle 404
 app.use((req, res) => {
+    console.log('[ERROR] 404 - Page not found:', req.url);
     res.status(404).render('error', {
         message: 'Page Not Found',
         error: 'The requested page does not exist.'
     });
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('SIGTERM received. Starting graceful shutdown...');
-    redisClient.quit().then(() => {
-        console.log('Redis connection closed');
-        process.exit(0);
-    });
-});
-
 // Start the server
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
+    console.log(`Visit ${getBaseUrl()} to authenticate the bot`);
 });
 
 module.exports = app;

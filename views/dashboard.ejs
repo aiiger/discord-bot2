@@ -10,184 +10,127 @@
             font-family: Arial, sans-serif;
             background-color: #1a1a1a;
             color: #ffffff;
+            margin: 0;
+            padding: 20px;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            margin: 0;
-            padding: 20px;
         }
 
         .container {
             background-color: #2d2d2d;
-            padding: 40px;
+            padding: 30px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            text-align: center;
             max-width: 600px;
             width: 100%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         h1 {
-            margin-bottom: 20px;
             color: #ff5500;
+            text-align: center;
+            margin-bottom: 30px;
         }
 
         .status-box {
             background-color: #363636;
             padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-            text-align: left;
+            border-radius: 4px;
+            margin-bottom: 20px;
         }
 
-        .status-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .status-icon {
-            width: 20px;
-            height: 20px;
-            margin-right: 10px;
-            border-radius: 50%;
-        }
-
-        .status-success {
-            background-color: #4CAF50;
-        }
-
-        .features-list {
-            text-align: left;
-            margin: 20px 0;
-            padding: 20px;
-            background-color: #363636;
-            border-radius: 8px;
-        }
-
-        .features-list h2 {
+        .status-box h2 {
             color: #ff5500;
             margin-top: 0;
-        }
-
-        .features-list ul {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        .features-list li {
-            margin-bottom: 15px;
-            padding-left: 25px;
-            position: relative;
-        }
-
-        .features-list li:before {
-            content: "✓";
-            position: absolute;
-            left: 0;
-            color: #4CAF50;
-        }
-
-        .logo {
-            width: 150px;
-            margin-bottom: 30px;
         }
 
         .user-info {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 20px 0;
-        }
-
-        .user-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            margin-right: 15px;
-        }
-
-        .command-box {
-            background-color: #363636;
-            padding: 20px;
-            border-radius: 8px;
             margin-top: 20px;
-            text-align: left;
-        }
-
-        .command-box h2 {
-            color: #ff5500;
-            margin-top: 0;
-        }
-
-        .command {
-            background-color: #1a1a1a;
-            padding: 10px;
+            padding: 15px;
+            background-color: #404040;
             border-radius: 4px;
-            margin: 10px 0;
-            font-family: monospace;
         }
 
-        .logout-button {
+        .user-info p {
+            margin: 5px 0;
+        }
+
+        .success-message {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .button {
             background-color: #ff5500;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto;
             text-decoration: none;
-            display: inline-block;
-            margin-top: 20px;
+            text-align: center;
             transition: background-color 0.3s;
         }
 
-        .logout-button:hover {
+        .button:hover {
             background-color: #ff6a1f;
+        }
+
+        .button.logout {
+            background-color: #f44336;
+        }
+
+        .button.logout:hover {
+            background-color: #ff5c4e;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <img src="https://cdn.faceit.com/frontend/291/assets/FACEIT_LOGO_RGB.svg" alt="FACEIT Logo" class="logo">
+        <h1>FACEIT Bot Dashboard</h1>
 
-        <div class="user-info">
-            <% if (authenticated) { %>
-                <img src="<%= userInfo?.avatar || 'https://assets.faceit-cdn.net/avatars/default_avatar.jpg' %>"
-                    alt="Avatar" class="user-avatar">
-                <h2>Welcome, <%= userInfo?.nickname || username %>!</h2>
-                <% } %>
+        <div class="success-message">
+            Authentication Successful!
         </div>
 
         <div class="status-box">
-            <div class="status-item">
-                <div class="status-icon status-success"></div>
-                <span>Account successfully linked</span>
-            </div>
-            <div class="status-item">
-                <div class="status-icon status-success"></div>
-                <span>Bot activated for your hub</span>
-            </div>
+            <h2>Status</h2>
+            <p>Bot is now authenticated and ready to send messages in match rooms.</p>
         </div>
 
-        <div class="features-list">
-            <h2>Active Features</h2>
-            <ul>
-                <li>Automatic player greeting in match rooms</li>
-                <li>Rehost voting system (6/10 players required)</li>
-                <li>ELO difference checking (≥70 for cancellation)</li>
-            </ul>
+        <div class="user-info">
+            <h2>Account Information</h2>
+            <p><strong>Username:</strong>
+                <%= username %>
+            </p>
+            <% if (userInfo) { %>
+                <p><strong>Email:</strong>
+                    <%= userInfo.email %>
+                </p>
+                <p><strong>FACEIT ID:</strong>
+                    <%= userInfo.guid %>
+                </p>
+                <% } %>
         </div>
 
-        <div class="command-box">
-            <h2>Available Commands</h2>
-            <div class="command">!rehost - Vote for match rehost</div>
-            <div class="command">!cancel - Vote for match cancellation (if ELO diff ≥70)</div>
-        </div>
-
-        <a href="/logout" class="logout-button">Logout</a>
+        <a href="/logout" class="button logout">Logout</a>
     </div>
+
+    <script>
+        // Send a message to the parent window if this was opened in a popup
+        if (window.opener) {
+            window.opener.postMessage('authentication-success', '*');
+        }
+    </script>
 </body>
 
 </html>
