@@ -29,13 +29,25 @@ const port = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Initialize Redis client
-const redisClient = createClient({
+const redisConfig = {
     url: process.env.REDISCLOUD_URL,
     socket: {
-        tls: false,
-        rejectUnauthorized: false
+        tls: true,
+        servername: process.env.REDISCLOUD_URL ? new URL(process.env.REDISCLOUD_URL).hostname : undefined,
+        rejectUnauthorized: false,
+        reconnectStrategy: (retries) => {
+            console.log(`Redis reconnect attempt ${retries}`);
+            return Math.min(retries * 100, 3000);
+        }
     }
+};
+
+console.log('Initializing Redis with config:', {
+    ...redisConfig,
+    url: redisConfig.url ? '[REDACTED]' : undefined
 });
+
+const redisClient = createClient(redisConfig);
 
 redisClient.on('error', function (err) {
     console.error('Redis Client Error:', err);
@@ -49,7 +61,10 @@ redisClient.on('reconnecting', function () {
     console.log('Redis client reconnecting...');
 });
 
-await redisClient.connect().catch(console.error);
+await redisClient.connect().catch(err => {
+    console.error('Failed to connect to Redis:', err);
+    process.exit(1);
+});
 
 // Initialize Redis store
 const redisStore = new RedisStore({
