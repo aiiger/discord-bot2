@@ -1,7 +1,7 @@
 // FACEIT OAuth2 Bot with SDK Support
 import express from 'express';
 import session from 'express-session';
-import { FaceitJS } from './src/FaceitJS.js';  // Updated import path
+import { FaceitJS } from './src/FaceitJS.js';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { Client, GatewayIntentBits } from 'discord.js';
@@ -30,15 +30,10 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 // Initialize Redis client
 const redisConfig = {
-    url: process.env.REDISCLOUD_URL,
+    url: process.env.REDIS_URL,
     socket: {
-        tls: true,
-        servername: process.env.REDISCLOUD_URL ? new URL(process.env.REDISCLOUD_URL).hostname : undefined,
-        rejectUnauthorized: false,
-        reconnectStrategy: (retries) => {
-            console.log(`Redis reconnect attempt ${retries}`);
-            return Math.min(retries * 100, 3000);
-        }
+        tls: isProduction,
+        rejectUnauthorized: false
     }
 };
 
@@ -61,17 +56,21 @@ redisClient.on('reconnecting', function () {
     console.log('Redis client reconnecting...');
 });
 
-await redisClient.connect().catch(err => {
-    console.error('Failed to connect to Redis:', err);
-    process.exit(1);
-});
-
-// Initialize Redis store
-const redisStore = new RedisStore({
-    client: redisClient,
-    prefix: "faceit-bot:",
-    disableTouch: true
-});
+// Try to connect to Redis, fall back to MemoryStore if it fails
+let sessionStore;
+try {
+    await redisClient.connect();
+    sessionStore = new RedisStore({
+        client: redisClient,
+        prefix: "faceit-bot:",
+        disableTouch: true
+    });
+    console.log('Using Redis session store');
+} catch (err) {
+    console.error('Failed to connect to Redis, falling back to MemoryStore:', err);
+    sessionStore = new session.MemoryStore();
+    console.log('Using Memory session store');
+}
 
 // Force HTTPS in production
 if (isProduction) {
@@ -266,7 +265,7 @@ const limiter = rateLimit({
 
 // Session middleware configuration
 const sessionConfig = {
-    store: redisStore,
+    store: sessionStore,
     secret: process.env.SESSION_SECRET,
     name: 'faceit.sid',
     resave: false,
@@ -292,7 +291,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Import and use auth routes
-import authRouter from './src/auth.js';  // Updated import path
+import authRouter from './src/auth.js';
 app.use('/', authRouter);
 
 // Routes
