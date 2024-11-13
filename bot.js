@@ -1,7 +1,7 @@
 // FACEIT OAuth2 Bot with SDK Support
 import express from 'express';
 import session from 'express-session';
-import { FaceitJS } from './FaceitJS.js';
+import { FaceitJS } from './src/FaceitJS.js';  // Updated import path
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { Client, GatewayIntentBits } from 'discord.js';
@@ -292,7 +292,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Import and use auth routes
-import authRouter from './auth.js';
+import authRouter from './src/auth.js';  // Updated import path
 app.use('/', authRouter);
 
 // Routes
