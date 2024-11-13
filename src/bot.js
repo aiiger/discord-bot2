@@ -17,6 +17,8 @@ console.log('Starting bot initialization...');
 console.log('Discord Token:', process.env.DISCORD_TOKEN ? '[Present]' : '[Missing]');
 console.log('FACEIT API Key:', process.env.FACEIT_API_KEY ? '[Present]' : '[Missing]');
 console.log('Hub ID:', process.env.HUB_ID ? '[Present]' : '[Missing]');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('REDIRECT_URI:', process.env.REDIRECT_URI);
 
 // Get directory name in ES module
 const __filename = fileURLToPath(import.meta.url);
@@ -41,6 +43,8 @@ app.set('trust proxy', 1);
 const port = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
 
+console.log('Is Production:', isProduction);
+
 // Force HTTPS in production
 if (isProduction) {
     app.use((req, res, next) => {
@@ -58,7 +62,9 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Get the base URL for the application
 const getBaseUrl = () => {
-    return isProduction ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com' : `http://localhost:${port}`;
+    const url = isProduction ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com' : `http://localhost:${port}`;
+    console.log('Base URL:', url);
+    return url;
 };
 
 // Initialize FaceitJS instance

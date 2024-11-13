@@ -39,10 +39,10 @@ const config = {
     clientId: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
     redirectUri: 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback',
-    authEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/authorize',
+    authEndpoint: 'https://accounts.faceit.com/accounts',
     tokenEndpoint: 'https://api.faceit.com/auth/v1/oauth/token',
     userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo',
-    scope: 'openid profile email membership chat.messages.read chat.messages.send matches.read'
+    scope: 'openid profile email membership'
 };
 
 // Add debug logging for environment variables
