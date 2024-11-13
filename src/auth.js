@@ -1,8 +1,8 @@
 // auth.js
-import express from 'express';
-import axios from 'axios';
-import crypto from 'crypto';
-import dotenv from 'dotenv';
+const express = require('express');
+const axios = require('axios');
+const crypto = require('crypto');
+const dotenv = require('dotenv');
 
 // Load environment variables
 dotenv.config();
@@ -269,4 +269,4 @@ router.post('/refresh-token', async (req, res) => {
     }
 });
 
-export default router;
+module.exports = router;

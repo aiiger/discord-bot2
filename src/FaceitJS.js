@@ -1,7 +1,7 @@
 // FaceitJS.js
-import axios from 'axios';
-import { EventEmitter } from 'events';
-import WebSocket from 'ws';
+const axios = require('axios');
+const { EventEmitter } = require('events');
+const WebSocket = require('ws');
 
 class FaceitJS extends EventEmitter {
     constructor() {
@@ -299,4 +299,4 @@ class FaceitJS extends EventEmitter {
     }
 }
 
-export { FaceitJS };
+module.exports = { FaceitJS };
