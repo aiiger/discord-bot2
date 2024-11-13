@@ -1,25 +1,37 @@
 // FACEIT OAuth2 Bot with SDK Support
-import express from 'express';
-import session from 'express-session';
-import { FaceitJS } from './src/FaceitJS.js';
-import crypto from 'crypto';
-import dotenv from 'dotenv';
-import { Client, GatewayIntentBits } from 'discord.js';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import axios from 'axios';
+const express = require('express');
+const session = require('express-session');
+const { FaceitJS } = require('./src/FaceitJS.js');
+const crypto = require('crypto');
+const dotenv = require('dotenv');
+const { Client, GatewayIntentBits } = require('discord.js');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const path = require('path');
+const Redis = require('ioredis');
+const connectRedis = require('connect-redis');
 
-// Load environment variables
 dotenv.config();
 
-// Get directory name in ES module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+console.log('Starting bot initialization...');
+console.log('Discord Token:', process.env.DISCORD_TOKEN ? '[Present]' : '[Missing]');
+console.log('FACEIT API Key:', process.env.FACEIT_API_KEY ? '[Present]' : '[Missing]');
+console.log('Hub ID:', process.env.HUB_ID ? '[Present]' : '[Missing]');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('REDIRECT_URI:', process.env.REDIRECT_URI);
 
 // Initialize Express
 const app = express();
+
+app.set('trust proxy', 1); // Add this line
+
+// Additional error handling
+app.use((req, res, next) => {
+    res.on('finish', () => {
+        console.log(`${req.method} ${req.url} ${res.statusCode}`);
+    });
+    next();
+});
 
 // Must be first - trust proxy for Heroku
 app.set('trust proxy', 1);
@@ -27,18 +39,7 @@ app.set('trust proxy', 1);
 const port = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Debug environment variables
-console.log('Environment Configuration:', {
-    NODE_ENV: process.env.NODE_ENV,
-    hasClientId: !!process.env.CLIENT_ID,
-    hasClientSecret: !!process.env.CLIENT_SECRET,
-    redirectUri: process.env.REDIRECT_URI,
-    isProduction
-});
-
-// Initialize session store (use MemoryStore for development)
-const sessionStore = new session.MemoryStore();
-console.log('Using Memory session store for development');
+console.log('Is Production:', isProduction);
 
 // Force HTTPS in production
 if (isProduction) {
@@ -53,22 +54,13 @@ if (isProduction) {
 
 // Set up view engine
 app.set('view engine', 'ejs');
-const viewsPath = path.join(process.cwd(), 'views');
-app.set('views', viewsPath);
-console.log('Views directory:', viewsPath);
-
-// List files in views directory
-try {
-    const fs = await import('fs');
-    const files = fs.readdirSync(viewsPath);
-    console.log('Files in views directory:', files);
-} catch (err) {
-    console.error('Error listing views directory:', err);
-}
+app.set('views', path.join(__dirname, 'views'));
 
 // Get the base URL for the application
 const getBaseUrl = () => {
-    return isProduction ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com' : `http://localhost:${port}`;
+    const url = isProduction ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com' : `http://localhost:${port}`;
+    console.log('Base URL:', url);
+    return url;
 };
 
 // Initialize FaceitJS instance
@@ -81,6 +73,7 @@ const matchStates = new Map();
 const processedMatches = new Set();
 
 // Initialize Discord client
+console.log('Initializing Discord client...');
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -94,7 +87,7 @@ async function sendGreetingToMatch(matchId, matchDetails) {
     if (!processedMatches.has(matchId)) {
         try {
             const greetingMessage = "👋 Hello! Map veto phase has started. I'm here to assist and monitor the process. Good luck! 🎮";
-            await faceitJS.sendChatMessage(matchId, greetingMessage);
+            await app.locals.faceitJS.sendChatMessage(matchId, greetingMessage);
             processedMatches.add(matchId);
             console.log(`Sent greeting message to match ${matchId} during veto phase`);
         } catch (error) {
@@ -106,12 +99,12 @@ async function sendGreetingToMatch(matchId, matchDetails) {
 // Function to check for matches in veto phase
 async function checkMatchesInVeto() {
     try {
-        if (!faceitJS.accessToken) {
+        if (!app.locals.faceitJS.accessToken) {
             console.log(`Authentication required. Please visit ${getBaseUrl()} to authenticate the bot.`);
             return;
         }
 
-        const matches = await faceitJS.getHubMatches(faceitJS.hubId);
+        const matches = await app.locals.faceitJS.getActiveMatches();
         if (matches && matches.length > 0) {
             for (const match of matches) {
                 // Check if match is in veto phase (VOTING state)
@@ -122,6 +115,9 @@ async function checkMatchesInVeto() {
         }
     } catch (error) {
         console.error('Error checking for matches in veto phase:', error);
+        if (error.response?.status === 401) {
+            app.locals.faceitJS.accessToken = null;
+        }
     }
 }
 
@@ -129,6 +125,7 @@ async function checkMatchesInVeto() {
 setInterval(checkMatchesInVeto, 30 * 1000);
 
 // Discord client login
+console.log('Attempting Discord login...');
 client.login(process.env.DISCORD_TOKEN).then(() => {
     console.log('Discord bot logged in successfully');
     // Initial check for matches after successful login
@@ -149,6 +146,8 @@ client.on('messageCreate', async (message) => {
     const args = message.content.split(' ');
     const command = args[0].toLowerCase();
 
+    console.log(`Received command: ${command}`);
+
     try {
         switch (command) {
             case '!sendtest':
@@ -160,19 +159,19 @@ client.on('messageCreate', async (message) => {
                 const matchId = args[1];
                 const testMessage = args.slice(2).join(' ');
 
-                if (!faceitJS.accessToken) {
+                if (!app.locals.faceitJS.accessToken) {
                     message.reply(`Please authenticate first by visiting ${getBaseUrl()}`);
                     return;
                 }
 
                 try {
-                    await faceitJS.sendChatMessage(matchId, testMessage);
+                    await app.locals.faceitJS.sendChatMessage(matchId, testMessage);
                     message.reply(`Successfully sent message to match room ${matchId}`);
                     console.log(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
                 } catch (error) {
                     if (error.response?.status === 401) {
                         message.reply(`Authentication failed. Please authenticate at ${getBaseUrl()}`);
-                        faceitJS.accessToken = null;
+                        app.locals.faceitJS.accessToken = null;
                     } else {
                         message.reply(`Failed to send message: ${error.message}`);
                     }
@@ -181,8 +180,10 @@ client.on('messageCreate', async (message) => {
                 break;
 
             case '!getmatches':
+                console.log('Processing !getmatches command...');
                 try {
-                    const matches = await faceitJS.getHubMatches(faceitJS.hubId);
+                    const matches = await app.locals.faceitJS.getActiveMatches();
+                    console.log('Retrieved matches:', matches);
                     if (matches && matches.length > 0) {
                         const matchList = matches.slice(0, 5).map(match =>
                             `Match ID: ${match.match_id}\n` +
@@ -228,7 +229,7 @@ Example:
     }
 });
 
-// Rate limiting configuration
+// Rate limiting configuration for Heroku
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -242,13 +243,25 @@ const limiter = rateLimit({
     }
 });
 
+// Redis configuration
+const RedisStore = connectRedis(session);
+const redisClient = new Redis(process.env.REDIS_URL);
+
+redisClient.on('error', (err) => {
+    console.error('Redis error:', err);
+});
+
+redisClient.on('connect', () => {
+    console.log('Connected to Redis successfully');
+});
+
 // Session middleware configuration
 const sessionConfig = {
-    store: sessionStore,
+    store: new RedisStore({ client: redisClient }),
     secret: process.env.SESSION_SECRET,
     name: 'faceit.sid',
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     proxy: true,
     rolling: true,
     cookie: {
@@ -270,14 +283,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Import and use auth routes
-import authRouter from './src/auth.js';
+const authRouter = require('./src/auth.js');
 app.use('/', authRouter);
 
 // Routes
 app.get('/', (req, res) => {
     console.log('Home route accessed by IP:', req.ip);
     res.render('login', {
-        authenticated: !!faceitJS.accessToken,
+        authenticated: !!app.locals.faceitJS.accessToken,
         baseUrl: getBaseUrl()
     });
 });
@@ -308,10 +321,18 @@ app.use((req, res) => {
     });
 });
 
-// Start the server
-const server = app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-    console.log(`Visit ${getBaseUrl()} to authenticate the bot`);
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received. Starting graceful shutdown...');
+    redisClient.quit().then(() => {
+        console.log('Redis connection closed');
+        process.exit(0);
+    });
 });
 
-export default app;
+// Start the server
+app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+});
+
+module.exports = app;
