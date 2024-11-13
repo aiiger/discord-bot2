@@ -7,113 +7,44 @@ dotenv.config();
 
 class FaceitJS {
     constructor() {
-        this.accessToken = null;
+        this.apiKey = process.env.FACEIT_API_KEY;
         this.hubId = process.env.HUB_ID;
         console.log('[FACEIT] Initializing with Hub ID:', this.hubId);
         this.setupAxiosInstances();
-        this.loadSavedToken();
-    }
-
-    loadSavedToken() {
-        try {
-            const tokenPath = path.join(__dirname, 'token.json');
-            if (fs.existsSync(tokenPath)) {
-                const tokenData = JSON.parse(fs.readFileSync(tokenPath, 'utf8'));
-                if (tokenData.accessToken) {
-                    console.log('[FACEIT] Found saved token, restoring...');
-                    this.setAccessToken(tokenData.accessToken);
-                    return true;
-                }
-            }
-        } catch (error) {
-            console.error('[FACEIT] Error loading saved token:', error);
-        }
-        return false;
     }
 
     setupAxiosInstances() {
         console.log('[FACEIT] Setting up API instances');
 
-        // Create axios instance for authenticated requests
-        this.authenticatedApi = axios.create({
-            baseURL: 'https://api.faceit.com',
+        // Create axios instance for Data API requests
+        this.dataApi = axios.create({
+            baseURL: 'https://open.faceit.com/data/v4',
             headers: {
                 'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
             }
-        });
-
-        // Add request interceptor to add auth header
-        this.authenticatedApi.interceptors.request.use((config) => {
-            if (this.accessToken) {
-                config.headers['Authorization'] = `Bearer ${this.accessToken}`;
-            }
-            return config;
         });
 
         // Add response interceptor for error handling
-        this.authenticatedApi.interceptors.response.use(
-            response => response,
-            error => {
-                console.error('[FACEIT] API Error:', error.message);
-                if (error.response) {
-                    console.error('[FACEIT] Response status:', error.response.status);
-                    console.error('[FACEIT] Response data:', error.response.data);
-                }
-                if (error.response?.status === 401) {
-                    console.log('[FACEIT] Token expired or invalid, clearing...');
-                    this.setAccessToken(null);
-                    // Try to load a saved token
-                    if (!this.loadSavedToken()) {
-                        throw new Error('Authentication required');
-                    }
-                }
-                throw error;
+        const errorHandler = error => {
+            console.error('[FACEIT] API Error:', error.message);
+            if (error.response) {
+                console.error('[FACEIT] Response status:', error.response.status);
+                console.error('[FACEIT] Response data:', error.response.data);
             }
-        );
-    }
+            throw error;
+        };
 
-    setAccessToken(token) {
-        this.accessToken = token;
-        if (token) {
-            console.log('[FACEIT] Access token set successfully');
-            // Save token to file
-            try {
-                fs.writeFileSync(
-                    path.join(__dirname, 'token.json'),
-                    JSON.stringify({ accessToken: token }),
-                    'utf8'
-                );
-                console.log('[FACEIT] Token saved to file');
-            } catch (error) {
-                console.error('[FACEIT] Error saving token to file:', error);
-            }
-        } else {
-            console.log('[FACEIT] Access token cleared');
-            // Remove token file
-            try {
-                const tokenPath = path.join(__dirname, 'token.json');
-                if (fs.existsSync(tokenPath)) {
-                    fs.unlinkSync(tokenPath);
-                    console.log('[FACEIT] Token file removed');
-                }
-            } catch (error) {
-                console.error('[FACEIT] Error removing token file:', error);
-            }
-        }
+        this.dataApi.interceptors.response.use(response => response, errorHandler);
     }
 
     async getActiveMatches() {
         try {
-            if (!this.accessToken) {
-                // Try to load saved token
-                if (!this.loadSavedToken()) {
-                    throw new Error('Authentication required');
-                }
-            }
-
             console.log('[MATCHES] Fetching active matches');
-            const response = await this.authenticatedApi.get(`/hubs/v1/hub/${this.hubId}/matches`);
+            console.log('[MATCHES] Using Hub ID:', this.hubId);
+
+            const response = await this.dataApi.get(`/hubs/${this.hubId}/matches?type=ongoing&offset=0&limit=20`);
             const matches = response.data.items || [];
             console.log(`[MATCHES] Retrieved ${matches.length} matches`);
             return matches;
@@ -128,17 +59,26 @@ class FaceitJS {
 
     async sendChatMessage(matchId, message) {
         try {
-            if (!this.accessToken) {
-                // Try to load saved token
-                if (!this.loadSavedToken()) {
-                    throw new Error('Authentication required');
-                }
-            }
-
             console.log(`[CHAT] Sending message to match ${matchId}`);
-            const response = await this.authenticatedApi.post(
-                `/chat/v1/rooms/match-${matchId}`,
-                { message }
+
+            // Get match details first to get the chat room ID
+            const matchResponse = await this.dataApi.get(`/matches/${matchId}`);
+            const chatRoomId = matchResponse.data.chat_room_id;
+            console.log(`[CHAT] Got chat room ID: ${chatRoomId}`);
+
+            // Send message to chat room using the correct endpoint and payload format
+            const response = await axios.post(
+                `https://open.faceit.com/chat/v1/rooms/${chatRoomId}/messages`,
+                {
+                    body: message
+                },
+                {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.apiKey}`
+                    }
+                }
             );
             console.log(`[CHAT] Message sent successfully to match ${matchId}`);
             return response.data;
