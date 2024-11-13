@@ -9,7 +9,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const Redis = require('ioredis');
-const connectRedis = require('connect-redis');
+const RedisStore = require('connect-redis').default;
 
 dotenv.config();
 
@@ -244,7 +244,6 @@ const limiter = rateLimit({
 });
 
 // Redis configuration
-const RedisStore = connectRedis(session);
 const redisClient = new Redis(process.env.REDIS_URL);
 
 redisClient.on('error', (err) => {
