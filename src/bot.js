@@ -91,7 +91,7 @@ async function sendGreetingToMatch(matchId, matchDetails) {
     if (!processedMatches.has(matchId)) {
         try {
             const greetingMessage = "👋 Hello! Map veto phase has started. I'm here to assist and monitor the process. Good luck! 🎮";
-            await faceitJS.sendChatMessage(matchId, greetingMessage);
+            await app.locals.faceitJS.sendChatMessage(matchId, greetingMessage);
             processedMatches.add(matchId);
             console.log(`Sent greeting message to match ${matchId} during veto phase`);
         } catch (error) {
@@ -103,12 +103,12 @@ async function sendGreetingToMatch(matchId, matchDetails) {
 // Function to check for matches in veto phase
 async function checkMatchesInVeto() {
     try {
-        if (!faceitJS.accessToken) {
+        if (!app.locals.faceitJS.accessToken) {
             console.log(`Authentication required. Please visit ${getBaseUrl()} to authenticate the bot.`);
             return;
         }
 
-        const matches = await faceitJS.getActiveMatches();
+        const matches = await app.locals.faceitJS.getActiveMatches();
         if (matches && matches.length > 0) {
             for (const match of matches) {
                 // Check if match is in veto phase (VOTING state)
@@ -119,6 +119,9 @@ async function checkMatchesInVeto() {
         }
     } catch (error) {
         console.error('Error checking for matches in veto phase:', error);
+        if (error.response?.status === 401) {
+            app.locals.faceitJS.accessToken = null;
+        }
     }
 }
 
@@ -160,19 +163,19 @@ client.on('messageCreate', async (message) => {
                 const matchId = args[1];
                 const testMessage = args.slice(2).join(' ');
 
-                if (!faceitJS.accessToken) {
+                if (!app.locals.faceitJS.accessToken) {
                     message.reply(`Please authenticate first by visiting ${getBaseUrl()}`);
                     return;
                 }
 
                 try {
-                    await faceitJS.sendChatMessage(matchId, testMessage);
+                    await app.locals.faceitJS.sendChatMessage(matchId, testMessage);
                     message.reply(`Successfully sent message to match room ${matchId}`);
                     console.log(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
                 } catch (error) {
                     if (error.response?.status === 401) {
                         message.reply(`Authentication failed. Please authenticate at ${getBaseUrl()}`);
-                        faceitJS.accessToken = null;
+                        app.locals.faceitJS.accessToken = null;
                     } else {
                         message.reply(`Failed to send message: ${error.message}`);
                     }
@@ -183,7 +186,7 @@ client.on('messageCreate', async (message) => {
             case '!getmatches':
                 console.log('Processing !getmatches command...');
                 try {
-                    const matches = await faceitJS.getActiveMatches();
+                    const matches = await app.locals.faceitJS.getActiveMatches();
                     console.log('Retrieved matches:', matches);
                     if (matches && matches.length > 0) {
                         const matchList = matches.slice(0, 5).map(match =>
@@ -278,7 +281,7 @@ app.use('/', authRouter);
 app.get('/', (req, res) => {
     console.log('Home route accessed by IP:', req.ip);
     res.render('login', {
-        authenticated: !!faceitJS.accessToken,
+        authenticated: !!app.locals.faceitJS.accessToken,
         baseUrl: getBaseUrl()
     });
 });

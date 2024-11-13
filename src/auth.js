@@ -210,8 +210,12 @@ router.get('/callback', async (req, res) => {
 
         await saveSession(req);
 
+        // Set the access token in the shared FaceitJS instance
         if (req.app.locals.faceitJS) {
+            logger.info('Setting access token in FaceitJS instance');
             req.app.locals.faceitJS.setAccessToken(access_token);
+        } else {
+            logger.error('FaceitJS instance not found in app.locals');
         }
 
         logger.info('Authentication successful');
@@ -250,8 +254,12 @@ router.post('/refresh-token', async (req, res) => {
 
         await saveSession(req);
 
+        // Update the access token in the shared FaceitJS instance
         if (req.app.locals.faceitJS) {
+            logger.info('Updating access token in FaceitJS instance');
             req.app.locals.faceitJS.setAccessToken(access_token);
+        } else {
+            logger.error('FaceitJS instance not found in app.locals');
         }
 
         res.json({ success: true });
