@@ -1,32 +1,23 @@
 const axios = require('axios');
 const dotenv = require('dotenv');
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const qs = require('querystring');
+const FaceitAuth = require('./auth');
 
 dotenv.config();
 
 class FaceitJS {
     constructor(app) {
         this.serverApiKey = process.env.FACEIT_API_KEY;
-        this.clientApiKey = process.env.FACEIT_CLIENT_API_KEY;
+        this.clientId = process.env.FACEIT_CLIENT_API_KEY;
         this.clientSecret = process.env.FACEIT_CLIENT_SECRET;
         this.hubId = process.env.HUB_ID;
-        this.accessToken = null;
-        this.codeVerifier = null;
         this.redirectUri = process.env.REDIRECT_URI;
-        this.tokenPromise = null;
+        this.auth = new FaceitAuth(this.clientId, this.clientSecret, this.redirectUri);
+        this.accessToken = null;
 
-        // Store rehost votes per match
-        this.rehostVotes = new Map(); // matchId -> Set of playerIds
-        // Store cancel votes per match
-        this.cancelVotes = new Map(); // matchId -> Set of playerIds
-
-        if (!this.clientApiKey) {
-            console.error('[FACEIT] Client API key not found in environment variables');
+        if (!this.clientId) {
+            console.error('[FACEIT] Client ID not found in environment variables');
         } else {
-            console.log('[FACEIT] Client API key loaded successfully');
+            console.log('[FACEIT] Client ID loaded successfully');
         }
 
         console.log('[FACEIT] Initializing with Hub ID:', this.hubId);
@@ -62,122 +53,38 @@ class FaceitJS {
 
     setupAuthRoutes(app) {
         app.get('/callback', async (req, res) => {
-            const { code } = req.query;
+            const { code, state } = req.query;
+
+            // Verify state to prevent CSRF attacks
+            if (!this.auth.verifyState(state)) {
+                console.error('[AUTH] State mismatch');
+                res.status(400).send('Invalid state parameter');
+                return;
+            }
+
             if (code) {
                 try {
-                    console.log('[AUTH] Received authorization code:', code);
-                    const token = await this.exchangeCodeForToken(code);
+                    console.log('[AUTH] Received authorization code');
+                    const tokenData = await this.auth.exchangeCodeForToken(code);
                     console.log('[AUTH] Successfully exchanged code for token');
-                    this.accessToken = token;
-                    if (this.tokenPromise) {
-                        this.tokenPromise.resolve(token);
-                        this.tokenPromise = null;
-                    }
+                    this.accessToken = tokenData.access_token;
                     res.send('Authentication successful! You can close this window.');
                 } catch (error) {
                     console.error('[AUTH] Error exchanging code for token:', error);
-                    if (this.tokenPromise) {
-                        this.tokenPromise.reject(error);
-                        this.tokenPromise = null;
-                    }
                     res.status(500).send('Authentication failed: ' + error.message);
                 }
             } else {
                 console.error('[AUTH] No code received in callback');
-                if (this.tokenPromise) {
-                    this.tokenPromise.reject(new Error('No code received'));
-                    this.tokenPromise = null;
-                }
                 res.status(400).send('No code received');
             }
         });
     }
 
-    generateCodeVerifier() {
-        const verifier = crypto.randomBytes(32).toString('base64url');
-        this.codeVerifier = verifier;
-        return verifier;
-    }
-
-    async generateCodeChallenge(verifier) {
-        const hash = crypto.createHash('sha256');
-        hash.update(verifier);
-        return hash.digest('base64url');
-    }
-
-    async getAccessToken() {
+    async getAuthorizationUrl() {
         try {
-            // If we already have a token, return it
-            if (this.accessToken) {
-                return this.accessToken;
-            }
-
-            // If we're already waiting for a token, return the same promise
-            if (this.tokenPromise) {
-                return this.tokenPromise.promise;
-            }
-
-            console.log('[AUTH] Getting access token');
-
-            // Generate PKCE code verifier and challenge
-            const codeVerifier = this.generateCodeVerifier();
-            const codeChallenge = await this.generateCodeChallenge(codeVerifier);
-
-            // Build authorization URL with required scopes
-            const scopes = ['chat.messages.read', 'chat.messages.write', 'chat.rooms.read'].join(' ');
-            const authUrl = `https://accounts.faceit.com/authorize?client_id=${this.clientApiKey}&response_type=code&redirect_uri=${encodeURIComponent(this.redirectUri)}&code_challenge=${codeChallenge}&code_challenge_method=S256&scope=${encodeURIComponent(scopes)}`;
-
-            // Create a promise that will be resolved when we get the token
-            this.tokenPromise = {};
-            const promise = new Promise((resolve, reject) => {
-                this.tokenPromise.resolve = resolve;
-                this.tokenPromise.reject = reject;
-            });
-            this.tokenPromise.promise = promise;
-
-            // Provide authorization URL
-            console.log('[AUTH] Please visit this URL to authorize the application:');
-            console.log(authUrl);
-
-            // Wait for the callback to resolve the promise
-            return promise;
+            return await this.auth.getAuthorizationUrl();
         } catch (error) {
-            console.error('[AUTH] Error getting access token:', error.message);
-            throw error;
-        }
-    }
-
-    async exchangeCodeForToken(code) {
-        try {
-            console.log('[AUTH] Exchanging code for token');
-            const data = qs.stringify({
-                grant_type: 'authorization_code',
-                client_id: this.clientApiKey,
-                client_secret: this.clientSecret,
-                code: code,
-                code_verifier: this.codeVerifier,
-                redirect_uri: this.redirectUri
-            });
-
-            console.log('[AUTH] Token request data:', data);
-
-            const response = await axios({
-                method: 'post',
-                url: 'https://api.faceit.com/auth/v1/oauth/token',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                data: data
-            });
-
-            console.log('[AUTH] Token exchange successful');
-            return response.data.access_token;
-        } catch (error) {
-            console.error('[AUTH] Error exchanging code for token:', error.message);
-            if (error.response) {
-                console.error('[AUTH] Response status:', error.response.status);
-                console.error('[AUTH] Response data:', error.response.data);
-            }
+            console.error('[AUTH] Error getting authorization URL:', error);
             throw error;
         }
     }
@@ -210,49 +117,20 @@ class FaceitJS {
         }
     }
 
-    async getPlayerDetails(playerId) {
-        try {
-            const response = await this.api.get(`/players/${playerId}`);
-            return response.data;
-        } catch (error) {
-            console.error(`[PLAYER] Error getting player details for ${playerId}:`, error.message);
-            throw error;
-        }
-    }
-
     async handleRehostVote(matchId, playerId) {
         try {
-            // Initialize votes for this match if not exists
-            if (!this.rehostVotes.has(matchId)) {
-                this.rehostVotes.set(matchId, new Set());
-            }
-
-            const votes = this.rehostVotes.get(matchId);
-
-            // Add vote
-            votes.add(playerId);
-
-            // Get match details to count total players
+            // Get match details
             const match = await this.getMatchDetails(matchId);
+
+            // Calculate required votes (6/10 players)
             const totalPlayers = match.teams.faction1.roster.length + match.teams.faction2.roster.length;
+            const requiredVotes = Math.ceil(totalPlayers * 0.6);
 
-            // Check if we have enough votes (6/10 players)
-            const requiredVotes = Math.ceil(totalPlayers * 0.6); // 60% of players
-            const currentVotes = votes.size;
-
-            // Prepare response message
-            let message;
-            if (currentVotes >= requiredVotes) {
-                message = `Rehost vote passed! (${currentVotes}/${totalPlayers} players voted)`;
-                // Reset votes for this match
-                this.rehostVotes.delete(matchId);
-            } else {
-                message = `Rehost vote registered. Current votes: ${currentVotes}/${requiredVotes} required`;
-            }
+            // For now, just show the requirement
+            const message = `Rehost requires ${requiredVotes} out of ${totalPlayers} players to vote. Type !rehost to vote.`;
 
             return {
                 success: true,
-                passed: currentVotes >= requiredVotes,
                 message: message
             };
         } catch (error) {
@@ -302,9 +180,12 @@ class FaceitJS {
             const roomId = `match-${matchId}`;
             console.log(`[CHAT] Using room ID: ${roomId}`);
 
-            // Get fresh access token
-            const token = await this.getAccessToken();
-            console.log('[CHAT] Got fresh access token');
+            // Check if we need to authenticate
+            if (!this.accessToken) {
+                console.log('[CHAT] No access token, starting auth flow');
+                const authUrl = await this.getAuthorizationUrl();
+                return { needsAuth: true, authUrl };
+            }
 
             // Send message using access token
             const response = await axios({
@@ -313,7 +194,7 @@ class FaceitJS {
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${this.accessToken}`
                 },
                 data: {
                     body: message
@@ -321,11 +202,10 @@ class FaceitJS {
             });
 
             console.log(`[CHAT] Message sent successfully to match ${matchId}`);
-            return response.data;
+            return { success: true, data: response.data };
         } catch (error) {
             console.error(`[CHAT] Error sending message to match ${matchId}:`, error.message);
-            if (error.response) {
-                console.error('[CHAT] Response status:', error.response.status);
+            if (error.response?.data) {
                 console.error('[CHAT] Response data:', error.response.data);
             }
             throw error;

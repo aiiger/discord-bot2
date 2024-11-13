@@ -51,32 +51,19 @@ async function sendGreetingToMatch(matchId, matchDetails) {
         try {
             console.log(`[MATCH ${matchId}] Attempting to send greeting message`);
             const greetingMessage = "👋 Hello! Map veto phase has started. I'm here to assist and monitor the process. Good luck! 🎮\n\nAvailable commands:\n!rehost - Vote for match rehost (requires 6/10 players)\n!cancel - Request match cancellation (requires elo differential ≥70)";
-            await app.locals.faceitJS.sendChatMessage(matchId, greetingMessage);
+            const result = await app.locals.faceitJS.sendChatMessage(matchId, greetingMessage);
+
+            if (result.needsAuth) {
+                console.log(`[MATCH ${matchId}] Authentication needed for greeting`);
+                // We'll handle auth separately
+                return;
+            }
+
             processedMatches.add(matchId);
             console.log(`[MATCH ${matchId}] Greeting message sent successfully`);
         } catch (error) {
             console.error(`[MATCH ${matchId}] Failed to send greeting:`, error);
         }
-    }
-}
-
-// Function to handle chat commands
-async function handleChatCommand(matchId, playerId, command) {
-    try {
-        switch (command.toLowerCase()) {
-            case '!rehost':
-                const rehostResult = await app.locals.faceitJS.handleRehostVote(matchId, playerId);
-                await app.locals.faceitJS.sendChatMessage(matchId, rehostResult.message);
-                break;
-
-            case '!cancel':
-                const cancelResult = await app.locals.faceitJS.handleCancelVote(matchId, playerId);
-                await app.locals.faceitJS.sendChatMessage(matchId, cancelResult.message);
-                break;
-        }
-    } catch (error) {
-        console.error(`[CHAT] Error handling command ${command} for match ${matchId}:`, error);
-        await app.locals.faceitJS.sendChatMessage(matchId, `Error processing command: ${error.message}`);
     }
 }
 
@@ -151,33 +138,11 @@ client.on('messageCreate', async (message) => {
                 const testMessage = args.slice(2).join(' ');
 
                 try {
-                    // Create a promise that will be resolved when we get the auth URL
-                    const authUrlPromise = new Promise((resolve) => {
-                        const originalConsoleLog = console.log;
-                        console.log = (...args) => {
-                            originalConsoleLog(...args);
-                            const message = args[0];
-                            if (typeof message === 'string' && message.includes('Please visit this URL')) {
-                                console.log = originalConsoleLog;
-                                resolve(args[1]); // args[1] contains the URL
-                            }
-                        };
-                    });
+                    const result = await app.locals.faceitJS.sendChatMessage(matchId, testMessage);
 
-                    // Start the chat message process
-                    const sendPromise = app.locals.faceitJS.sendChatMessage(matchId, testMessage);
-
-                    // Wait for either the auth URL or the message to be sent
-                    const authUrl = await Promise.race([
-                        authUrlPromise,
-                        sendPromise.then(() => null)
-                    ]);
-
-                    if (authUrl) {
-                        // If we got an auth URL, send it to Discord
-                        message.reply(`Please visit this URL to authorize the bot:\n${authUrl}`);
+                    if (result.needsAuth) {
+                        message.reply(`Please visit this URL to authorize the bot:\n${result.authUrl}`);
                     } else {
-                        // If we didn't get an auth URL, the message was sent successfully
                         message.reply(`Successfully sent message to match room ${matchId}`);
                     }
 
@@ -286,7 +251,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/', (req, res) => {
     res.render('login', {
         authenticated: true,
-        baseUrl: `http://localhost:${port}`
+        baseUrl: isProduction ? process.env.REDIRECT_URI : `http://localhost:${port}`
     });
 });
 
