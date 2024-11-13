@@ -22,6 +22,9 @@ class FaceitJS extends EventEmitter {
         this.activeMatches = new Map();
         this.matchStates = new Map();
         this.vetoStates = new Map();
+
+        // Initialize API instances in constructor
+        this.setupApiInstances();
     }
 
     setAccessToken(token) {
@@ -259,6 +262,10 @@ class FaceitJS extends EventEmitter {
 
     async getActiveMatches() {
         try {
+            if (!this.dataApiInstance) {
+                this.setupApiInstances();
+            }
+
             const response = await this.dataApiInstance.get(`/hubs/${this.hubId}/matches`, {
                 params: {
                     status: 'ONGOING',

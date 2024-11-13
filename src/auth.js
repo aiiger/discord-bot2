@@ -2,6 +2,10 @@
 import express from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 const router = express.Router();
 
@@ -32,9 +36,9 @@ const logger = {
 
 // FACEIT OAuth2 configuration
 const config = {
-    clientId: process.env.CLIENT_ID, // Changed from FACEIT_CLIENT_ID
-    clientSecret: process.env.CLIENT_SECRET, // Changed from FACEIT_CLIENT_SECRET
-    redirectUri: process.env.REDIRECT_URI || 'http://localhost:3002/callback',
+    clientId: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    redirectUri: 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com/callback',
     authEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/authorize',
     tokenEndpoint: 'https://api.faceit.com/auth/v1/oauth/token',
     userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo',
@@ -46,7 +50,10 @@ logger.debug('OAuth2 Configuration', {
     hasClientId: !!config.clientId,
     hasClientSecret: !!config.clientSecret,
     redirectUri: config.redirectUri,
-    scope: config.scope
+    scope: config.scope,
+    // Add actual values for debugging
+    actualClientId: config.clientId,
+    actualClientSecret: config.clientSecret ? '[REDACTED]' : undefined
 });
 
 // PKCE code verifier generation

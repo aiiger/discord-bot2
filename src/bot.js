@@ -13,6 +13,11 @@ import axios from 'axios';
 
 dotenv.config();
 
+console.log('Starting bot initialization...');
+console.log('Discord Token:', process.env.DISCORD_TOKEN ? '[Present]' : '[Missing]');
+console.log('FACEIT API Key:', process.env.FACEIT_API_KEY ? '[Present]' : '[Missing]');
+console.log('Hub ID:', process.env.HUB_ID ? '[Present]' : '[Missing]');
+
 // Get directory name in ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,6 +71,7 @@ const matchStates = new Map();
 const processedMatches = new Set();
 
 // Initialize Discord client
+console.log('Initializing Discord client...');
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -96,7 +102,7 @@ async function checkMatchesInVeto() {
             return;
         }
 
-        const matches = await faceitJS.getHubMatches(faceitJS.hubId);
+        const matches = await faceitJS.getActiveMatches();
         if (matches && matches.length > 0) {
             for (const match of matches) {
                 // Check if match is in veto phase (VOTING state)
@@ -114,6 +120,7 @@ async function checkMatchesInVeto() {
 setInterval(checkMatchesInVeto, 30 * 1000);
 
 // Discord client login
+console.log('Attempting Discord login...');
 client.login(process.env.DISCORD_TOKEN).then(() => {
     console.log('Discord bot logged in successfully');
     // Initial check for matches after successful login
@@ -133,6 +140,8 @@ client.on('messageCreate', async (message) => {
 
     const args = message.content.split(' ');
     const command = args[0].toLowerCase();
+
+    console.log(`Received command: ${command}`);
 
     try {
         switch (command) {
@@ -166,8 +175,10 @@ client.on('messageCreate', async (message) => {
                 break;
 
             case '!getmatches':
+                console.log('Processing !getmatches command...');
                 try {
-                    const matches = await faceitJS.getHubMatches(faceitJS.hubId);
+                    const matches = await faceitJS.getActiveMatches();
+                    console.log('Retrieved matches:', matches);
                     if (matches && matches.length > 0) {
                         const matchList = matches.slice(0, 5).map(match =>
                             `Match ID: ${match.match_id}\n` +
