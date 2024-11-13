@@ -4,7 +4,7 @@ const axios = require('axios');
 const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
-const { generateCodeVerifier } = require('./crypto');
+const { generateCodeVerifier, generateCodeChallenge } = require('./crypto');
 
 dotenv.config();
 
@@ -54,21 +54,21 @@ router.get('/auth/faceit', async (req, res) => {
     try {
         logger.info('Starting OAuth2 authorization flow');
 
-        // Generate code verifier
+        // Generate code verifier and challenge
         const codeVerifier = generateCodeVerifier();
+        const codeChallenge = generateCodeChallenge(codeVerifier);
         req.session.codeVerifier = codeVerifier;
 
-        // Exactly match the example code's URL parameters
+        // Use SHA256 method with the proper code challenge
         const authParams = new URLSearchParams({
             client_id: config.clientId,
             response_type: 'code',
-            code_challenge: codeVerifier,
-            code_challenge_method: 'plain',
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256',
             redirect_popup: 'true',
             redirect_uri: config.redirectUri
         });
 
-        // Use the exact URL format from the example with /oauth/authorize path
         const authUrl = `https://accounts.faceit.com/oauth/authorize?${authParams.toString()}`;
         logger.info('Redirecting to auth URL:', authUrl);
         res.redirect(authUrl);

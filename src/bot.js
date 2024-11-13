@@ -1,14 +1,12 @@
-// FACEIT OAuth2 Bot with SDK Support
+// FACEIT Bot with Data API Support
 const express = require('express');
 const session = require('express-session');
 const { FaceitJS } = require('./FaceitJS.js');
-const crypto = require('crypto');
 const dotenv = require('dotenv');
 const { Client, GatewayIntentBits } = require('discord.js');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-const fs = require('fs');
 
 dotenv.config();
 
@@ -17,21 +15,10 @@ console.log('Discord Token:', process.env.DISCORD_TOKEN ? '[Present]' : '[Missin
 console.log('FACEIT API Key:', process.env.FACEIT_API_KEY ? '[Present]' : '[Missing]');
 console.log('Hub ID:', process.env.HUB_ID ? '[Present]' : '[Missing]');
 console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('REDIRECT_URI:', process.env.REDIRECT_URI);
 
 // Initialize Express
 const app = express();
-
-// Additional error handling
-app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    res.on('finish', () => {
-        console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} ${res.statusCode}`);
-    });
-    next();
-});
-
-const port = process.env.PORT || 3002;
+const port = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 console.log('Is Production:', isProduction);
@@ -49,47 +36,14 @@ if (isProduction) {
 
 // Set up view engine
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname, '..', 'views'));
 
-// Get the base URL for the application
-const getBaseUrl = () => {
-    const url = isProduction ? 'https://faceit-bot-test-ae3e65bcedb3.herokuapp.com' : `http://localhost:${port}`;
-    console.log('Base URL:', url);
-    return url;
-};
+// Initialize FaceitJS instance with app
+const faceitJS = new FaceitJS(app);
+app.locals.faceitJS = faceitJS;
 
-// Initialize FaceitJS instance
-const faceitJS = new FaceitJS();
-app.locals.faceitJS = faceitJS;  // Store FaceitJS instance in app.locals
-
-// Try to load saved token
-try {
-    const tokenPath = path.join(__dirname, 'token.json');
-    if (fs.existsSync(tokenPath)) {
-        const tokenData = JSON.parse(fs.readFileSync(tokenPath, 'utf8'));
-        if (tokenData.accessToken) {
-            console.log('[AUTH] Found saved access token, restoring...');
-            faceitJS.setAccessToken(tokenData.accessToken);
-        }
-    }
-} catch (error) {
-    console.error('[AUTH] Error loading saved token:', error);
-}
-
-// Store match states and voting
-const matchStates = new Map();
 // Store processed matches to avoid duplicate greetings
 const processedMatches = new Set();
-
-// Initialize Discord client
-console.log('Initializing Discord client...');
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
-});
 
 // Function to send greeting message to match room
 async function sendGreetingToMatch(matchId, matchDetails) {
@@ -102,10 +56,6 @@ async function sendGreetingToMatch(matchId, matchDetails) {
             console.log(`[MATCH ${matchId}] Greeting message sent successfully`);
         } catch (error) {
             console.error(`[MATCH ${matchId}] Failed to send greeting:`, error);
-            if (error.response) {
-                console.error('Response status:', error.response.status);
-                console.error('Response data:', error.response.data);
-            }
         }
     }
 }
@@ -113,11 +63,6 @@ async function sendGreetingToMatch(matchId, matchDetails) {
 // Function to check for matches in veto phase
 async function checkMatchesInVeto() {
     try {
-        if (!app.locals.faceitJS.accessToken) {
-            console.log(`[${new Date().toISOString()}] Authentication required. Please visit ${getBaseUrl()} to authenticate the bot.`);
-            return;
-        }
-
         console.log('[MATCHES] Checking for active matches...');
         const matches = await app.locals.faceitJS.getActiveMatches();
         console.log(`[MATCHES] Found ${matches ? matches.length : 0} active matches`);
@@ -134,25 +79,21 @@ async function checkMatchesInVeto() {
         }
     } catch (error) {
         console.error('[MATCHES] Error checking matches:', error);
-        if (error.response) {
-            console.error('Response status:', error.response.status);
-            console.error('Response data:', error.response.data);
-        }
-        if (error.response?.status === 401) {
-            console.log('[AUTH] Access token expired or invalid. Clearing token.');
-            app.locals.faceitJS.accessToken = null;
-            // Remove saved token
-            try {
-                fs.unlinkSync(path.join(__dirname, 'token.json'));
-            } catch (err) {
-                console.error('[AUTH] Error removing invalid token:', err);
-            }
-        }
     }
 }
 
 // Start periodic match checking (every 30 seconds)
 setInterval(checkMatchesInVeto, 30 * 1000);
+
+// Initialize Discord client
+console.log('Initializing Discord client...');
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
 
 // Discord client login
 console.log('Attempting Discord login...');
@@ -189,22 +130,12 @@ client.on('messageCreate', async (message) => {
                 const matchId = args[1];
                 const testMessage = args.slice(2).join(' ');
 
-                if (!app.locals.faceitJS.accessToken) {
-                    message.reply(`Please authenticate first by visiting ${getBaseUrl()}`);
-                    return;
-                }
-
                 try {
                     await app.locals.faceitJS.sendChatMessage(matchId, testMessage);
                     message.reply(`Successfully sent message to match room ${matchId}`);
                     console.log(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
                 } catch (error) {
-                    if (error.response?.status === 401) {
-                        message.reply(`Authentication failed. Please authenticate at ${getBaseUrl()}`);
-                        app.locals.faceitJS.accessToken = null;
-                    } else {
-                        message.reply(`Failed to send message: ${error.message}`);
-                    }
+                    message.reply(`Failed to send message: ${error.message}`);
                     console.error('[DISCORD] Error sending test message:', error);
                 }
                 break;
@@ -234,22 +165,15 @@ client.on('messageCreate', async (message) => {
                 }
                 break;
 
-            case '!auth':
-                const authUrl = `${getBaseUrl()}/auth/faceit`;
-                message.reply(`Please visit ${authUrl} to authenticate the bot`);
-                break;
-
             case '!testhelp':
                 const helpMessage = `
 Available test commands:
 !getmatches - Get recent matches from your hub
 !sendtest [matchId] [message] - Send a custom message to match chat
-!auth - Get the authentication URL
 
 Example:
-1. Use !auth to get the authentication URL
-2. Use !getmatches to get match IDs
-3. Use !sendtest with a match ID to test messaging
+1. Use !getmatches to get match IDs
+2. Use !sendtest with a match ID to test messaging
 `;
                 message.reply(helpMessage);
                 break;
@@ -310,61 +234,19 @@ app.use(session(sessionConfig));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Import and use auth routes
-const authRouter = require('./auth.js');
-app.use('/', authRouter);
-
 // Routes
 app.get('/', (req, res) => {
-    console.log('[WEB] Home route accessed by IP:', req.ip);
-    console.log('[AUTH] Current session state:', {
-        hasAccessToken: !!req.session?.accessToken,
-        hasUserInfo: !!req.session?.userInfo,
-        faceitJSHasToken: !!app.locals.faceitJS.accessToken
-    });
-
     res.render('login', {
-        authenticated: !!app.locals.faceitJS.accessToken,
-        baseUrl: getBaseUrl()
+        authenticated: true,
+        baseUrl: `http://localhost:${port}`
     });
 });
 
 // Dashboard route
 app.get('/dashboard', (req, res) => {
-    console.log('[WEB] Dashboard accessed');
-    console.log('[AUTH] Dashboard session state:', {
-        hasAccessToken: !!req.session?.accessToken,
-        hasUserInfo: !!req.session?.userInfo,
-        faceitJSHasToken: !!app.locals.faceitJS.accessToken
-    });
-
-    if (!req.session.accessToken) {
-        console.log('[AUTH] No access token in session, redirecting to login');
-        return res.redirect('/');
-    }
-
-    // Save token to file
-    try {
-        fs.writeFileSync(
-            path.join(__dirname, 'token.json'),
-            JSON.stringify({ accessToken: req.session.accessToken }),
-            'utf8'
-        );
-        console.log('[AUTH] Access token saved to file');
-    } catch (error) {
-        console.error('[AUTH] Error saving token to file:', error);
-    }
-
-    // Ensure FaceitJS instance has the token
-    if (!app.locals.faceitJS.accessToken && req.session.accessToken) {
-        console.log('[AUTH] Restoring access token to FaceitJS instance');
-        app.locals.faceitJS.setAccessToken(req.session.accessToken);
-    }
-
     res.render('dashboard', {
         authenticated: true,
-        username: req.session.userInfo?.nickname || 'FACEIT User',
-        userInfo: req.session.userInfo
+        username: 'FACEIT User'
     });
 });
 
@@ -372,7 +254,7 @@ app.get('/dashboard', (req, res) => {
 app.get('/error', (req, res) => {
     const errorMessage = req.query.error || 'An unknown error occurred';
     console.error('[ERROR] Error page accessed:', errorMessage);
-    res.render('error', { message: 'Authentication Error', error: errorMessage });
+    res.render('error', { message: 'Error', error: errorMessage });
 });
 
 // Handle 404
@@ -387,7 +269,6 @@ app.use((req, res) => {
 // Start the server
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
-    console.log(`Visit ${getBaseUrl()} to authenticate the bot`);
 });
 
 module.exports = app;
