@@ -60,6 +60,26 @@ async function sendGreetingToMatch(matchId, matchDetails) {
     }
 }
 
+// Function to handle chat commands
+async function handleChatCommand(matchId, playerId, command) {
+    try {
+        switch (command.toLowerCase()) {
+            case '!rehost':
+                const rehostResult = await app.locals.faceitJS.handleRehostVote(matchId, playerId);
+                await app.locals.faceitJS.sendChatMessage(matchId, rehostResult.message);
+                break;
+
+            case '!cancel':
+                const cancelResult = await app.locals.faceitJS.handleCancelVote(matchId, playerId);
+                await app.locals.faceitJS.sendChatMessage(matchId, cancelResult.message);
+                break;
+        }
+    } catch (error) {
+        console.error(`[CHAT] Error handling command ${command} for match ${matchId}:`, error);
+        await app.locals.faceitJS.sendChatMessage(matchId, `Error processing command: ${error.message}`);
+    }
+}
+
 // Function to check for matches in veto phase
 async function checkMatchesInVeto() {
     try {

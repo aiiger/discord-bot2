@@ -18,6 +18,11 @@ class FaceitJS {
         this.redirectUri = process.env.REDIRECT_URI;
         this.tokenPromise = null;
 
+        // Store rehost votes per match
+        this.rehostVotes = new Map(); // matchId -> Set of playerIds
+        // Store cancel votes per match
+        this.cancelVotes = new Map(); // matchId -> Set of playerIds
+
         if (!this.clientApiKey) {
             console.error('[FACEIT] Client API key not found in environment variables');
         } else {
@@ -179,6 +184,97 @@ class FaceitJS {
             if (error.response?.data) {
                 console.error('[MATCHES] Response data:', error.response.data);
             }
+            throw error;
+        }
+    }
+
+    async getMatchDetails(matchId) {
+        try {
+            const response = await this.api.get(`/matches/${matchId}`);
+            return response.data;
+        } catch (error) {
+            console.error(`[MATCH] Error getting match details for ${matchId}:`, error.message);
+            throw error;
+        }
+    }
+
+    async getPlayerDetails(playerId) {
+        try {
+            const response = await this.api.get(`/players/${playerId}`);
+            return response.data;
+        } catch (error) {
+            console.error(`[PLAYER] Error getting player details for ${playerId}:`, error.message);
+            throw error;
+        }
+    }
+
+    async handleRehostVote(matchId, playerId) {
+        try {
+            // Initialize votes for this match if not exists
+            if (!this.rehostVotes.has(matchId)) {
+                this.rehostVotes.set(matchId, new Set());
+            }
+
+            const votes = this.rehostVotes.get(matchId);
+
+            // Add vote
+            votes.add(playerId);
+
+            // Get match details to count total players
+            const match = await this.getMatchDetails(matchId);
+            const totalPlayers = match.teams.faction1.roster.length + match.teams.faction2.roster.length;
+
+            // Check if we have enough votes (6/10 players)
+            const requiredVotes = Math.ceil(totalPlayers * 0.6); // 60% of players
+            const currentVotes = votes.size;
+
+            // Prepare response message
+            let message;
+            if (currentVotes >= requiredVotes) {
+                message = `Rehost vote passed! (${currentVotes}/${totalPlayers} players voted)`;
+                // Reset votes for this match
+                this.rehostVotes.delete(matchId);
+            } else {
+                message = `Rehost vote registered. Current votes: ${currentVotes}/${requiredVotes} required`;
+            }
+
+            return {
+                success: true,
+                passed: currentVotes >= requiredVotes,
+                message: message
+            };
+        } catch (error) {
+            console.error(`[REHOST] Error handling rehost vote for match ${matchId}:`, error.message);
+            throw error;
+        }
+    }
+
+    async handleCancelVote(matchId, playerId) {
+        try {
+            // Get match details
+            const match = await this.getMatchDetails(matchId);
+
+            // Calculate elo differential
+            const team1Avg = match.teams.faction1.roster.reduce((sum, player) => sum + player.elo, 0) / match.teams.faction1.roster.length;
+            const team2Avg = match.teams.faction2.roster.reduce((sum, player) => sum + player.elo, 0) / match.teams.faction2.roster.length;
+            const eloDiff = Math.abs(team1Avg - team2Avg);
+
+            // Check if elo differential is high enough
+            if (eloDiff >= 70) {
+                return {
+                    success: true,
+                    passed: true,
+                    message: `Match cancellation approved. Elo differential: ${Math.round(eloDiff)}`
+                };
+            } else {
+                return {
+                    success: true,
+                    passed: false,
+                    message: `Cannot cancel match. Elo differential (${Math.round(eloDiff)}) is below required threshold (70)`
+                };
+            }
+        } catch (error) {
+            console.error(`[CANCEL] Error handling cancel vote for match ${matchId}:`, error.message);
             throw error;
         }
     }
