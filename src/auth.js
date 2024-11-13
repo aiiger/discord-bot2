@@ -73,6 +73,19 @@ function validateSession(req) {
     return true;
 }
 
+// Helper function to save session
+function saveSession(req) {
+    return new Promise((resolve, reject) => {
+        req.session.save((err) => {
+            if (err) {
+                logger.error('Failed to save session', err);
+                reject(err);
+            }
+            resolve();
+        });
+    });
+}
+
 // Authorization route
 router.get('/auth/faceit', async (req, res) => {
     try {
@@ -90,14 +103,18 @@ router.get('/auth/faceit', async (req, res) => {
         req.session.state = state;
         req.session.stateTimestamp = Date.now();
 
-        await new Promise((resolve, reject) => {
-            req.session.save((err) => {
-                if (err) {
-                    logger.error('Failed to save session', err);
-                    reject(err);
-                }
-                resolve();
-            });
+        logger.debug('Session before save', {
+            hasCodeVerifier: !!req.session.codeVerifier,
+            hasState: !!req.session.state,
+            sessionID: req.sessionID
+        });
+
+        await saveSession(req);
+
+        logger.debug('Session after save', {
+            hasCodeVerifier: !!req.session.codeVerifier,
+            hasState: !!req.session.state,
+            sessionID: req.sessionID
         });
 
         const authParams = new URLSearchParams({
@@ -129,6 +146,11 @@ router.get('/auth/faceit', async (req, res) => {
 router.get('/callback', async (req, res) => {
     try {
         logger.info('Processing OAuth callback');
+        logger.debug('Session state at callback', {
+            hasCodeVerifier: !!req.session?.codeVerifier,
+            hasState: !!req.session?.state,
+            sessionID: req.sessionID
+        });
 
         const { code, state, error } = req.query;
 
@@ -171,6 +193,8 @@ router.get('/callback', async (req, res) => {
         delete req.session.state;
         delete req.session.stateTimestamp;
 
+        await saveSession(req);
+
         if (req.app.locals.faceitJS) {
             req.app.locals.faceitJS.setAccessToken(access_token);
         }
@@ -208,6 +232,8 @@ router.post('/refresh-token', async (req, res) => {
 
         req.session.accessToken = access_token;
         req.session.refreshToken = refresh_token;
+
+        await saveSession(req);
 
         if (req.app.locals.faceitJS) {
             req.app.locals.faceitJS.setAccessToken(access_token);
