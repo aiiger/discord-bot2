@@ -1,17 +1,15 @@
 // FACEIT OAuth2 Bot with SDK Support
-import express from 'express';
-import session from 'express-session';
-import { FaceitJS } from './FaceitJS.js';
-import crypto from 'crypto';
-import dotenv from 'dotenv';
-import { Client, GatewayIntentBits } from 'discord.js';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import axios from 'axios';
-import Redis from 'ioredis';
-import connectRedis from 'connect-redis';
+const express = require('express');
+const session = require('express-session');
+const { FaceitJS } = require('./FaceitJS.js');
+const crypto = require('crypto');
+const dotenv = require('dotenv');
+const { Client, GatewayIntentBits } = require('discord.js');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const path = require('path');
+const Redis = require('ioredis');
+const connectRedis = require('connect-redis');
 
 dotenv.config();
 
@@ -21,10 +19,6 @@ console.log('FACEIT API Key:', process.env.FACEIT_API_KEY ? '[Present]' : '[Miss
 console.log('Hub ID:', process.env.HUB_ID ? '[Present]' : '[Missing]');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('REDIRECT_URI:', process.env.REDIRECT_URI);
-
-// Get directory name in ES module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Initialize Express
 const app = express();
@@ -289,7 +283,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Import and use auth routes
-import authRouter from './auth.js';
+const authRouter = require('./auth.js');
 app.use('/', authRouter);
 
 // Routes
@@ -341,4 +335,4 @@ app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
 
-export default app;
+module.exports = app;

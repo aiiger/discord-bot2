@@ -243,7 +243,7 @@ const limiter = rateLimit({
     }
 });
 
-// Redis configuration
+// Redis configuration - simplified to use URL directly
 const redisClient = new Redis(process.env.REDIS_URL);
 
 redisClient.on('error', (err) => {
