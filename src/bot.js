@@ -151,8 +151,36 @@ client.on('messageCreate', async (message) => {
                 const testMessage = args.slice(2).join(' ');
 
                 try {
-                    await app.locals.faceitJS.sendChatMessage(matchId, testMessage);
-                    message.reply(`Successfully sent message to match room ${matchId}`);
+                    // Create a promise that will be resolved when we get the auth URL
+                    const authUrlPromise = new Promise((resolve) => {
+                        const originalConsoleLog = console.log;
+                        console.log = (...args) => {
+                            originalConsoleLog(...args);
+                            const message = args[0];
+                            if (typeof message === 'string' && message.includes('Please visit this URL')) {
+                                console.log = originalConsoleLog;
+                                resolve(args[1]); // args[1] contains the URL
+                            }
+                        };
+                    });
+
+                    // Start the chat message process
+                    const sendPromise = app.locals.faceitJS.sendChatMessage(matchId, testMessage);
+
+                    // Wait for either the auth URL or the message to be sent
+                    const authUrl = await Promise.race([
+                        authUrlPromise,
+                        sendPromise.then(() => null)
+                    ]);
+
+                    if (authUrl) {
+                        // If we got an auth URL, send it to Discord
+                        message.reply(`Please visit this URL to authorize the bot:\n${authUrl}`);
+                    } else {
+                        // If we didn't get an auth URL, the message was sent successfully
+                        message.reply(`Successfully sent message to match room ${matchId}`);
+                    }
+
                     console.log(`[DISCORD] Test message sent to match ${matchId}: "${testMessage}"`);
                 } catch (error) {
                     message.reply(`Failed to send message: ${error.message}`);
