@@ -23,7 +23,8 @@ console.log('REDIRECT_URI:', process.env.REDIRECT_URI);
 // Initialize Express
 const app = express();
 
-app.set('trust proxy', 1); // Add this line
+// Must be first - trust proxy for Heroku
+app.set('trust proxy', 1);
 
 // Additional error handling
 app.use((req, res, next) => {
@@ -32,9 +33,6 @@ app.use((req, res, next) => {
     });
     next();
 });
-
-// Must be first - trust proxy for Heroku
-app.set('trust proxy', 1);
 
 const port = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -65,12 +63,73 @@ const getBaseUrl = () => {
 
 // Initialize FaceitJS instance
 const faceitJS = new FaceitJS();
-app.locals.faceitJS = faceitJS;  // Store FaceitJS instance in app.locals
+app.locals.faceitJS = faceitJS;
 
 // Store match states and voting
 const matchStates = new Map();
 // Store processed matches to avoid duplicate greetings
 const processedMatches = new Set();
+
+// Redis configuration with proper SSL handling and connection pooling
+const REDIS_POOL_SIZE = 5;
+
+const createRedisClient = () => new Redis(process.env.REDIS_URL, {
+    tls: {
+        rejectUnauthorized: false,
+        ca: process.env.REDIS_CA_CERT
+    },
+    retryStrategy: function (times) {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+    },
+    maxRetriesPerRequest: 3,
+    enableReadyCheck: true,
+    connectTimeout: 10000,
+    disconnectTimeout: 2000,
+    reconnectOnError: function (err) {
+        const targetError = 'READONLY';
+        if (err.message.includes(targetError)) {
+            return true;
+        }
+        return false;
+    }
+});
+
+const redisPool = Array(REDIS_POOL_SIZE).fill().map(() => createRedisClient());
+const redisClient = redisPool[0]; // Use the first client as the main client
+
+let currentPoolIndex = 0;
+const getRedisConnection = () => {
+    const connection = redisPool[currentPoolIndex];
+    currentPoolIndex = (currentPoolIndex + 1) % REDIS_POOL_SIZE;
+    return connection;
+};
+
+// Redis event handlers
+redisPool.forEach((client, index) => {
+    client.on('error', (err) => {
+        console.error(`Redis Client ${index} Error:`, err);
+    });
+
+    client.on('connect', () => {
+        console.log(`Redis Client ${index} Connected`);
+    });
+
+    client.on('ready', () => {
+        console.log(`Redis Client ${index} Ready`);
+    });
+
+    client.on('reconnecting', () => {
+        console.log(`Redis Client ${index} Reconnecting`);
+    });
+});
+
+// Test the Redis connection
+redisClient.ping().then(() => {
+    console.log('Redis connection test successful');
+}).catch(err => {
+    console.error('Redis connection test failed:', err);
+});
 
 // Initialize Discord client
 console.log('Initializing Discord client...');
@@ -107,7 +166,6 @@ async function checkMatchesInVeto() {
         const matches = await app.locals.faceitJS.getActiveMatches();
         if (matches && matches.length > 0) {
             for (const match of matches) {
-                // Check if match is in veto phase (VOTING state)
                 if (match.status === 'VOTING' || match.state === 'VOTING') {
                     await sendGreetingToMatch(match.match_id, match);
                 }
@@ -121,20 +179,17 @@ async function checkMatchesInVeto() {
     }
 }
 
-// Start periodic match checking (every 30 seconds)
+// Start periodic match checking
 setInterval(checkMatchesInVeto, 30 * 1000);
 
-// Discord client login
-console.log('Attempting Discord login...');
+// Discord client login and event handlers
 client.login(process.env.DISCORD_TOKEN).then(() => {
     console.log('Discord bot logged in successfully');
-    // Initial check for matches after successful login
     checkMatchesInVeto();
 }).catch(error => {
     console.error('Failed to log in to Discord:', error);
 });
 
-// Discord client ready event
 client.once('ready', () => {
     console.log(`Discord bot logged in as ${client.user.tag}`);
 });
@@ -229,7 +284,7 @@ Example:
     }
 });
 
-// Rate limiting configuration for Heroku
+// Rate limiting configuration
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -237,21 +292,7 @@ const limiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     trustProxy: true,
-    skip: (req) => {
-        // Skip rate limiting for local development
-        return !isProduction;
-    }
-});
-
-// Redis configuration - simplified to use URL directly
-const redisClient = new Redis(process.env.REDIS_URL);
-
-redisClient.on('error', (err) => {
-    console.error('Redis error:', err);
-});
-
-redisClient.on('connect', () => {
-    console.log('Connected to Redis successfully');
+    skip: (req) => !isProduction
 });
 
 // Session middleware configuration
@@ -281,6 +322,16 @@ app.use(session(sessionConfig));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Health check endpoint
+app.get('/health', async (req, res) => {
+    try {
+        await redisClient.ping();
+        res.status(200).json({ status: 'healthy', redis: 'connected' });
+    } catch (error) {
+        res.status(500).json({ status: 'unhealthy', redis: 'disconnected', error: error.message });
+    }
+});
+
 // Import and use auth routes
 const authRouter = require('./src/auth.js');
 app.use('/', authRouter);
@@ -294,7 +345,6 @@ app.get('/', (req, res) => {
     });
 });
 
-// Dashboard route
 app.get('/dashboard', (req, res) => {
     if (!req.session.accessToken) {
         return res.redirect('/');
@@ -306,7 +356,6 @@ app.get('/dashboard', (req, res) => {
     });
 });
 
-// Error route
 app.get('/error', (req, res) => {
     const errorMessage = req.query.error || 'An unknown error occurred';
     res.render('error', { message: 'Authentication Error', error: errorMessage });
@@ -320,17 +369,31 @@ app.use((req, res) => {
     });
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('SIGTERM received. Starting graceful shutdown...');
-    redisClient.quit().then(() => {
-        console.log('Redis connection closed');
-        process.exit(0);
-    });
-});
+// Graceful shutdown handler
+const gracefulShutdown = async () => {
+    console.log('Received shutdown signal');
+
+    try {
+        // Close all Redis connections
+        await Promise.all(redisPool.map(client => client.quit()));
+        console.log('Redis connections closed');
+
+        // Close server
+        server.close(() => {
+            console.log('Server closed');
+            process.exit(0);
+        });
+    } catch (error) {
+        console.error('Error during shutdown:', error);
+        process.exit(1);
+    }
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 // Start the server
-app.listen(port, () => {
+const server = app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
 
