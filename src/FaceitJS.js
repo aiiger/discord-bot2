@@ -65,7 +65,9 @@ class FaceitJS {
             const { code } = req.query;
             if (code) {
                 try {
+                    console.log('[AUTH] Received authorization code:', code);
                     const token = await this.exchangeCodeForToken(code);
+                    console.log('[AUTH] Successfully exchanged code for token');
                     this.accessToken = token;
                     if (this.tokenPromise) {
                         this.tokenPromise.resolve(token);
@@ -73,6 +75,7 @@ class FaceitJS {
                     }
                     res.send('Authentication successful! You can close this window.');
                 } catch (error) {
+                    console.error('[AUTH] Error exchanging code for token:', error);
                     if (this.tokenPromise) {
                         this.tokenPromise.reject(error);
                         this.tokenPromise = null;
@@ -80,6 +83,7 @@ class FaceitJS {
                     res.status(500).send('Authentication failed: ' + error.message);
                 }
             } else {
+                console.error('[AUTH] No code received in callback');
                 if (this.tokenPromise) {
                     this.tokenPromise.reject(new Error('No code received'));
                     this.tokenPromise = null;
@@ -145,6 +149,7 @@ class FaceitJS {
 
     async exchangeCodeForToken(code) {
         try {
+            console.log('[AUTH] Exchanging code for token');
             const data = qs.stringify({
                 grant_type: 'authorization_code',
                 client_id: this.clientApiKey,
@@ -153,6 +158,8 @@ class FaceitJS {
                 code_verifier: this.codeVerifier,
                 redirect_uri: this.redirectUri
             });
+
+            console.log('[AUTH] Token request data:', data);
 
             const response = await axios({
                 method: 'post',
@@ -163,9 +170,14 @@ class FaceitJS {
                 data: data
             });
 
+            console.log('[AUTH] Token exchange successful');
             return response.data.access_token;
         } catch (error) {
             console.error('[AUTH] Error exchanging code for token:', error.message);
+            if (error.response) {
+                console.error('[AUTH] Response status:', error.response.status);
+                console.error('[AUTH] Response data:', error.response.data);
+            }
             throw error;
         }
     }
@@ -312,7 +324,8 @@ class FaceitJS {
             return response.data;
         } catch (error) {
             console.error(`[CHAT] Error sending message to match ${matchId}:`, error.message);
-            if (error.response?.data) {
+            if (error.response) {
+                console.error('[CHAT] Response status:', error.response.status);
                 console.error('[CHAT] Response data:', error.response.data);
             }
             throw error;
