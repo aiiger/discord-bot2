@@ -70,7 +70,7 @@ try {
     sessionStore = new RedisStore({
         client: redisClient,
         prefix: "faceit-bot:",
-        disableTouch: true
+        disableTouch: false
     });
     console.log('Using Redis session store');
 } catch (err) {
@@ -286,8 +286,8 @@ const sessionConfig = {
     store: sessionStore,
     secret: process.env.SESSION_SECRET,
     name: 'faceit.sid',
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     proxy: true,
     rolling: true,
     cookie: {
