@@ -10,6 +10,8 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
+import Redis from 'ioredis';
+import connectRedis from 'connect-redis';
 
 dotenv.config();
 
@@ -247,12 +249,25 @@ const limiter = rateLimit({
     }
 });
 
+// Redis configuration
+const RedisStore = connectRedis(session);
+const redisClient = new Redis(process.env.REDIS_URL);
+
+redisClient.on('error', (err) => {
+    console.error('Redis error:', err);
+});
+
+redisClient.on('connect', () => {
+    console.log('Connected to Redis successfully');
+});
+
 // Session middleware configuration
 const sessionConfig = {
+    store: new RedisStore({ client: redisClient }),
     secret: process.env.SESSION_SECRET,
     name: 'faceit.sid',
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     proxy: true,
     rolling: true,
     cookie: {
@@ -315,8 +330,10 @@ app.use((req, res) => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
     console.log('SIGTERM received. Starting graceful shutdown...');
-    // Close any open connections or cleanup here
-    process.exit(0);
+    redisClient.quit().then(() => {
+        console.log('Redis connection closed');
+        process.exit(0);
+    });
 });
 
 // Start the server
