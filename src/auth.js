@@ -32,14 +32,22 @@ const logger = {
 
 // FACEIT OAuth2 configuration
 const config = {
-    clientId: process.env.FACEIT_CLIENT_ID,
-    clientSecret: process.env.FACEIT_CLIENT_SECRET,
+    clientId: process.env.CLIENT_ID, // Changed from FACEIT_CLIENT_ID
+    clientSecret: process.env.CLIENT_SECRET, // Changed from FACEIT_CLIENT_SECRET
     redirectUri: process.env.REDIRECT_URI || 'http://localhost:3002/callback',
     authEndpoint: 'https://accounts.faceit.com/auth/v1/oauth/authorize',
     tokenEndpoint: 'https://api.faceit.com/auth/v1/oauth/token',
     userInfoEndpoint: 'https://api.faceit.com/auth/v1/resources/userinfo',
     scope: 'openid profile email membership chat.messages.read chat.messages.send matches.read'
 };
+
+// Add debug logging for environment variables
+logger.debug('OAuth2 Configuration', {
+    hasClientId: !!config.clientId,
+    hasClientSecret: !!config.clientSecret,
+    redirectUri: config.redirectUri,
+    scope: config.scope
+});
 
 // PKCE code verifier generation
 function generateCodeVerifier() {

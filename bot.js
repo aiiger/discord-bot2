@@ -10,9 +10,8 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
-import { createClient } from 'redis';
-import RedisStore from 'connect-redis';
 
+// Load environment variables
 dotenv.config();
 
 // Get directory name in ES module
@@ -28,58 +27,18 @@ app.set('trust proxy', 1);
 const port = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Initialize Redis client
-const redisUrl = new URL(process.env.REDIS_TLS_URL || process.env.REDIS_URL);
-const redisConfig = {
-    username: redisUrl.username || undefined,
-    password: redisUrl.password || undefined,
-    socket: {
-        host: redisUrl.hostname,
-        port: Number(redisUrl.port) || 6379,
-        tls: true,
-        rejectUnauthorized: false,
-        minVersion: 'TLSv1.2',
-        maxVersion: 'TLSv1.3'
-    }
-};
-
-console.log('Initializing Redis with config:', {
-    ...redisConfig,
-    socket: {
-        ...redisConfig.socket,
-        password: '[REDACTED]'
-    }
+// Debug environment variables
+console.log('Environment Configuration:', {
+    NODE_ENV: process.env.NODE_ENV,
+    hasClientId: !!process.env.CLIENT_ID,
+    hasClientSecret: !!process.env.CLIENT_SECRET,
+    redirectUri: process.env.REDIRECT_URI,
+    isProduction
 });
 
-const redisClient = createClient(redisConfig);
-
-redisClient.on('error', function (err) {
-    console.error('Redis Client Error:', err);
-});
-
-redisClient.on('connect', function () {
-    console.log('Connected to Redis successfully');
-});
-
-redisClient.on('reconnecting', function () {
-    console.log('Redis client reconnecting...');
-});
-
-// Try to connect to Redis, fall back to MemoryStore if it fails
-let sessionStore;
-try {
-    await redisClient.connect();
-    sessionStore = new RedisStore({
-        client: redisClient,
-        prefix: "faceit-bot:",
-        disableTouch: false
-    });
-    console.log('Using Redis session store');
-} catch (err) {
-    console.error('Failed to connect to Redis, falling back to MemoryStore:', err);
-    sessionStore = new session.MemoryStore();
-    console.log('Using Memory session store');
-}
+// Initialize session store (use MemoryStore for development)
+const sessionStore = new session.MemoryStore();
+console.log('Using Memory session store for development');
 
 // Force HTTPS in production
 if (isProduction) {
@@ -269,7 +228,7 @@ Example:
     }
 });
 
-// Rate limiting configuration for Heroku
+// Rate limiting configuration
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -349,17 +308,10 @@ app.use((req, res) => {
     });
 });
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-    console.log('SIGTERM received. Starting graceful shutdown...');
-    // Close Redis connection
-    await redisClient.quit();
-    process.exit(0);
-});
-
 // Start the server
 const server = app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
+    console.log(`Visit ${getBaseUrl()} to authenticate the bot`);
 });
 
 export default app;
