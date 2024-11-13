@@ -37,7 +37,10 @@ const redisConfig = {
         host: redisUrl.hostname,
         port: Number(redisUrl.port) || 6379,
         tls: true,
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
+        secureProtocol: 'TLSv1_2_method',
+        minVersion: 'TLSv1.2',
+        maxVersion: 'TLSv1.3'
     }
 };
 
