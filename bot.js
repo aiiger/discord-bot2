@@ -92,8 +92,18 @@ if (isProduction) {
 
 // Set up view engine
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, './views'));
-console.log('Views directory:', path.join(__dirname, './views'));
+const viewsPath = path.join(process.cwd(), 'views');
+app.set('views', viewsPath);
+console.log('Views directory:', viewsPath);
+
+// List files in views directory
+try {
+    const fs = await import('fs');
+    const files = fs.readdirSync(viewsPath);
+    console.log('Files in views directory:', files);
+} catch (err) {
+    console.error('Error listing views directory:', err);
+}
 
 // Get the base URL for the application
 const getBaseUrl = () => {
