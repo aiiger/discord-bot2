@@ -92,7 +92,8 @@ if (isProduction) {
 
 // Set up view engine
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname, './views'));
+console.log('Views directory:', path.join(__dirname, './views'));
 
 // Get the base URL for the application
 const getBaseUrl = () => {
