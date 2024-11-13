@@ -29,17 +29,24 @@ const port = process.env.PORT || 3002;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Initialize Redis client
+const redisUrl = new URL(process.env.REDIS_TLS_URL || process.env.REDIS_URL);
 const redisConfig = {
-    url: process.env.REDIS_URL,
+    username: redisUrl.username || undefined,
+    password: redisUrl.password || undefined,
     socket: {
-        tls: isProduction,
+        host: redisUrl.hostname,
+        port: Number(redisUrl.port) || 6379,
+        tls: true,
         rejectUnauthorized: false
     }
 };
 
 console.log('Initializing Redis with config:', {
     ...redisConfig,
-    url: redisConfig.url ? '[REDACTED]' : undefined
+    socket: {
+        ...redisConfig.socket,
+        password: '[REDACTED]'
+    }
 });
 
 const redisClient = createClient(redisConfig);
