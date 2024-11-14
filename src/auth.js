@@ -1,106 +1,114 @@
+const express = require('express');
+const router = express.Router();
+const { FaceitJS } = require('./FaceitJS');
 const crypto = require('crypto');
-const axios = require('axios');
 
-class Auth {
-    constructor(clientId, clientSecret, redirectUri) {
-        this.clientId = clientId;
-        this.clientSecret = clientSecret;
-        this.redirectUri = redirectUri;
-    }
+const faceitJS = new FaceitJS();
 
-    async generateAuthUrl() {
-        // Generate code verifier
-        const codeVerifier = crypto.randomBytes(32).toString('base64url');
-
-        // Generate code challenge
-        const codeChallenge = crypto
-            .createHash('sha256')
-            .update(codeVerifier)
-            .digest('base64url');
-
-        // Generate state
+router.get('/faceit', async (req, res) => {
+    try {
         const state = crypto.randomBytes(32).toString('hex');
+        const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
 
-        // Construct authorization URL
-        const params = new URLSearchParams({
-            response_type: 'code',
-            client_id: this.clientId,
-            redirect_uri: this.redirectUri,
-            scope: 'openid profile chat.messages.read chat.messages.write chat.rooms.read',
-            state: state,
-            code_challenge: codeChallenge,
-            code_challenge_method: 'S256',
-            redirect_popup: 'true'  // Added this parameter
+        console.log(`[AUTH] Generated state: ${state}`);
+        console.log(`[AUTH] Session ID: ${req.session.id}`);
+        console.log(`[AUTH] Code verifier length: ${codeVerifier.length}`);
+        console.log('[AUTH] Cookies:', JSON.stringify(req.cookies, null, 2));
+
+        // Store state and code verifier in session
+        req.session.oauthState = state;
+        req.session.codeVerifier = codeVerifier;
+
+        // Ensure session is saved before redirect
+        req.session.save((err) => {
+            if (err) {
+                console.error('[AUTH] Failed to save session:', err);
+                return res.status(500).render('error', {
+                    message: 'Internal Server Error',
+                    error: 'Failed to save session'
+                });
+            }
+
+            console.log('[AUTH] Session saved successfully');
+            console.log('[AUTH] Redirecting to:', url);
+            res.redirect(url);
         });
-
-        const url = `https://accounts.faceit.com/oauth/authorize?${params}`;
-
-        return {
-            url,
-            state,
-            codeVerifier
-        };
+    } catch (error) {
+        console.error('[AUTH] Error in auth route:', error);
+        res.status(500).render('error', {
+            message: 'Internal Server Error',
+            error: error.message
+        });
     }
+});
 
-    async exchangeCode(code, codeVerifier) {
-        try {
-            const params = new URLSearchParams({
-                grant_type: 'authorization_code',
-                code: code,
-                client_id: this.clientId,
-                client_secret: this.clientSecret,
-                redirect_uri: this.redirectUri,
-                code_verifier: codeVerifier
+router.get('/callback', async (req, res) => {
+    console.log('[CALLBACK] Received callback request');
+    console.log('[CALLBACK] Session ID:', req.session.id);
+    console.log('[CALLBACK] Query params:', req.query);
+    console.log('[CALLBACK] Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('[CALLBACK] Cookies:', JSON.stringify(req.cookies, null, 2));
+
+    const { code, state } = req.query;
+
+    try {
+        console.log('[CALLBACK] Stored state:', req.session.oauthState);
+        console.log('[CALLBACK] Received state:', state);
+
+        // Verify state parameter
+        if (!state || state !== req.session.oauthState) {
+            console.error('[CALLBACK] State mismatch');
+            console.error('[CALLBACK] Session state:', req.session.oauthState);
+            console.error('[CALLBACK] Received state:', state);
+            return res.status(400).render('error', {
+                message: 'Invalid State',
+                error: 'State parameter mismatch. Please try logging in again.'
             });
-
-            const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token',
-                params.toString(),
-                {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    }
-                }
-            );
-
-            return response.data;
-        } catch (error) {
-            console.error('Error exchanging code for token:', error);
-            if (error.response) {
-                console.error('Response status:', error.response.status);
-                console.error('Response data:', error.response.data);
-            }
-            throw error;
         }
-    }
 
-    async refreshToken(refreshToken) {
-        try {
-            const params = new URLSearchParams({
-                grant_type: 'refresh_token',
-                refresh_token: refreshToken,
-                client_id: this.clientId,
-                client_secret: this.clientSecret
-            });
+        console.log('[CALLBACK] State verified successfully');
+        console.log('[CALLBACK] Code verifier:', req.session.codeVerifier);
 
-            const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token',
-                params.toString(),
-                {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    }
-                }
-            );
+        // Exchange the authorization code for tokens
+        const tokens = await faceitJS.exchangeCodeForToken(code, req.session.codeVerifier);
 
-            return response.data;
-        } catch (error) {
-            console.error('Error refreshing token:', error);
-            if (error.response) {
-                console.error('Response status:', error.response.status);
-                console.error('Response data:', error.response.data);
-            }
-            throw error;
+        console.log('[CALLBACK] Token exchange successful');
+
+        // Store tokens in session
+        req.session.accessToken = tokens.access_token;
+        req.session.refreshToken = tokens.refresh_token;
+
+        // Set the access token in FaceitJS instance
+        faceitJS.setAccessToken(tokens.access_token);
+
+        // Start match state polling after successful authentication
+        if (!faceitJS.pollingInterval) {
+            faceitJS.startPolling();
+            console.log('[CALLBACK] Started FACEIT match state polling');
         }
-    }
-}
 
-module.exports = Auth;
+        // Ensure session is saved before sending response
+        req.session.save((err) => {
+            if (err) {
+                console.error('[CALLBACK] Failed to save session with tokens:', err);
+                return res.status(500).render('error', {
+                    message: 'Internal Server Error',
+                    error: 'Failed to save session'
+                });
+            }
+
+            console.log('[CALLBACK] Session saved successfully');
+            console.log('[CALLBACK] Redirecting to dashboard');
+            res.redirect('/dashboard');
+        });
+    } catch (error) {
+        console.error('[CALLBACK] Error during OAuth callback:', error.message);
+        console.error('[CALLBACK] Full error:', error);
+        res.status(500).render('error', {
+            message: 'Authentication Failed',
+            error: error.message
+        });
+    }
+});
+
+module.exports = router;
