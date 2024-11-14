@@ -42,12 +42,13 @@ const patterns = {
     CLIENT_SECRET: /^.{30,50}$/,
     REDIRECT_URI: redirectUriPattern,
     HUB_ID: /^[\w-]{36}$/,
-    FACEIT_API_KEY: /^[\w-]{36}$/
+    FACEIT_API_KEY: /^[\w-]{36}$/,
+    DISCORD_TOKEN: /.+/ // Accept any non-empty string for Discord token
 };
 
 requiredEnvVars.forEach(varName => {
     const value = process.env[varName];
-    if (!value || !patterns[varName]?.test(value)) {
+    if (!value || (patterns[varName] && !patterns[varName].test(value))) {
         console.error(`Invalid or missing environment variable: ${varName}`);
         process.exit(1);
     }
