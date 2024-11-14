@@ -109,9 +109,9 @@ app.use(cookieParser(process.env.SESSION_SECRET));
 const sessionConfig = {
     store: redisStore,
     secret: process.env.SESSION_SECRET,
-    name: 'faceit_session',
-    resave: true,
-    saveUninitialized: true,
+    name: 'faceit.session',
+    resave: false,
+    saveUninitialized: false,
     rolling: true,
     proxy: true,
     cookie: {
@@ -143,12 +143,16 @@ app.use((req, res, next) => {
     }
 
     console.log(`${req.method} ${req.path} - IP: ${req.ip}`);
-    console.log('Headers:', req.headers);
-    console.log('Cookies:', req.cookies);
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Cookies:', JSON.stringify(req.cookies, null, 2));
+    console.log('Signed Cookies:', JSON.stringify(req.signedCookies, null, 2));
     next();
 });
 
+// Apply session middleware before route handlers
 app.use(session(sessionConfig));
+
+// Parse JSON and URL-encoded bodies
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -166,7 +170,8 @@ const matchStates = new Map(); // matchId -> match state
 app.get('/', (req, res) => {
     console.log('[HOME] Session ID:', req.session.id);
     console.log('[HOME] Access Token:', !!req.session.accessToken);
-    console.log('[HOME] Cookies:', req.cookies);
+    console.log('[HOME] Cookies:', JSON.stringify(req.cookies, null, 2));
+    console.log('[HOME] Signed Cookies:', JSON.stringify(req.signedCookies, null, 2));
     res.render('login', { authenticated: !!req.session.accessToken });
 });
 
@@ -179,7 +184,8 @@ app.get('/auth/faceit', async (req, res) => {
         console.log(`[AUTH] Generated state: ${state}`);
         console.log(`[AUTH] Session ID: ${req.session.id}`);
         console.log(`[AUTH] Code verifier length: ${codeVerifier.length}`);
-        console.log('[AUTH] Cookies:', req.cookies);
+        console.log('[AUTH] Cookies:', JSON.stringify(req.cookies, null, 2));
+        console.log('[AUTH] Signed Cookies:', JSON.stringify(req.signedCookies, null, 2));
 
         // Store state and code verifier in session
         req.session.oauthState = state;
@@ -213,8 +219,9 @@ app.get('/callback', async (req, res) => {
     console.log('[CALLBACK] Received callback request');
     console.log('[CALLBACK] Session ID:', req.session.id);
     console.log('[CALLBACK] Query params:', req.query);
-    console.log('[CALLBACK] Headers:', req.headers);
-    console.log('[CALLBACK] Cookies:', req.cookies);
+    console.log('[CALLBACK] Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('[CALLBACK] Cookies:', JSON.stringify(req.cookies, null, 2));
+    console.log('[CALLBACK] Signed Cookies:', JSON.stringify(req.signedCookies, null, 2));
 
     const { code, state } = req.query;
 
@@ -282,8 +289,9 @@ app.get('/callback', async (req, res) => {
 app.get('/dashboard', (req, res) => {
     console.log('[DASHBOARD] Session ID:', req.session.id);
     console.log('[DASHBOARD] Access Token:', !!req.session.accessToken);
-    console.log('[DASHBOARD] Headers:', req.headers);
-    console.log('[DASHBOARD] Cookies:', req.cookies);
+    console.log('[DASHBOARD] Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('[DASHBOARD] Cookies:', JSON.stringify(req.cookies, null, 2));
+    console.log('[DASHBOARD] Signed Cookies:', JSON.stringify(req.signedCookies, null, 2));
 
     if (!req.session.accessToken) {
         console.log('[DASHBOARD] No access token, redirecting to login');

@@ -1,130 +1,84 @@
 const axios = require('axios');
-const dotenv = require('dotenv');
 const crypto = require('crypto');
+const base64url = require('base64url');
 const EventEmitter = require('events');
 
-dotenv.config();
-
 class FaceitJS extends EventEmitter {
-    constructor(app) {
-        super();  // Initialize EventEmitter
-        this.serverApiKey = process.env.FACEIT_API_KEY;
+    constructor() {
+        super();
+        console.log('[FACEIT] Client ID loaded successfully');
         this.clientId = process.env.CLIENT_ID;
         this.clientSecret = process.env.CLIENT_SECRET;
-        this.hubId = process.env.HUB_ID;
         this.redirectUri = process.env.REDIRECT_URI;
-        this.pollingInterval = null;
-        this.accessToken = null;
-
-        // Try to load saved token from environment variable
-        if (process.env.FACEIT_ACCESS_TOKEN) {
-            this.setAccessToken(process.env.FACEIT_ACCESS_TOKEN);
-            console.log('[FACEIT] Loaded access token from environment');
-        }
-
-        if (!this.clientId) {
-            console.error('[FACEIT] Client ID not found in environment variables');
-        } else {
-            console.log('[FACEIT] Client ID loaded successfully');
-        }
-
+        this.hubId = process.env.HUB_ID;
         console.log('[FACEIT] Initializing with Hub ID:', this.hubId);
-        this.setupAxiosInstances();
-    }
-
-    setupAxiosInstances() {
+        this.accessToken = null;
+        this.pollingInterval = null;
+        this.lastMatchStates = new Map();
         console.log('[FACEIT] Setting up API instances');
 
-        // Create axios instance for Data API requests
-        this.api = axios.create({
-            baseURL: 'https://open.faceit.com/data/v4',
+        // Create axios instances
+        this.authApi = axios.create({
+            baseURL: 'https://api.faceit.com/auth/v1',
             headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.serverApiKey}`
-            }
-        });
-
-        // Create axios instance for Chat API requests
-        this.chatApi = axios.create({
-            baseURL: 'https://open.faceit.com/chat/v1',
-            headers: {
-                'Accept': 'application/json',
                 'Content-Type': 'application/json'
             }
         });
 
-        // Add response interceptor for error handling
-        const errorHandler = error => {
-            console.error('[FACEIT] API Error:', error.message);
-            if (error.response) {
-                console.error('[FACEIT] Response status:', error.response.status);
-                console.error('[FACEIT] Response data:', error.response.data);
+        this.mainApi = axios.create({
+            baseURL: 'https://api.faceit.com',
+            headers: {
+                'Content-Type': 'application/json'
             }
-            throw error;
-        };
-
-        this.api.interceptors.response.use(response => response, errorHandler);
-        this.chatApi.interceptors.response.use(response => response, errorHandler);
+        });
     }
 
     setAccessToken(token) {
-        console.log('[FACEIT] Setting access token');
         this.accessToken = token;
-        // Update chat API headers with the new access token
-        this.chatApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        this.mainApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
 
-        // Update environment variable
-        process.env.FACEIT_ACCESS_TOKEN = token;
+    async generateCodeVerifier() {
+        const verifier = base64url(crypto.randomBytes(32));
+        return verifier;
+    }
+
+    async generateCodeChallenge(verifier) {
+        const hash = crypto.createHash('sha256');
+        hash.update(verifier);
+        return base64url(hash.digest());
     }
 
     async getAuthorizationUrl(state) {
-        try {
-            // Generate code verifier
-            const codeVerifier = crypto.randomBytes(32).toString('base64url');
+        const codeVerifier = await this.generateCodeVerifier();
+        const codeChallenge = await this.generateCodeChallenge(codeVerifier);
 
-            // Generate code challenge
-            const codeChallenge = crypto
-                .createHash('sha256')
-                .update(codeVerifier)
-                .digest('base64url');
+        console.log('[AUTH] Code verifier:', codeVerifier);
+        console.log('[AUTH] Code challenge:', codeChallenge);
+        console.log('[AUTH] Redirect URI:', this.redirectUri);
 
-            console.log('[AUTH] Code verifier:', codeVerifier);
-            console.log('[AUTH] Code challenge:', codeChallenge);
-            console.log('[AUTH] Redirect URI:', this.redirectUri);
+        const params = new URLSearchParams({
+            response_type: 'code',
+            client_id: this.clientId,
+            redirect_uri: this.redirectUri,
+            scope: 'openid profile',  // Removed chat scopes as they seem to be invalid
+            state: state,
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256'
+        });
 
-            // Construct authorization URL
-            const params = new URLSearchParams({
-                response_type: 'code',
-                client_id: this.clientId,
-                redirect_uri: this.redirectUri,
-                scope: 'openid profile chat.messages.read chat.messages.write chat.rooms.read',
-                state: state,
-                code_challenge: codeChallenge,
-                code_challenge_method: 'S256'
-            });
+        const url = `https://accounts.faceit.com/oauth/authorize?${params}`;
+        console.log('[AUTH] Authorization URL:', url);
 
-            const url = `https://accounts.faceit.com/oauth/authorize?${params}`;
-            console.log('[AUTH] Authorization URL:', url);
-
-            return {
-                url,
-                codeVerifier
-            };
-        } catch (error) {
-            console.error('[AUTH] Error generating authorization URL:', error);
-            throw error;
-        }
+        return {
+            url,
+            codeVerifier
+        };
     }
 
     async exchangeCodeForToken(code, codeVerifier) {
         try {
-            console.log('[AUTH] Exchanging code for token');
-            console.log('[AUTH] Code:', code);
-            console.log('[AUTH] Code Verifier:', codeVerifier);
-            console.log('[AUTH] Redirect URI:', this.redirectUri);
-
-            const params = new URLSearchParams({
+            const response = await this.authApi.post('/oauth/token', {
                 grant_type: 'authorization_code',
                 code: code,
                 client_id: this.clientId,
@@ -133,176 +87,108 @@ class FaceitJS extends EventEmitter {
                 code_verifier: codeVerifier
             });
 
-            console.log('[AUTH] Token request parameters:', params.toString());
-
-            const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token',
-                params.toString(),
-                {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    }
-                }
-            );
-
-            console.log('[AUTH] Token exchange successful');
-            console.log('[AUTH] Response:', response.data);
-
-            // Set the access token for future chat API requests
-            this.setAccessToken(response.data.access_token);
-
             return response.data;
         } catch (error) {
-            console.error('[AUTH] Error exchanging code for token:', error);
-            if (error.response) {
-                console.error('[AUTH] Response status:', error.response.status);
-                console.error('[AUTH] Response data:', error.response.data);
-            }
+            console.error('[AUTH] Token exchange error:', error.response?.data || error.message);
             throw error;
         }
     }
 
-    async getHubMatches(hubId, type = '') {
+    async refreshAccessToken(refreshToken) {
         try {
-            console.log('[MATCHES] Fetching active matches');
-            console.log('[MATCHES] Using Hub ID:', hubId);
-
-            let params = new URLSearchParams({
-                offset: '0',
-                limit: '20'
+            const response = await this.authApi.post('/oauth/token', {
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken,
+                client_id: this.clientId,
+                client_secret: this.clientSecret
             });
 
-            if (type) {
-                params.append('type', type);
-            }
-
-            const response = await this.api.get(`/hubs/${hubId}/matches?${params}`);
-            const matches = response.data.items || [];
-
-            console.log(`[MATCHES] Retrieved ${matches.length} matches`);
-
-            // Log each match's details
-            matches.forEach(match => {
-                const status = match.status || match.state;
-                console.log(`[MATCH ${match.match_id}] Status: ${status}, Teams: ${match.teams?.faction1?.name || 'TBD'} vs ${match.teams?.faction2?.name || 'TBD'}`);
-            });
-
-            return matches;
+            this.setAccessToken(response.data.access_token);
+            return response.data;
         } catch (error) {
-            console.error('[MATCHES] Error fetching matches:', error.message);
-            if (error.response?.data) {
-                console.error('[MATCHES] Response data:', error.response.data);
-            }
+            console.error('[AUTH] Token refresh error:', error.response?.data || error.message);
+            throw error;
+        }
+    }
+
+    async getHubMatches(hubId, type = 'ongoing') {
+        try {
+            const response = await this.mainApi.get(`/hubs/v1/hub/${hubId}/matches`, {
+                params: { type }
+            });
+            return response.data.items;
+        } catch (error) {
+            console.error('[API] Get hub matches error:', error.response?.data || error.message);
             throw error;
         }
     }
 
     async getMatchDetails(matchId) {
         try {
-            const response = await this.api.get(`/matches/${matchId}`);
+            const response = await this.mainApi.get(`/match/v2/match/${matchId}`);
             return response.data;
         } catch (error) {
-            console.error(`[MATCH] Error getting match details for ${matchId}:`, error.message);
+            console.error('[API] Get match details error:', error.response?.data || error.message);
             throw error;
         }
     }
 
     async sendRoomMessage(matchId, message) {
         try {
-            if (!this.accessToken) {
-                console.error('[CHAT] No access token available');
-                return;
-            }
-
-            console.log(`[CHAT] Sending message to match ${matchId}`);
-
-            // Get match details
-            const matchResponse = await this.api.get(`/matches/${matchId}`);
-            const match = matchResponse.data;
-            console.log(`[CHAT] Got match details for ${matchId}`);
-
-            // Try to get the chat room ID from match details
-            const roomId = match.chat_room_id || `match-${matchId}`;
-            console.log(`[CHAT] Using room ID: ${roomId}`);
-
-            // First try to get room details to verify access
-            try {
-                const roomResponse = await this.chatApi.get(`/rooms/${roomId}`);
-                console.log(`[CHAT] Got room details:`, roomResponse.data);
-            } catch (error) {
-                console.log(`[CHAT] Could not get room details:`, error.message);
-                // If we can't get room details, try to refresh the token
-                if (error.response?.status === 401) {
-                    console.log('[CHAT] Token might be expired, skipping message');
-                    return;
-                }
-            }
-
-            // Send message using user's access token
-            const response = await this.chatApi.post(`/rooms/${roomId}/messages`, {
-                body: message.replace(/^"|"$/g, '') // Remove any surrounding quotes
+            const response = await this.mainApi.post(`/match/v1/match/${matchId}/chat`, {
+                message
             });
-
-            console.log(`[CHAT] Message sent successfully to match ${matchId}`);
             return { success: true, data: response.data };
         } catch (error) {
-            console.error(`[CHAT] Error sending message to match ${matchId}:`, error.message);
-            if (error.response?.data) {
-                console.error('[CHAT] Response data:', error.response.data);
-            }
-            // Don't throw the error, just log it
-            return { success: false, error: error.message };
-        }
-    }
-
-    async rehostMatch(matchId) {
-        try {
-            const response = await this.api.post(`/matches/${matchId}/rehost`);
-            return response.data;
-        } catch (error) {
-            console.error(`[REHOST] Error rehosting match ${matchId}:`, error.message);
-            throw error;
+            console.error('[API] Send room message error:', error.response?.data || error.message);
+            return { success: false, error: error.response?.data || error.message };
         }
     }
 
     async cancelMatch(matchId) {
         try {
-            const response = await this.api.post(`/matches/${matchId}/cancel`);
-            return response.data;
+            const response = await this.mainApi.delete(`/match/v1/match/${matchId}`);
+            return { success: true, data: response.data };
         } catch (error) {
-            console.error(`[CANCEL] Error cancelling match ${matchId}:`, error.message);
-            throw error;
+            console.error('[API] Cancel match error:', error.response?.data || error.message);
+            return { success: false, error: error.response?.data || error.message };
+        }
+    }
+
+    async rehostMatch(matchId) {
+        try {
+            const response = await this.mainApi.post(`/match/v1/match/${matchId}/rehost`);
+            return { success: true, data: response.data };
+        } catch (error) {
+            console.error('[API] Rehost match error:', error.response?.data || error.message);
+            return { success: false, error: error.response?.data || error.message };
         }
     }
 
     startPolling() {
-        if (!this.accessToken) {
-            console.error('[POLLING] Cannot start polling without access token');
+        if (this.pollingInterval) {
+            console.log('[POLLING] Polling already active');
             return;
         }
 
         console.log('[POLLING] Starting match state polling');
-        let lastStates = new Map();
-
         this.pollingInterval = setInterval(async () => {
             try {
                 const matches = await this.getHubMatches(this.hubId);
-                matches.forEach(match => {
-                    const currentState = match.status || match.state;
-                    const lastState = lastStates.get(match.match_id);
 
-                    if (lastState && lastState !== currentState) {
+                for (const match of matches) {
+                    const previousState = this.lastMatchStates.get(match.match_id);
+                    if (previousState && previousState !== match.state) {
                         this.emit('matchStateChange', {
                             id: match.match_id,
-                            state: currentState,
-                            previousState: lastState,
-                            match: match
+                            state: match.state,
+                            previousState
                         });
                     }
-
-                    lastStates.set(match.match_id, currentState);
-                });
+                    this.lastMatchStates.set(match.match_id, match.state);
+                }
             } catch (error) {
-                console.error('[POLLING] Error during polling:', error);
+                console.error('[POLLING] Error polling match states:', error);
             }
         }, 30000); // Poll every 30 seconds
     }
