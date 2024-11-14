@@ -11,6 +11,7 @@ class FaceitJS extends EventEmitter {
         this.clientSecret = process.env.CLIENT_SECRET;
         this.redirectUri = process.env.REDIRECT_URI;
         this.hubId = process.env.HUB_ID;
+        this.apiKey = process.env.FACEIT_API_KEY;
         console.log('[FACEIT] Initializing with Hub ID:', this.hubId);
         this.accessToken = null;
         this.pollingInterval = null;
@@ -25,17 +26,27 @@ class FaceitJS extends EventEmitter {
             }
         });
 
+        // Create axios instance for FACEIT API
         this.mainApi = axios.create({
-            baseURL: 'https://api.faceit.com',
+            baseURL: 'https://open.faceit.com/data/v4',
             headers: {
+                'Accept': 'application/json',
                 'Content-Type': 'application/json'
             }
+        });
+
+        // Add request interceptor to include API key
+        this.mainApi.interceptors.request.use((config) => {
+            config.headers = {
+                ...config.headers,
+                'Authorization': `Bearer ${this.apiKey}`
+            };
+            return config;
         });
     }
 
     setAccessToken(token) {
         this.accessToken = token;
-        this.mainApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
 
     async generateCodeVerifier() {
@@ -57,11 +68,20 @@ class FaceitJS extends EventEmitter {
         console.log('[AUTH] Code challenge:', codeChallenge);
         console.log('[AUTH] Redirect URI:', this.redirectUri);
 
+        // Define the required scopes
+        const scopes = [
+            'openid',
+            'profile',
+            'chat.messages.read',
+            'chat.messages.write',
+            'chat.rooms.read'
+        ].join(' ');
+
         const params = new URLSearchParams({
             response_type: 'code',
             client_id: this.clientId,
             redirect_uri: this.redirectUri,
-            scope: 'openid profile',  // Removed chat scopes as they seem to be invalid
+            scope: scopes,
             state: state,
             code_challenge: codeChallenge,
             code_challenge_method: 'S256'
@@ -69,6 +89,7 @@ class FaceitJS extends EventEmitter {
 
         const url = `https://accounts.faceit.com/oauth/authorize?${params}`;
         console.log('[AUTH] Authorization URL:', url);
+        console.log('[AUTH] Using scopes:', scopes);
 
         return {
             url,
@@ -113,9 +134,18 @@ class FaceitJS extends EventEmitter {
 
     async getHubMatches(hubId, type = 'ongoing') {
         try {
-            const response = await this.mainApi.get(`/hubs/v1/hub/${hubId}/matches`, {
-                params: { type }
+            console.log('[API] Making request with API Key:', this.apiKey);
+            const response = await axios({
+                method: 'get',
+                url: `https://open.faceit.com/data/v4/hubs/${hubId}/matches`,
+                params: { type },
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
             });
+            console.log('[API] Response:', response.data);
             return response.data.items;
         } catch (error) {
             console.error('[API] Get hub matches error:', error.response?.data || error.message);
@@ -125,7 +155,15 @@ class FaceitJS extends EventEmitter {
 
     async getMatchDetails(matchId) {
         try {
-            const response = await this.mainApi.get(`/match/v2/match/${matchId}`);
+            const response = await axios({
+                method: 'get',
+                url: `https://open.faceit.com/data/v4/matches/${matchId}`,
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
             return response.data;
         } catch (error) {
             console.error('[API] Get match details error:', error.response?.data || error.message);
@@ -134,20 +172,43 @@ class FaceitJS extends EventEmitter {
     }
 
     async sendRoomMessage(matchId, message) {
+        if (!this.accessToken) {
+            console.error('[CHAT] No access token available for sending messages');
+            return { success: false, error: 'No access token available' };
+        }
+
         try {
-            const response = await this.mainApi.post(`/match/v1/match/${matchId}/chat`, {
-                message
+            const roomId = `match-${matchId}`;
+            console.log(`[CHAT] Sending message to room ${roomId}`);
+            const response = await axios({
+                method: 'post',
+                url: `https://api.faceit.com/chat/v1/rooms/${roomId}/messages`,
+                data: { message },
+                headers: {
+                    'Authorization': `Bearer ${this.accessToken}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
             });
+            console.log(`[CHAT] Message sent successfully to room ${roomId}`);
             return { success: true, data: response.data };
         } catch (error) {
-            console.error('[API] Send room message error:', error.response?.data || error.message);
+            console.error('[CHAT] Send room message error:', error.response?.data || error.message);
             return { success: false, error: error.response?.data || error.message };
         }
     }
 
     async cancelMatch(matchId) {
         try {
-            const response = await this.mainApi.delete(`/match/v1/match/${matchId}`);
+            const response = await axios({
+                method: 'delete',
+                url: `https://api.faceit.com/match/v1/match/${matchId}`,
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
             return { success: true, data: response.data };
         } catch (error) {
             console.error('[API] Cancel match error:', error.response?.data || error.message);
@@ -157,7 +218,15 @@ class FaceitJS extends EventEmitter {
 
     async rehostMatch(matchId) {
         try {
-            const response = await this.mainApi.post(`/match/v1/match/${matchId}/rehost`);
+            const response = await axios({
+                method: 'post',
+                url: `https://api.faceit.com/match/v1/match/${matchId}/rehost`,
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
             return { success: true, data: response.data };
         } catch (error) {
             console.error('[API] Rehost match error:', error.response?.data || error.message);
@@ -182,7 +251,8 @@ class FaceitJS extends EventEmitter {
                         this.emit('matchStateChange', {
                             id: match.match_id,
                             state: match.state,
-                            previousState
+                            previousState,
+                            chat_room_id: match.chat_room_id
                         });
                     }
                     this.lastMatchStates.set(match.match_id, match.state);
