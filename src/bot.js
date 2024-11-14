@@ -229,19 +229,31 @@ app.get('/dashboard', (req, res) => {
 // Handle match state changes
 faceitJS.on('matchStateChange', async (match) => {
     try {
-        console.log(`Match ${match.id} state changed to ${match.state}`);
+        console.log(`[MATCH STATE] Match ${match.id} state changed to ${match.state}`);
+        console.log(`[MATCH STATE] Previous state: ${match.previousState}`);
+        console.log(`[MATCH STATE] Access token available: ${!!faceitJS.accessToken}`);
+
         matchStates.set(match.id, match.state);
 
         // Get match details including chat room info
+        console.log(`[MATCH STATE] Getting match details for ${match.id}`);
         const matchDetails = await faceitJS.getMatchDetails(match.id);
+        console.log(`[MATCH STATE] Got match details for ${match.id}`);
 
         // Send greeting when match starts
         if (match.state === 'READY') {
+            console.log(`[MATCH STATE] Match ${match.id} is READY, preparing greeting`);
             const players = matchDetails.teams.faction1.roster.concat(matchDetails.teams.faction2.roster);
             const playerNames = players.map(p => p.nickname).join(', ');
             const greeting = `Welcome to the match, ${playerNames}! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.`;
-            await faceitJS.sendRoomMessage(match.id, greeting);
-            console.log(`Sent greeting message for match ${match.id}`);
+
+            console.log(`[MATCH STATE] Sending greeting to match ${match.id}`);
+            const result = await faceitJS.sendRoomMessage(match.id, greeting);
+            if (result.success) {
+                console.log(`[MATCH STATE] Greeting sent successfully to match ${match.id}`);
+            } else {
+                console.error(`[MATCH STATE] Failed to send greeting to match ${match.id}:`, result.error);
+            }
         }
 
         // Send other notifications based on state
@@ -263,11 +275,23 @@ faceitJS.on('matchStateChange', async (match) => {
         }
 
         if (notification) {
-            await faceitJS.sendRoomMessage(match.id, notification);
-            console.log(`Sent state change notification for match ${match.id}: ${notification}`);
+            console.log(`[MATCH STATE] Sending notification for match ${match.id}: ${notification}`);
+            const result = await faceitJS.sendRoomMessage(match.id, notification);
+            if (result.success) {
+                console.log(`[MATCH STATE] Notification sent successfully to match ${match.id}`);
+            } else {
+                console.error(`[MATCH STATE] Failed to send notification to match ${match.id}:`, result.error);
+            }
         }
     } catch (error) {
-        console.error('Error handling match state change:', error);
+        console.error('[MATCH STATE] Detailed error in match state change handler:', {
+            matchId: match.id,
+            state: match.state,
+            previousState: match.previousState,
+            error: error.message,
+            stack: error.stack,
+            hasAccessToken: !!faceitJS.accessToken
+        });
     }
 });
 
