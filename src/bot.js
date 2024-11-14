@@ -1,6 +1,8 @@
 // FACEIT OAuth2 Bot with PKCE Support
 const express = require('express');
 const session = require('express-session');
+const Redis = require('ioredis');
+const RedisStore = require('connect-redis').default;
 const { FaceitJS } = require('./FaceitJS.js');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
@@ -8,6 +10,29 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const cors = require('cors');
 
 dotenv.config();
+
+// Initialize Redis client
+let redisClient;
+if (process.env.REDIS_URL) {
+    console.log('[REDIS] Connecting to Redis using REDIS_URL');
+    redisClient = new Redis(process.env.REDIS_URL, {
+        tls: {
+            rejectUnauthorized: false
+        }
+    });
+} else {
+    console.log('[REDIS] Connecting to local Redis');
+    redisClient = new Redis();
+}
+
+redisClient.on('error', (err) => console.log('[REDIS] Error:', err));
+redisClient.on('connect', () => console.log('[REDIS] Connected successfully'));
+
+// Create Redis store
+const redisStore = new RedisStore({
+    client: redisClient,
+    prefix: 'faceit:',
+});
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -94,10 +119,11 @@ app.use(cors({
 
 // Session middleware configuration
 const sessionConfig = {
+    store: redisStore,
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     rolling: true,
     cookie: {
         secure: isProduction,
@@ -466,6 +492,13 @@ process.on('unhandledRejection', (error) => {
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
     console.error('Uncaught exception:', error);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received. Cleaning up...');
+    redisClient.quit();
+    process.exit(0);
 });
 
 // Login to Discord
