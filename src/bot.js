@@ -5,6 +5,7 @@ const { FaceitJS } = require('./FaceitJS.js');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
 const { Client, GatewayIntentBits } = require('discord.js');
+const cors = require('cors');
 
 dotenv.config();
 
@@ -67,6 +68,19 @@ const faceitJS = new FaceitJS();
 // Force production mode for Heroku
 const isProduction = process.env.NODE_ENV === 'production';
 
+// CORS configuration
+const corsOptions = {
+    origin: [
+        'https://accounts.faceit.com',
+        'https://api.faceit.com',
+        'https://open.faceit.com',
+        process.env.REDIRECT_URI
+    ],
+    credentials: true,
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 // Session middleware configuration
 const sessionConfig = {
     secret: process.env.SESSION_SECRET,
@@ -78,7 +92,7 @@ const sessionConfig = {
         secure: isProduction,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax'
+        sameSite: 'none'  // Changed from 'lax' to 'none' for cross-origin
     }
 };
 
@@ -94,6 +108,9 @@ app.use((req, res, next) => {
     console.log(`${req.method} ${req.path} - IP: ${req.ip}`);
     next();
 });
+
+// Apply CORS before other middleware
+app.use(cors(corsOptions));
 
 app.use(session(sessionConfig));
 app.use(express.json());
