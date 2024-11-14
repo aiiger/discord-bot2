@@ -89,7 +89,7 @@ class FaceitJS extends EventEmitter {
                 response_type: 'code',
                 client_id: this.clientId,
                 redirect_uri: this.redirectUri,
-                scope: 'openid profile chat',  // Simplified scopes
+                scope: 'openid profile chat.messages.read chat.messages.write chat.rooms.read',
                 state: state,
                 code_challenge: codeChallenge,
                 code_challenge_method: 'S256'
