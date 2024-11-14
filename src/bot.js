@@ -69,17 +69,28 @@ const faceitJS = new FaceitJS();
 const isProduction = process.env.NODE_ENV === 'production';
 
 // CORS configuration
-const corsOptions = {
-    origin: [
-        'https://accounts.faceit.com',
-        'https://api.faceit.com',
-        'https://open.faceit.com',
-        process.env.REDIRECT_URI
-    ],
+app.use(cors({
+    origin: function (origin, callback) {
+        const allowedOrigins = [
+            'https://accounts.faceit.com',
+            'https://api.faceit.com',
+            'https://open.faceit.com',
+            process.env.REDIRECT_URI
+        ];
+
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
     credentials: true,
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-};
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
 // Session middleware configuration
 const sessionConfig = {
@@ -92,7 +103,7 @@ const sessionConfig = {
         secure: isProduction,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'none'  // Changed from 'lax' to 'none' for cross-origin
+        sameSite: 'none'
     }
 };
 
@@ -105,12 +116,20 @@ if (isProduction) {
 
 // Apply middleware
 app.use((req, res, next) => {
+    // Add CORS headers for all responses
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Origin', req.headers.origin);
+    res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+
     console.log(`${req.method} ${req.path} - IP: ${req.ip}`);
     next();
 });
-
-// Apply CORS before other middleware
-app.use(cors(corsOptions));
 
 app.use(session(sessionConfig));
 app.use(express.json());
@@ -175,6 +194,7 @@ app.get('/callback', async (req, res) => {
     console.log('[CALLBACK] Received callback request');
     console.log('[CALLBACK] Session ID:', req.session.id);
     console.log('[CALLBACK] Query params:', req.query);
+    console.log('[CALLBACK] Headers:', req.headers);
 
     const { code, state } = req.query;
 
