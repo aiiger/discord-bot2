@@ -7,7 +7,7 @@ const { FaceitJS } = require('./FaceitJS.js');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
 const { Client, GatewayIntentBits } = require('discord.js');
-const cors = require('cors');
+// const cors = require('cors'); // Temporarily disable CORS for testing
 
 dotenv.config();
 
@@ -83,28 +83,24 @@ async function ensureValidAccessToken() {
 }
 
 // Middleware and session setup
-app.use(cors({
-    origin: (origin, callback) => {
-        const allowedOrigins = [
-            'https://accounts.faceit.com',
-            'https://api.faceit.com',
-            'https://open.faceit.com',
-            process.env.REDIRECT_URI
-        ];
-        if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-        callback(new Error('CORS policy does not allow this origin'), false);
-    },
-    credentials: true
-}));
+// app.use(cors()); // Disable CORS for testing
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Adjust session settings
 app.use(session({
     store: redisStore,
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === 'production', httpOnly: true, maxAge: 86400000, sameSite: 'none' }
+    saveUninitialized: true, // Set to true to ensure sessions are saved
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // Ensure secure cookies in production
+        httpOnly: true,
+        maxAge: 86400000,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // Adjust sameSite based on environment
+    }
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
 app.set('view engine', 'ejs');
 
 // Initialize Discord client
@@ -127,13 +123,10 @@ app.get('/auth/faceit', async (req, res) => {
         req.session.oauthState = state;
         req.session.codeVerifier = codeVerifier;
 
-        req.session.save(err => {
-            if (err) {
-                console.error('[AUTH] Failed to save session:', err);
-                return res.status(500).render('error', { message: 'Internal Server Error' });
-            }
-            res.redirect(url);
-        });
+        console.log('[AUTH] Generated state:', state);
+        console.log('[AUTH] Generated codeVerifier:', codeVerifier);
+
+        res.redirect(url);
     } catch (error) {
         console.error('[AUTH] Error:', error);
         res.status(500).render('error', { message: 'Internal Server Error' });
@@ -143,7 +136,14 @@ app.get('/auth/faceit', async (req, res) => {
 // Handle Faceit OAuth callback
 app.get('/callback', async (req, res) => {
     const { code, state } = req.query;
+
+    console.log('[CALLBACK] Received code:', code);
+    console.log('[CALLBACK] Received state:', state);
+    console.log('[CALLBACK] Session oauthState:', req.session.oauthState);
+    console.log('[CALLBACK] Session codeVerifier:', req.session.codeVerifier);
+
     if (!state || state !== req.session.oauthState) {
+        console.error('[CALLBACK] Invalid state parameter');
         return res.status(400).render('error', { message: 'Invalid State' });
     }
 
@@ -153,13 +153,7 @@ app.get('/callback', async (req, res) => {
         req.session.refreshToken = tokens.refresh_token;
         faceitJS.setAccessToken(tokens.access_token);
 
-        req.session.save(err => {
-            if (err) {
-                console.error('[CALLBACK] Failed to save session:', err);
-                return res.status(500).render('error', { message: 'Internal Server Error' });
-            }
-            res.redirect('/dashboard');
-        });
+        res.redirect('/dashboard');
     } catch (error) {
         console.error('[CALLBACK] Error:', error);
         res.status(500).render('error', { message: 'Authentication Failed' });
