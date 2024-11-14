@@ -1,50 +1,105 @@
+const crypto = require('crypto');
 const axios = require('axios');
-const qs = require('querystring');
 
-class FaceitAuth {
-    constructor(clientId, clientSecret) {
+class Auth {
+    constructor(clientId, clientSecret, redirectUri) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
-        this.tokenEndpoint = 'https://api.faceit.com/auth/v1/oauth/token';
+        this.redirectUri = redirectUri;
     }
 
-    async getAccessToken() {
+    async generateAuthUrl() {
+        // Generate code verifier
+        const codeVerifier = crypto.randomBytes(32).toString('base64url');
+
+        // Generate code challenge
+        const codeChallenge = crypto
+            .createHash('sha256')
+            .update(codeVerifier)
+            .digest('base64url');
+
+        // Generate state
+        const state = crypto.randomBytes(32).toString('hex');
+
+        // Construct authorization URL
+        const params = new URLSearchParams({
+            response_type: 'code',
+            client_id: this.clientId,
+            redirect_uri: this.redirectUri,
+            scope: 'openid profile chat',
+            state: state,
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256'
+        });
+
+        const url = `https://accounts.faceit.com/oauth/authorize?${params}`;
+
+        return {
+            url,
+            state,
+            codeVerifier
+        };
+    }
+
+    async exchangeCode(code, codeVerifier) {
         try {
-            console.log('[AUTH] Getting access token');
-            console.log('[AUTH] Using client ID:', this.clientId);
-
-            // Create Basic Auth header
-            const credentials = `${this.clientId}:${this.clientSecret}`;
-            const base64Credentials = Buffer.from(credentials).toString('base64');
-
-            const data = {
-                grant_type: 'client_credentials',
-                scope: 'openid profile chat.messages.read chat.messages.write chat.rooms.read'
-            };
-
-            const response = await axios({
-                method: 'post',
-                url: this.tokenEndpoint,
-                headers: {
-                    'Authorization': `Basic ${base64Credentials}`,
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Accept': 'application/json'
-                },
-                data: qs.stringify(data)
+            const params = new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                client_id: this.clientId,
+                client_secret: this.clientSecret,
+                redirect_uri: this.redirectUri,
+                code_verifier: codeVerifier
             });
 
-            console.log('[AUTH] Successfully got access token');
-            return response.data.access_token;
+            const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token',
+                params.toString(),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                }
+            );
+
+            return response.data;
         } catch (error) {
-            console.error('[AUTH] Error getting access token:', error.message);
+            console.error('Error exchanging code for token:', error);
             if (error.response) {
-                console.error('[AUTH] Response status:', error.response.status);
-                console.error('[AUTH] Response data:', error.response.data);
-                console.error('[AUTH] Response headers:', error.response.headers);
+                console.error('Response status:', error.response.status);
+                console.error('Response data:', error.response.data);
+            }
+            throw error;
+        }
+    }
+
+    async refreshToken(refreshToken) {
+        try {
+            const params = new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken,
+                client_id: this.clientId,
+                client_secret: this.clientSecret
+            });
+
+            const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token',
+                params.toString(),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                }
+            );
+
+            return response.data;
+        } catch (error) {
+            console.error('Error refreshing token:', error);
+            if (error.response) {
+                console.error('Response status:', error.response.status);
+                console.error('Response data:', error.response.data);
             }
             throw error;
         }
     }
 }
 
-module.exports = FaceitAuth;
+module.exports = Auth;

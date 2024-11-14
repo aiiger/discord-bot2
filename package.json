@@ -2,14 +2,14 @@
   "name": "faceit-bot",
   "version": "1.0.0",
   "description": "A Discord bot for FACEIT match monitoring",
-  "main": "bot.js",
+  "main": "src/bot.js",
   "type": "commonjs",
   "engines": {
     "node": ">=16.9.0"
   },
   "scripts": {
-    "start": "node bot.js",
-    "dev": "nodemon bot.js"
+    "start": "node src/bot.js",
+    "dev": "nodemon src/bot.js"
   },
   "dependencies": {
     "axios": "^1.6.2",

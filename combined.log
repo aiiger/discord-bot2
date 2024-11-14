@@ -1,0 +1,1556 @@
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+{"level":"info","message":"Server is running on port 3000"}
+2024-11-09T20:46:48.437Z [info]: Environment variables validated successfully
+2024-11-09T20:46:49.046Z [info]: Redis Client Connected
+2024-11-09T20:46:49.313Z [info]: Server running on port 3000
+2024-11-09T20:51:50.155Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-09T20:51:50.156Z [info]: Redis Client Reconnecting
+2024-11-09T20:51:50.572Z [info]: Redis Client Connected
+2024-11-09T20:56:51.177Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-09T20:56:51.177Z [info]: Redis Client Reconnecting
+2024-11-09T20:56:51.619Z [info]: Redis Client Connected
+2024-11-09T21:01:52.151Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-09T21:01:52.151Z [info]: Redis Client Reconnecting
+2024-11-09T21:01:52.582Z [info]: Redis Client Connected
+2024-11-09T21:06:53.117Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-09T21:06:53.118Z [info]: Redis Client Reconnecting
+2024-11-09T21:06:53.532Z [info]: Redis Client Connected
+2024-11-09T21:11:54.176Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-09T21:11:54.177Z [info]: Redis Client Reconnecting
+2024-11-09T21:11:54.614Z [info]: Redis Client Connected
+2024-11-09T21:16:55.155Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-09T21:16:55.155Z [info]: Redis Client Reconnecting
+2024-11-09T21:16:55.582Z [info]: Redis Client Connected
+2024-11-10T00:46:40.979Z [info]: Environment variables validated successfully
+2024-11-10T00:46:41.086Z [info]: Server running on port 3000
+2024-11-10T00:46:41.920Z [info]: Discord bot logged in successfully
+2024-11-10T00:46:41.920Z [info]: Started FACEIT match state polling
+2024-11-10T01:07:42.850Z [info]: Match 1-233ac5ea-31a0-463e-8e21-bf2c29476bc9 state changed to READY
+2024-11-10T01:07:43.372Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T01:09:42.625Z [info]: Match 1-233ac5ea-31a0-463e-8e21-bf2c29476bc9 state changed to ONGOING
+2024-11-10T01:09:43.129Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T01:33:46.239Z [info]: Environment variables validated successfully
+2024-11-10T01:33:46.323Z [info]: Server running on port 3000
+2024-11-10T01:33:47.272Z [info]: Discord bot logged in successfully
+2024-11-10T01:33:47.272Z [info]: Started FACEIT match state polling
+2024-11-10T01:39:47.876Z [info]: Match 1-be656a37-5e09-4769-9295-15b8fcff38f9 state changed to READY
+2024-11-10T01:39:48.932Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T01:42:47.889Z [info]: Match 1-be656a37-5e09-4769-9295-15b8fcff38f9 state changed to ONGOING
+2024-11-10T01:42:48.585Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T02:01:48.012Z [info]: Match 1-0e9a6ea8-40b4-466d-b8bc-e0768b2c9546 state changed to READY
+2024-11-10T02:01:48.545Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T02:05:48.055Z [info]: Match 1-54ee4d0e-de5d-4b83-bade-8be713e7067a state changed to READY
+2024-11-10T02:05:48.562Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T02:08:48.463Z [info]: Match 1-54ee4d0e-de5d-4b83-bade-8be713e7067a state changed to ONGOING
+2024-11-10T02:08:49.536Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T08:15:51.604Z [info]: Match 1-05b71022-ea0f-40a0-9790-d4b4d16f99fa state changed to READY
+2024-11-10T08:15:52.916Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T08:17:51.601Z [info]: Match 1-05b71022-ea0f-40a0-9790-d4b4d16f99fa state changed to ONGOING
+2024-11-10T08:17:52.924Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T08:48:51.805Z [info]: Match 1-d3c15a73-714d-4849-9eb8-b9698cb7275d state changed to READY
+2024-11-10T08:48:53.111Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T08:50:51.646Z [info]: Match 1-d3c15a73-714d-4849-9eb8-b9698cb7275d state changed to ONGOING
+2024-11-10T08:50:53.228Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T09:16:52.051Z [info]: Match 1-651636a8-9411-46c9-85e8-fd38411b0809 state changed to READY
+2024-11-10T09:16:53.632Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T09:18:51.789Z [info]: Match 1-651636a8-9411-46c9-85e8-fd38411b0809 state changed to ONGOING
+2024-11-10T09:18:53.340Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T09:34:51.973Z [info]: Match 1-eb95dcaf-3770-451a-b9f4-6066149eb986 state changed to READY
+2024-11-10T09:34:53.527Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T09:38:51.939Z [info]: Match 1-70fe8bbc-c286-4a14-ab1d-b6d1f783310e state changed to VOTING
+2024-11-10T09:40:51.959Z [info]: Match 1-70fe8bbc-c286-4a14-ab1d-b6d1f783310e state changed to READY
+2024-11-10T09:40:53.532Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T09:46:52.025Z [info]: Match 1-10e5b4b8-00ad-4b71-9d41-e51c7676fe88 state changed to READY
+2024-11-10T09:46:53.311Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T09:54:29.259Z [info]: Environment variables validated successfully
+2024-11-10T09:54:30.382Z [info]: Discord bot logged in successfully
+2024-11-10T09:54:30.382Z [info]: Started FACEIT match state polling
+2024-11-10T12:51:31.287Z [info]: Environment variables validated successfully
+2024-11-10T12:51:31.375Z [info]: Server running on port 3000
+2024-11-10T12:51:32.263Z [info]: Discord bot logged in successfully
+2024-11-10T12:51:32.264Z [info]: Started FACEIT match state polling
+2024-11-10T12:53:34.187Z [info]: Match 1-9f54da72-b64c-44bf-b80c-2567dbf4ceee state changed from CHECK_IN to VOTING
+2024-11-10T12:53:34.592Z [info]: Retrieved details for match 1-9f54da72-b64c-44bf-b80c-2567dbf4ceee
+2024-11-10T12:55:33.897Z [info]: Match 1-9f54da72-b64c-44bf-b80c-2567dbf4ceee state changed from VOTING to READY
+2024-11-10T12:55:34.306Z [info]: Retrieved details for match 1-9f54da72-b64c-44bf-b80c-2567dbf4ceee
+2024-11-10T12:55:34.306Z [info]: Sending greeting message for match 1-9f54da72-b64c-44bf-b80c-2567dbf4ceee
+2024-11-10T12:55:35.246Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T12:58:34.680Z [info]: Match 1-9f54da72-b64c-44bf-b80c-2567dbf4ceee state changed from READY to ONGOING
+2024-11-10T12:58:35.085Z [info]: Retrieved details for match 1-9f54da72-b64c-44bf-b80c-2567dbf4ceee
+2024-11-10T12:58:35.085Z [info]: Sending state change notification for match 1-9f54da72-b64c-44bf-b80c-2567dbf4ceee: Match has started! Good luck and have fun!
+2024-11-10T12:58:36.274Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T13:00:34.654Z [info]: Match 1-3657a5bb-da9b-4192-a590-935569dd7654 state changed from VOTING to READY
+2024-11-10T13:00:35.066Z [info]: Retrieved details for match 1-3657a5bb-da9b-4192-a590-935569dd7654
+2024-11-10T13:00:35.066Z [info]: Sending greeting message for match 1-3657a5bb-da9b-4192-a590-935569dd7654
+2024-11-10T13:00:36.222Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:02:34.226Z [info]: Match 1-be8f8f50-8ea5-4839-ad92-9e29fe17d79c state changed from VOTING to READY
+2024-11-10T13:02:34.647Z [info]: Retrieved details for match 1-be8f8f50-8ea5-4839-ad92-9e29fe17d79c
+2024-11-10T13:02:34.647Z [info]: Sending greeting message for match 1-be8f8f50-8ea5-4839-ad92-9e29fe17d79c
+2024-11-10T13:02:35.559Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:05:34.764Z [info]: Match 1-be8f8f50-8ea5-4839-ad92-9e29fe17d79c state changed from READY to ONGOING
+2024-11-10T13:05:35.201Z [info]: Retrieved details for match 1-be8f8f50-8ea5-4839-ad92-9e29fe17d79c
+2024-11-10T13:05:35.201Z [info]: Sending state change notification for match 1-be8f8f50-8ea5-4839-ad92-9e29fe17d79c: Match has started! Good luck and have fun!
+2024-11-10T13:05:36.416Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T13:12:34.520Z [info]: Match 1-590d5e93-34ec-4eaf-94ba-440a54dcbb5f state changed from VOTING to READY
+2024-11-10T13:12:34.932Z [info]: Retrieved details for match 1-590d5e93-34ec-4eaf-94ba-440a54dcbb5f
+2024-11-10T13:12:34.932Z [info]: Sending greeting message for match 1-590d5e93-34ec-4eaf-94ba-440a54dcbb5f
+2024-11-10T13:12:36.160Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:20:34.058Z [info]: Match 1-b7b3cb0a-2547-4c6c-8aa5-678fe0d4d8b0 state changed from VOTING to READY
+2024-11-10T13:20:34.454Z [info]: Retrieved details for match 1-b7b3cb0a-2547-4c6c-8aa5-678fe0d4d8b0
+2024-11-10T13:20:34.454Z [info]: Sending greeting message for match 1-b7b3cb0a-2547-4c6c-8aa5-678fe0d4d8b0
+2024-11-10T13:20:35.634Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:25:34.854Z [info]: Match 1-af49177f-a14e-4b0c-bd8c-7ffde139502a state changed from VOTING to READY
+2024-11-10T13:25:35.252Z [info]: Retrieved details for match 1-af49177f-a14e-4b0c-bd8c-7ffde139502a
+2024-11-10T13:25:35.252Z [info]: Sending greeting message for match 1-af49177f-a14e-4b0c-bd8c-7ffde139502a
+2024-11-10T13:25:36.173Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:28:33.300Z [info]: Match 1-af49177f-a14e-4b0c-bd8c-7ffde139502a state changed from READY to ONGOING
+2024-11-10T13:28:33.773Z [info]: Retrieved details for match 1-af49177f-a14e-4b0c-bd8c-7ffde139502a
+2024-11-10T13:28:33.774Z [info]: Sending state change notification for match 1-af49177f-a14e-4b0c-bd8c-7ffde139502a: Match has started! Good luck and have fun!
+2024-11-10T13:28:34.682Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T13:31:34.880Z [info]: Match 1-9fe97739-54da-4a3e-a63b-3a2184dc616e state changed from VOTING to READY
+2024-11-10T13:31:35.304Z [info]: Retrieved details for match 1-9fe97739-54da-4a3e-a63b-3a2184dc616e
+2024-11-10T13:31:35.304Z [info]: Sending greeting message for match 1-9fe97739-54da-4a3e-a63b-3a2184dc616e
+2024-11-10T13:31:36.497Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:34:34.655Z [info]: Match 1-9fe97739-54da-4a3e-a63b-3a2184dc616e state changed from READY to ONGOING
+2024-11-10T13:34:35.037Z [info]: Retrieved details for match 1-9fe97739-54da-4a3e-a63b-3a2184dc616e
+2024-11-10T13:34:35.037Z [info]: Sending state change notification for match 1-9fe97739-54da-4a3e-a63b-3a2184dc616e: Match has started! Good luck and have fun!
+2024-11-10T13:34:36.205Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T13:36:34.935Z [info]: Match 1-b19119d2-e076-4123-a2e4-7b072c140a53 state changed from VOTING to READY
+2024-11-10T13:36:35.346Z [info]: Retrieved details for match 1-b19119d2-e076-4123-a2e4-7b072c140a53
+2024-11-10T13:36:35.346Z [info]: Sending greeting message for match 1-b19119d2-e076-4123-a2e4-7b072c140a53
+2024-11-10T13:36:36.541Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:38:34.727Z [info]: Match 1-b19119d2-e076-4123-a2e4-7b072c140a53 state changed from READY to ONGOING
+2024-11-10T13:38:35.151Z [info]: Retrieved details for match 1-b19119d2-e076-4123-a2e4-7b072c140a53
+2024-11-10T13:38:35.151Z [info]: Sending state change notification for match 1-b19119d2-e076-4123-a2e4-7b072c140a53: Match has started! Good luck and have fun!
+2024-11-10T13:38:36.352Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T13:41:42.272Z [info]: Environment variables validated successfully
+2024-11-10T13:41:42.355Z [error]: Uncaught exception: listen EADDRINUSE: address already in use :::3000
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1907:16)
+    at listenInCluster (node:net:1964:12)
+    at Server.listen (node:net:2066:7)
+    at Function.listen (E:\New folder\discord-bot2\node_modules\express\lib\application.js:635:24)
+    at file:///E:/New%20folder/discord-bot2/bot.js:365:5
+    at ModuleJob.run (node:internal/modules/esm/module_job:268:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:543:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:116:5)
+2024-11-10T13:41:43.241Z [info]: Discord bot logged in successfully
+2024-11-10T13:41:43.241Z [info]: Started FACEIT match state polling
+2024-11-10T14:00:34.672Z [info]: Match 1-2f60b76a-23a0-4428-93bb-d32e20ee2707 state changed from VOTING to READY
+2024-11-10T14:00:35.094Z [info]: Retrieved details for match 1-2f60b76a-23a0-4428-93bb-d32e20ee2707
+2024-11-10T14:00:35.094Z [info]: Sending greeting message for match 1-2f60b76a-23a0-4428-93bb-d32e20ee2707
+2024-11-10T14:00:36.314Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:00:45.512Z [info]: Match 1-2f60b76a-23a0-4428-93bb-d32e20ee2707 state changed from VOTING to READY
+2024-11-10T14:00:45.931Z [info]: Retrieved details for match 1-2f60b76a-23a0-4428-93bb-d32e20ee2707
+2024-11-10T14:03:34.893Z [info]: Match 1-6120fa80-e519-4201-8e34-2b52ba2e380b state changed from VOTING to READY
+2024-11-10T14:03:35.304Z [info]: Retrieved details for match 1-6120fa80-e519-4201-8e34-2b52ba2e380b
+2024-11-10T14:03:35.304Z [info]: Sending greeting message for match 1-6120fa80-e519-4201-8e34-2b52ba2e380b
+2024-11-10T14:03:36.471Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:03:45.775Z [info]: Match 1-6120fa80-e519-4201-8e34-2b52ba2e380b state changed from VOTING to READY
+2024-11-10T14:03:46.186Z [info]: Retrieved details for match 1-6120fa80-e519-4201-8e34-2b52ba2e380b
+2024-11-10T14:04:35.133Z [info]: Match 1-bbe7fba2-d1aa-473a-9303-068d3eb11999 state changed from VOTING to READY
+2024-11-10T14:04:35.522Z [info]: Retrieved details for match 1-bbe7fba2-d1aa-473a-9303-068d3eb11999
+2024-11-10T14:04:35.522Z [info]: Sending greeting message for match 1-bbe7fba2-d1aa-473a-9303-068d3eb11999
+2024-11-10T14:04:36.447Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:04:45.834Z [info]: Match 1-bbe7fba2-d1aa-473a-9303-068d3eb11999 state changed from VOTING to READY
+2024-11-10T14:04:46.253Z [info]: Retrieved details for match 1-bbe7fba2-d1aa-473a-9303-068d3eb11999
+2024-11-10T14:05:35.145Z [info]: Match 1-bbe7fba2-d1aa-473a-9303-068d3eb11999 state changed from READY to ONGOING
+2024-11-10T14:05:35.145Z [info]: Match 1-6120fa80-e519-4201-8e34-2b52ba2e380b state changed from READY to ONGOING
+2024-11-10T14:05:35.527Z [info]: Retrieved details for match 1-6120fa80-e519-4201-8e34-2b52ba2e380b
+2024-11-10T14:05:35.528Z [info]: Sending state change notification for match 1-6120fa80-e519-4201-8e34-2b52ba2e380b: Match has started! Good luck and have fun!
+2024-11-10T14:05:35.560Z [info]: Retrieved details for match 1-bbe7fba2-d1aa-473a-9303-068d3eb11999
+2024-11-10T14:05:35.560Z [info]: Sending state change notification for match 1-bbe7fba2-d1aa-473a-9303-068d3eb11999: Match has started! Good luck and have fun!
+2024-11-10T14:05:36.478Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T14:05:36.742Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T14:05:45.795Z [info]: Match 1-bbe7fba2-d1aa-473a-9303-068d3eb11999 state changed from READY to ONGOING
+2024-11-10T14:05:45.796Z [info]: Match 1-6120fa80-e519-4201-8e34-2b52ba2e380b state changed from READY to ONGOING
+2024-11-10T14:05:46.216Z [info]: Retrieved details for match 1-6120fa80-e519-4201-8e34-2b52ba2e380b
+2024-11-10T14:05:46.216Z [info]: Sending state change notification for match 1-6120fa80-e519-4201-8e34-2b52ba2e380b to chat room match-1-6120fa80-e519-4201-8e34-2b52ba2e380b: Match has started! Good luck and have fun!
+2024-11-10T14:05:46.229Z [info]: Retrieved details for match 1-bbe7fba2-d1aa-473a-9303-068d3eb11999
+2024-11-10T14:05:46.229Z [info]: Sending state change notification for match 1-bbe7fba2-d1aa-473a-9303-068d3eb11999 to chat room match-1-bbe7fba2-d1aa-473a-9303-068d3eb11999: Match has started! Good luck and have fun!
+2024-11-10T14:05:47.140Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:320:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:224:13)
+2024-11-10T14:05:47.478Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:320:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:224:13)
+2024-11-10T14:12:34.960Z [info]: Match 1-a988abff-ceb8-4134-b3a3-7e82c58616ce state changed from VOTING to READY
+2024-11-10T14:12:35.410Z [info]: Retrieved details for match 1-a988abff-ceb8-4134-b3a3-7e82c58616ce
+2024-11-10T14:12:35.410Z [info]: Sending greeting message for match 1-a988abff-ceb8-4134-b3a3-7e82c58616ce
+2024-11-10T14:12:36.374Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:14:35.203Z [info]: Match 1-a988abff-ceb8-4134-b3a3-7e82c58616ce state changed from READY to ONGOING
+2024-11-10T14:14:35.619Z [info]: Retrieved details for match 1-a988abff-ceb8-4134-b3a3-7e82c58616ce
+2024-11-10T14:14:35.619Z [info]: Sending state change notification for match 1-a988abff-ceb8-4134-b3a3-7e82c58616ce: Match has started! Good luck and have fun!
+2024-11-10T14:14:36.760Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T14:38:35.396Z [info]: Match 1-7e61fd54-9509-4901-9177-bc0779c1f426 state changed from CHECK_IN to VOTING
+2024-11-10T14:38:35.820Z [info]: Retrieved details for match 1-7e61fd54-9509-4901-9177-bc0779c1f426
+2024-11-10T14:39:35.126Z [info]: Match 1-7e61fd54-9509-4901-9177-bc0779c1f426 state changed from VOTING to READY
+2024-11-10T14:39:35.541Z [info]: Retrieved details for match 1-7e61fd54-9509-4901-9177-bc0779c1f426
+2024-11-10T14:39:35.541Z [info]: Sending greeting message for match 1-7e61fd54-9509-4901-9177-bc0779c1f426
+2024-11-10T14:39:36.480Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:41:34.749Z [info]: Match 1-7e61fd54-9509-4901-9177-bc0779c1f426 state changed from READY to ONGOING
+2024-11-10T14:41:35.168Z [info]: Retrieved details for match 1-7e61fd54-9509-4901-9177-bc0779c1f426
+2024-11-10T14:41:35.168Z [info]: Sending state change notification for match 1-7e61fd54-9509-4901-9177-bc0779c1f426: Match has started! Good luck and have fun!
+2024-11-10T14:41:36.387Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T14:55:35.451Z [info]: Match 1-c4c90424-20c1-4b4b-94d4-86a6cad71ffd state changed from VOTING to READY
+2024-11-10T14:55:35.977Z [info]: Retrieved details for match 1-c4c90424-20c1-4b4b-94d4-86a6cad71ffd
+2024-11-10T14:55:35.977Z [info]: Sending greeting message for match 1-c4c90424-20c1-4b4b-94d4-86a6cad71ffd
+2024-11-10T14:55:37.187Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:57:35.547Z [info]: Match 1-c4c90424-20c1-4b4b-94d4-86a6cad71ffd state changed from READY to ONGOING
+2024-11-10T14:57:35.957Z [info]: Retrieved details for match 1-c4c90424-20c1-4b4b-94d4-86a6cad71ffd
+2024-11-10T14:57:35.958Z [info]: Sending state change notification for match 1-c4c90424-20c1-4b4b-94d4-86a6cad71ffd: Match has started! Good luck and have fun!
+2024-11-10T14:57:37.112Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T15:04:35.231Z [info]: Match 1-8f1f38da-2fcc-4f1b-978e-1f801bcb334a state changed from VOTING to READY
+2024-11-10T15:04:35.638Z [info]: Retrieved details for match 1-8f1f38da-2fcc-4f1b-978e-1f801bcb334a
+2024-11-10T15:04:35.639Z [info]: Sending greeting message for match 1-8f1f38da-2fcc-4f1b-978e-1f801bcb334a
+2024-11-10T15:04:36.820Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:17:35.573Z [info]: Match 1-a4d6bd96-d3ee-44da-91a0-5979da9bc01a state changed from VOTING to READY
+2024-11-10T15:17:35.976Z [info]: Retrieved details for match 1-a4d6bd96-d3ee-44da-91a0-5979da9bc01a
+2024-11-10T15:17:35.976Z [info]: Sending greeting message for match 1-a4d6bd96-d3ee-44da-91a0-5979da9bc01a
+2024-11-10T15:17:37.185Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:20:35.596Z [info]: Match 1-a4d6bd96-d3ee-44da-91a0-5979da9bc01a state changed from READY to ONGOING
+2024-11-10T15:20:35.996Z [info]: Retrieved details for match 1-a4d6bd96-d3ee-44da-91a0-5979da9bc01a
+2024-11-10T15:20:35.997Z [info]: Sending state change notification for match 1-a4d6bd96-d3ee-44da-91a0-5979da9bc01a: Match has started! Good luck and have fun!
+2024-11-10T15:20:37.186Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T15:27:35.363Z [info]: Match 1-5ea77057-f231-4054-a1e0-7872c07f2d39 state changed from VOTING to READY
+2024-11-10T15:27:35.779Z [info]: Retrieved details for match 1-5ea77057-f231-4054-a1e0-7872c07f2d39
+2024-11-10T15:27:35.779Z [info]: Sending greeting message for match 1-5ea77057-f231-4054-a1e0-7872c07f2d39
+2024-11-10T15:27:36.981Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:30:35.648Z [info]: Match 1-5ea77057-f231-4054-a1e0-7872c07f2d39 state changed from READY to ONGOING
+2024-11-10T15:30:36.053Z [info]: Retrieved details for match 1-5ea77057-f231-4054-a1e0-7872c07f2d39
+2024-11-10T15:30:36.053Z [info]: Sending state change notification for match 1-5ea77057-f231-4054-a1e0-7872c07f2d39: Match has started! Good luck and have fun!
+2024-11-10T15:30:37.235Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T15:31:35.603Z [info]: Match 1-67e44938-dfc6-48ec-822c-c78b7f03aba1 state changed from VOTING to READY
+2024-11-10T15:31:36.008Z [info]: Retrieved details for match 1-67e44938-dfc6-48ec-822c-c78b7f03aba1
+2024-11-10T15:31:36.008Z [info]: Sending greeting message for match 1-67e44938-dfc6-48ec-822c-c78b7f03aba1
+2024-11-10T15:31:37.174Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:34:35.604Z [info]: Match 1-67e44938-dfc6-48ec-822c-c78b7f03aba1 state changed from READY to ONGOING
+2024-11-10T15:34:36.012Z [info]: Retrieved details for match 1-67e44938-dfc6-48ec-822c-c78b7f03aba1
+2024-11-10T15:34:36.013Z [info]: Sending state change notification for match 1-67e44938-dfc6-48ec-822c-c78b7f03aba1: Match has started! Good luck and have fun!
+2024-11-10T15:34:37.167Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T15:39:35.723Z [info]: Match 1-9a45f823-e8c1-4c1f-a144-cd7cf792538d state changed from VOTING to READY
+2024-11-10T15:39:36.131Z [info]: Retrieved details for match 1-9a45f823-e8c1-4c1f-a144-cd7cf792538d
+2024-11-10T15:39:36.131Z [info]: Sending greeting message for match 1-9a45f823-e8c1-4c1f-a144-cd7cf792538d
+2024-11-10T15:39:37.299Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:47:35.520Z [info]: Match 1-7cef9cad-e95a-4e32-a829-5d43bcbe5166 state changed from VOTING to READY
+2024-11-10T15:47:35.942Z [info]: Retrieved details for match 1-7cef9cad-e95a-4e32-a829-5d43bcbe5166
+2024-11-10T15:47:35.942Z [info]: Sending greeting message for match 1-7cef9cad-e95a-4e32-a829-5d43bcbe5166
+2024-11-10T15:47:37.134Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:50:35.805Z [info]: Match 1-7cef9cad-e95a-4e32-a829-5d43bcbe5166 state changed from READY to ONGOING
+2024-11-10T15:50:36.204Z [info]: Retrieved details for match 1-7cef9cad-e95a-4e32-a829-5d43bcbe5166
+2024-11-10T15:50:36.205Z [info]: Sending state change notification for match 1-7cef9cad-e95a-4e32-a829-5d43bcbe5166: Match has started! Good luck and have fun!
+2024-11-10T15:50:37.391Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T16:02:35.554Z [info]: Match 1-7cef9cad-e95a-4e32-a829-5d43bcbe5166 state changed from ONGOING to CHECK_IN
+2024-11-10T16:02:35.994Z [info]: Retrieved details for match 1-7cef9cad-e95a-4e32-a829-5d43bcbe5166
+2024-11-10T16:03:35.687Z [info]: Match 1-7cef9cad-e95a-4e32-a829-5d43bcbe5166 state changed from CHECK_IN to VOTING
+2024-11-10T16:03:36.087Z [info]: Retrieved details for match 1-7cef9cad-e95a-4e32-a829-5d43bcbe5166
+2024-11-10T16:06:35.634Z [info]: Match 1-757d44a7-e963-4cdd-8ca9-221c14e7c60f state changed from VOTING to READY
+2024-11-10T16:06:36.022Z [info]: Retrieved details for match 1-757d44a7-e963-4cdd-8ca9-221c14e7c60f
+2024-11-10T16:06:36.022Z [info]: Sending greeting message for match 1-757d44a7-e963-4cdd-8ca9-221c14e7c60f
+2024-11-10T16:06:37.197Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:08:35.864Z [info]: Match 1-757d44a7-e963-4cdd-8ca9-221c14e7c60f state changed from READY to ONGOING
+2024-11-10T16:08:36.259Z [info]: Retrieved details for match 1-757d44a7-e963-4cdd-8ca9-221c14e7c60f
+2024-11-10T16:08:36.259Z [info]: Sending state change notification for match 1-757d44a7-e963-4cdd-8ca9-221c14e7c60f: Match has started! Good luck and have fun!
+2024-11-10T16:08:37.443Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T16:15:35.868Z [info]: Match 1-d3499f16-9f95-4392-8bd4-938b1f732ab8 state changed from VOTING to READY
+2024-11-10T16:15:36.269Z [info]: Retrieved details for match 1-d3499f16-9f95-4392-8bd4-938b1f732ab8
+2024-11-10T16:15:36.270Z [info]: Sending greeting message for match 1-d3499f16-9f95-4392-8bd4-938b1f732ab8
+2024-11-10T16:15:37.457Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:19:35.599Z [info]: Match 1-f4816041-b963-4054-928e-6e92824cd1bc state changed from CHECK_IN to READY
+2024-11-10T16:19:36.004Z [info]: Retrieved details for match 1-f4816041-b963-4054-928e-6e92824cd1bc
+2024-11-10T16:19:36.004Z [info]: Sending greeting message for match 1-f4816041-b963-4054-928e-6e92824cd1bc
+2024-11-10T16:19:37.149Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:22:35.905Z [info]: Match 1-f4816041-b963-4054-928e-6e92824cd1bc state changed from READY to ONGOING
+2024-11-10T16:22:36.299Z [info]: Retrieved details for match 1-f4816041-b963-4054-928e-6e92824cd1bc
+2024-11-10T16:22:36.299Z [info]: Sending state change notification for match 1-f4816041-b963-4054-928e-6e92824cd1bc: Match has started! Good luck and have fun!
+2024-11-10T16:22:37.537Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T16:31:35.674Z [info]: Match 1-90488ee2-17c5-4d44-a640-d80d0b6a2cb3 state changed from CHECK_IN to VOTING
+2024-11-10T16:31:36.074Z [info]: Retrieved details for match 1-90488ee2-17c5-4d44-a640-d80d0b6a2cb3
+2024-11-10T16:32:36.024Z [info]: Match 1-90488ee2-17c5-4d44-a640-d80d0b6a2cb3 state changed from VOTING to READY
+2024-11-10T16:32:36.430Z [info]: Retrieved details for match 1-90488ee2-17c5-4d44-a640-d80d0b6a2cb3
+2024-11-10T16:32:36.430Z [info]: Sending greeting message for match 1-90488ee2-17c5-4d44-a640-d80d0b6a2cb3
+2024-11-10T16:32:37.340Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:34:35.811Z [info]: Match 1-90488ee2-17c5-4d44-a640-d80d0b6a2cb3 state changed from READY to ONGOING
+2024-11-10T16:34:36.321Z [info]: Retrieved details for match 1-90488ee2-17c5-4d44-a640-d80d0b6a2cb3
+2024-11-10T16:34:36.321Z [info]: Sending state change notification for match 1-90488ee2-17c5-4d44-a640-d80d0b6a2cb3: Match has started! Good luck and have fun!
+2024-11-10T16:34:37.237Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T16:41:36.060Z [info]: Match 1-cc751184-9a9c-4a47-bdb3-9a821156143e state changed from VOTING to CONFIGURING
+2024-11-10T16:41:36.463Z [info]: Retrieved details for match 1-cc751184-9a9c-4a47-bdb3-9a821156143e
+2024-11-10T16:42:35.791Z [info]: Match 1-cc751184-9a9c-4a47-bdb3-9a821156143e state changed from CONFIGURING to READY
+2024-11-10T16:42:36.191Z [info]: Retrieved details for match 1-cc751184-9a9c-4a47-bdb3-9a821156143e
+2024-11-10T16:42:36.191Z [info]: Sending greeting message for match 1-cc751184-9a9c-4a47-bdb3-9a821156143e
+2024-11-10T16:42:37.097Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:47:35.844Z [info]: Match 1-01bc3412-3942-4740-a4d4-b98cbdb463a5 state changed from CHECK_IN to VOTING
+2024-11-10T16:47:36.262Z [info]: Retrieved details for match 1-01bc3412-3942-4740-a4d4-b98cbdb463a5
+2024-11-10T16:48:35.827Z [info]: Match 1-01bc3412-3942-4740-a4d4-b98cbdb463a5 state changed from VOTING to READY
+2024-11-10T16:48:36.221Z [info]: Retrieved details for match 1-01bc3412-3942-4740-a4d4-b98cbdb463a5
+2024-11-10T16:48:36.221Z [info]: Sending greeting message for match 1-01bc3412-3942-4740-a4d4-b98cbdb463a5
+2024-11-10T16:48:37.166Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:50:35.881Z [info]: Match 1-01bc3412-3942-4740-a4d4-b98cbdb463a5 state changed from READY to ONGOING
+2024-11-10T16:50:36.293Z [info]: Retrieved details for match 1-01bc3412-3942-4740-a4d4-b98cbdb463a5
+2024-11-10T16:50:36.293Z [info]: Sending state change notification for match 1-01bc3412-3942-4740-a4d4-b98cbdb463a5: Match has started! Good luck and have fun!
+2024-11-10T16:50:37.219Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T16:57:36.131Z [info]: Match 1-72a1c404-286c-458d-8d48-8f407894e7aa state changed from VOTING to READY
+2024-11-10T16:57:36.587Z [info]: Retrieved details for match 1-72a1c404-286c-458d-8d48-8f407894e7aa
+2024-11-10T16:57:36.588Z [info]: Sending greeting message for match 1-72a1c404-286c-458d-8d48-8f407894e7aa
+2024-11-10T16:57:37.787Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T17:00:35.889Z [info]: Match 1-72a1c404-286c-458d-8d48-8f407894e7aa state changed from READY to ONGOING
+2024-11-10T17:00:36.308Z [info]: Retrieved details for match 1-72a1c404-286c-458d-8d48-8f407894e7aa
+2024-11-10T17:00:36.308Z [info]: Sending state change notification for match 1-72a1c404-286c-458d-8d48-8f407894e7aa: Match has started! Good luck and have fun!
+2024-11-10T17:00:37.467Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T17:03:36.183Z [info]: Match 1-f946e358-b2cc-4b01-96c7-51d5d80023f3 state changed from VOTING to CONFIGURING
+2024-11-10T17:03:36.602Z [info]: Retrieved details for match 1-f946e358-b2cc-4b01-96c7-51d5d80023f3
+2024-11-10T17:04:36.181Z [info]: Match 1-f946e358-b2cc-4b01-96c7-51d5d80023f3 state changed from CONFIGURING to ONGOING
+2024-11-10T17:04:36.579Z [info]: Retrieved details for match 1-f946e358-b2cc-4b01-96c7-51d5d80023f3
+2024-11-10T17:04:36.579Z [info]: Sending state change notification for match 1-f946e358-b2cc-4b01-96c7-51d5d80023f3: Match has started! Good luck and have fun!
+2024-11-10T17:04:37.501Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T17:09:36.227Z [info]: Match 1-485dff8b-7c9a-4329-ac43-f27cb3c54d4a state changed from VOTING to READY
+2024-11-10T17:09:36.618Z [info]: Retrieved details for match 1-485dff8b-7c9a-4329-ac43-f27cb3c54d4a
+2024-11-10T17:09:36.619Z [info]: Sending greeting message for match 1-485dff8b-7c9a-4329-ac43-f27cb3c54d4a
+2024-11-10T17:09:37.793Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T17:10:36.217Z [info]: Match 1-3a01a0d4-422c-4b17-bc79-192ac8eaff5f state changed from CHECK_IN to VOTING
+2024-11-10T17:10:36.626Z [info]: Retrieved details for match 1-3a01a0d4-422c-4b17-bc79-192ac8eaff5f
+2024-11-10T17:11:35.921Z [info]: Match 1-3a01a0d4-422c-4b17-bc79-192ac8eaff5f state changed from VOTING to READY
+2024-11-10T17:11:36.312Z [info]: Retrieved details for match 1-3a01a0d4-422c-4b17-bc79-192ac8eaff5f
+2024-11-10T17:11:36.312Z [info]: Sending greeting message for match 1-3a01a0d4-422c-4b17-bc79-192ac8eaff5f
+2024-11-10T17:11:37.229Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T17:12:36.212Z [info]: Match 1-485dff8b-7c9a-4329-ac43-f27cb3c54d4a state changed from READY to ONGOING
+2024-11-10T17:12:36.602Z [info]: Retrieved details for match 1-485dff8b-7c9a-4329-ac43-f27cb3c54d4a
+2024-11-10T17:12:36.602Z [info]: Sending state change notification for match 1-485dff8b-7c9a-4329-ac43-f27cb3c54d4a: Match has started! Good luck and have fun!
+2024-11-10T17:12:37.742Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T17:13:49.095Z [info]: Environment variables validated successfully
+2024-11-10T17:13:50.356Z [error]: Failed to start application: Client credentials authentication failed: Request failed with status code 401
+Error: Client credentials authentication failed: Request failed with status code 401
+    at FaceitJS.authenticateWithClientCredentials (file:///E:/New%20folder/discord-bot2/FaceitJS.js:343:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async file:///E:/New%20folder/discord-bot2/bot.js:356:9
+2024-11-10T17:14:36.029Z [info]: Match 1-3a01a0d4-422c-4b17-bc79-192ac8eaff5f state changed from READY to ONGOING
+2024-11-10T17:14:36.427Z [info]: Retrieved details for match 1-3a01a0d4-422c-4b17-bc79-192ac8eaff5f
+2024-11-10T17:14:36.428Z [info]: Sending state change notification for match 1-3a01a0d4-422c-4b17-bc79-192ac8eaff5f: Match has started! Good luck and have fun!
+2024-11-10T17:14:37.621Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T17:17:06.124Z [info]: Environment variables validated successfully
+2024-11-10T17:17:07.136Z [info]: Discord bot logged in successfully
+2024-11-10T17:17:07.138Z [info]: Started FACEIT match state polling
+2024-11-10T17:17:07.140Z [error]: Uncaught exception: listen EADDRINUSE: address already in use :::3000
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1907:16)
+    at listenInCluster (node:net:1964:12)
+    at Server.listen (node:net:2066:7)
+    at Function.listen (E:\New folder\discord-bot2\node_modules\express\lib\application.js:635:24)
+    at file:///E:/New%20folder/discord-bot2/bot.js:364:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2024-11-10T17:17:26.493Z [info]: Environment variables validated successfully
+2024-11-10T17:17:27.582Z [info]: Discord bot logged in successfully
+2024-11-10T17:17:27.583Z [info]: Started FACEIT match state polling
+2024-11-10T17:17:27.584Z [info]: Server running on port 3000
+2024-11-10T17:24:29.789Z [info]: Match 1-ff583ee8-e854-4947-a601-4883a3765dc7 state changed from VOTING to CONFIGURING
+2024-11-10T17:24:30.190Z [info]: Retrieved details for match 1-ff583ee8-e854-4947-a601-4883a3765dc7
+2024-11-10T17:24:30.191Z [info]: Sending greeting message for match 1-ff583ee8-e854-4947-a601-4883a3765dc7 to chat room match-1-ff583ee8-e854-4947-a601-4883a3765dc7
+2024-11-10T17:24:31.349Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 500
+Error: Failed to send room message: Request failed with status code 500
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:310:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:197:13)
+2024-11-10T17:25:29.779Z [info]: Match 1-ff583ee8-e854-4947-a601-4883a3765dc7 state changed from CONFIGURING to READY
+2024-11-10T17:25:30.188Z [info]: Retrieved details for match 1-ff583ee8-e854-4947-a601-4883a3765dc7
+2024-11-10T17:27:30.033Z [info]: Match 1-ff583ee8-e854-4947-a601-4883a3765dc7 state changed from READY to ONGOING
+2024-11-10T17:27:30.440Z [info]: Retrieved details for match 1-ff583ee8-e854-4947-a601-4883a3765dc7
+2024-11-10T17:27:30.441Z [info]: Sending state change notification for match 1-ff583ee8-e854-4947-a601-4883a3765dc7 to chat room match-1-ff583ee8-e854-4947-a601-4883a3765dc7: Match has started! Good luck and have fun!
+2024-11-10T17:27:31.597Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 500
+Error: Failed to send room message: Request failed with status code 500
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:310:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:224:13)
+2024-11-10T17:39:30.168Z [info]: Match 1-16a77de4-f3a1-4d1a-9fcf-589d88e6eddd state changed from CHECK_IN to READY
+2024-11-10T17:39:30.579Z [info]: Retrieved details for match 1-16a77de4-f3a1-4d1a-9fcf-589d88e6eddd
+2024-11-10T17:42:29.927Z [info]: Match 1-16a77de4-f3a1-4d1a-9fcf-589d88e6eddd state changed from READY to ONGOING
+2024-11-10T17:42:30.323Z [info]: Retrieved details for match 1-16a77de4-f3a1-4d1a-9fcf-589d88e6eddd
+2024-11-10T17:42:30.323Z [info]: Sending state change notification for match 1-16a77de4-f3a1-4d1a-9fcf-589d88e6eddd to chat room match-1-16a77de4-f3a1-4d1a-9fcf-589d88e6eddd: Match has started! Good luck and have fun!
+2024-11-10T17:42:31.260Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 500
+Error: Failed to send room message: Request failed with status code 500
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:310:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:224:13)
+2024-11-10T17:42:52.195Z [info]: Environment variables validated successfully
+2024-11-10T17:42:53.405Z [info]: Discord bot logged in successfully
+2024-11-10T17:42:53.405Z [info]: Started FACEIT match state polling
+2024-11-10T17:42:53.407Z [info]: Server running on port 3000
+2024-11-10T17:45:55.870Z [info]: Match 1-782e10b8-5b91-408c-b5f8-6ab79c748708 state changed from VOTING to READY
+2024-11-10T17:45:56.281Z [info]: Retrieved details for match 1-782e10b8-5b91-408c-b5f8-6ab79c748708
+2024-11-10T17:46:55.573Z [info]: Match 1-cb13800b-a448-43dc-ac89-06da54fe5167 state changed from READY to ONGOING
+2024-11-10T17:46:55.989Z [info]: Retrieved details for match 1-cb13800b-a448-43dc-ac89-06da54fe5167
+2024-11-10T17:46:55.989Z [info]: Sending state change notification for match 1-cb13800b-a448-43dc-ac89-06da54fe5167 to chat room match-1-cb13800b-a448-43dc-ac89-06da54fe5167: Match has started! Good luck and have fun!
+2024-11-10T17:46:55.990Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T17:47:55.840Z [info]: Match 1-782e10b8-5b91-408c-b5f8-6ab79c748708 state changed from READY to ONGOING
+2024-11-10T17:47:56.243Z [info]: Retrieved details for match 1-782e10b8-5b91-408c-b5f8-6ab79c748708
+2024-11-10T17:47:56.243Z [info]: Sending state change notification for match 1-782e10b8-5b91-408c-b5f8-6ab79c748708 to chat room match-1-782e10b8-5b91-408c-b5f8-6ab79c748708: Match has started! Good luck and have fun!
+2024-11-10T17:47:56.244Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T17:51:55.902Z [info]: Match 1-0095acad-dcc0-447f-8612-61886235e3eb state changed from VOTING to READY
+2024-11-10T17:51:56.303Z [info]: Retrieved details for match 1-0095acad-dcc0-447f-8612-61886235e3eb
+2024-11-10T17:52:55.902Z [info]: Match 1-ba5d80da-7017-45cf-8603-d11514aa1c73 state changed from VOTING to READY
+2024-11-10T17:52:56.326Z [info]: Retrieved details for match 1-ba5d80da-7017-45cf-8603-d11514aa1c73
+2024-11-10T17:54:55.642Z [info]: Match 1-ba5d80da-7017-45cf-8603-d11514aa1c73 state changed from READY to ONGOING
+2024-11-10T17:54:55.642Z [info]: Match 1-0095acad-dcc0-447f-8612-61886235e3eb state changed from READY to ONGOING
+2024-11-10T17:54:56.040Z [info]: Retrieved details for match 1-0095acad-dcc0-447f-8612-61886235e3eb
+2024-11-10T17:54:56.040Z [info]: Sending state change notification for match 1-0095acad-dcc0-447f-8612-61886235e3eb to chat room match-1-0095acad-dcc0-447f-8612-61886235e3eb: Match has started! Good luck and have fun!
+2024-11-10T17:54:56.041Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T17:54:56.045Z [info]: Retrieved details for match 1-ba5d80da-7017-45cf-8603-d11514aa1c73
+2024-11-10T17:54:56.045Z [info]: Sending state change notification for match 1-ba5d80da-7017-45cf-8603-d11514aa1c73 to chat room match-1-ba5d80da-7017-45cf-8603-d11514aa1c73: Match has started! Good luck and have fun!
+2024-11-10T17:54:56.045Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T17:55:55.650Z [info]: Match 1-62192342-c9ff-4c3a-a4b4-2a66a7bcf223 state changed from VOTING to CONFIGURING
+2024-11-10T17:55:56.063Z [info]: Retrieved details for match 1-62192342-c9ff-4c3a-a4b4-2a66a7bcf223
+2024-11-10T17:55:56.063Z [info]: Sending greeting message for match 1-62192342-c9ff-4c3a-a4b4-2a66a7bcf223 to chat room match-1-62192342-c9ff-4c3a-a4b4-2a66a7bcf223
+2024-11-10T17:55:56.064Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:201:13)
+2024-11-10T17:56:55.968Z [info]: Match 1-62192342-c9ff-4c3a-a4b4-2a66a7bcf223 state changed from CONFIGURING to READY
+2024-11-10T17:56:56.394Z [info]: Retrieved details for match 1-62192342-c9ff-4c3a-a4b4-2a66a7bcf223
+2024-11-10T17:57:55.906Z [info]: Match 1-62192342-c9ff-4c3a-a4b4-2a66a7bcf223 state changed from READY to ONGOING
+2024-11-10T17:57:56.297Z [info]: Retrieved details for match 1-62192342-c9ff-4c3a-a4b4-2a66a7bcf223
+2024-11-10T17:57:56.298Z [info]: Sending state change notification for match 1-62192342-c9ff-4c3a-a4b4-2a66a7bcf223 to chat room match-1-62192342-c9ff-4c3a-a4b4-2a66a7bcf223: Match has started! Good luck and have fun!
+2024-11-10T17:57:56.298Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:06:56.078Z [info]: Match 1-89b35fca-2b79-460c-a16b-1d8bde48c3df state changed from VOTING to READY
+2024-11-10T18:06:56.469Z [info]: Retrieved details for match 1-89b35fca-2b79-460c-a16b-1d8bde48c3df
+2024-11-10T18:08:55.778Z [info]: Match 1-89b35fca-2b79-460c-a16b-1d8bde48c3df state changed from READY to ONGOING
+2024-11-10T18:08:56.194Z [info]: Retrieved details for match 1-89b35fca-2b79-460c-a16b-1d8bde48c3df
+2024-11-10T18:08:56.194Z [info]: Sending state change notification for match 1-89b35fca-2b79-460c-a16b-1d8bde48c3df to chat room match-1-89b35fca-2b79-460c-a16b-1d8bde48c3df: Match has started! Good luck and have fun!
+2024-11-10T18:08:56.195Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:21:55.861Z [info]: Match 1-4299bb2e-1d73-46e4-94b9-d9fefd864f96 state changed from CHECK_IN to VOTING
+2024-11-10T18:21:55.861Z [info]: Match 1-1459edc8-8610-4709-8a2c-b3e8877c0cb8 state changed from VOTING to READY
+2024-11-10T18:21:56.262Z [info]: Retrieved details for match 1-1459edc8-8610-4709-8a2c-b3e8877c0cb8
+2024-11-10T18:21:56.276Z [info]: Retrieved details for match 1-4299bb2e-1d73-46e4-94b9-d9fefd864f96
+2024-11-10T18:22:55.858Z [info]: Match 1-4ac600a3-d20a-4c49-890f-74e609bde2e8 state changed from VOTING to READY
+2024-11-10T18:22:55.858Z [info]: Match 1-4299bb2e-1d73-46e4-94b9-d9fefd864f96 state changed from VOTING to READY
+2024-11-10T18:22:56.279Z [info]: Retrieved details for match 1-4ac600a3-d20a-4c49-890f-74e609bde2e8
+2024-11-10T18:22:56.305Z [info]: Retrieved details for match 1-4299bb2e-1d73-46e4-94b9-d9fefd864f96
+2024-11-10T18:23:56.127Z [info]: Match 1-4ac600a3-d20a-4c49-890f-74e609bde2e8 state changed from READY to ONGOING
+2024-11-10T18:23:56.550Z [info]: Retrieved details for match 1-4ac600a3-d20a-4c49-890f-74e609bde2e8
+2024-11-10T18:23:56.550Z [info]: Sending state change notification for match 1-4ac600a3-d20a-4c49-890f-74e609bde2e8 to chat room match-1-4ac600a3-d20a-4c49-890f-74e609bde2e8: Match has started! Good luck and have fun!
+2024-11-10T18:23:56.551Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:24:56.107Z [info]: Match 1-1459edc8-8610-4709-8a2c-b3e8877c0cb8 state changed from READY to ONGOING
+2024-11-10T18:24:56.570Z [info]: Retrieved details for match 1-1459edc8-8610-4709-8a2c-b3e8877c0cb8
+2024-11-10T18:24:56.570Z [info]: Sending state change notification for match 1-1459edc8-8610-4709-8a2c-b3e8877c0cb8 to chat room match-1-1459edc8-8610-4709-8a2c-b3e8877c0cb8: Match has started! Good luck and have fun!
+2024-11-10T18:24:56.570Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:25:56.123Z [info]: Match 1-4299bb2e-1d73-46e4-94b9-d9fefd864f96 state changed from READY to ONGOING
+2024-11-10T18:25:56.578Z [info]: Retrieved details for match 1-4299bb2e-1d73-46e4-94b9-d9fefd864f96
+2024-11-10T18:25:56.578Z [info]: Sending state change notification for match 1-4299bb2e-1d73-46e4-94b9-d9fefd864f96 to chat room match-1-4299bb2e-1d73-46e4-94b9-d9fefd864f96: Match has started! Good luck and have fun!
+2024-11-10T18:25:56.578Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:28:56.152Z [info]: Match 1-0ed7879a-5806-4a52-b14e-574283b8acb0 state changed from CHECK_IN to VOTING
+2024-11-10T18:28:56.552Z [info]: Retrieved details for match 1-0ed7879a-5806-4a52-b14e-574283b8acb0
+2024-11-10T18:29:56.126Z [info]: Match 1-8b9bbaf1-96fb-4f0e-8cf2-f9893dcb91f6 state changed from CHECK_IN to VOTING
+2024-11-10T18:29:56.127Z [info]: Match 1-0ed7879a-5806-4a52-b14e-574283b8acb0 state changed from VOTING to READY
+2024-11-10T18:29:56.520Z [info]: Retrieved details for match 1-8b9bbaf1-96fb-4f0e-8cf2-f9893dcb91f6
+2024-11-10T18:29:56.545Z [info]: Retrieved details for match 1-0ed7879a-5806-4a52-b14e-574283b8acb0
+2024-11-10T18:30:56.196Z [info]: Match 1-8b9bbaf1-96fb-4f0e-8cf2-f9893dcb91f6 state changed from VOTING to READY
+2024-11-10T18:30:56.605Z [info]: Retrieved details for match 1-8b9bbaf1-96fb-4f0e-8cf2-f9893dcb91f6
+2024-11-10T18:32:56.227Z [info]: Match 1-0ed7879a-5806-4a52-b14e-574283b8acb0 state changed from READY to ONGOING
+2024-11-10T18:32:56.634Z [info]: Retrieved details for match 1-0ed7879a-5806-4a52-b14e-574283b8acb0
+2024-11-10T18:32:56.634Z [info]: Sending state change notification for match 1-0ed7879a-5806-4a52-b14e-574283b8acb0 to chat room match-1-0ed7879a-5806-4a52-b14e-574283b8acb0: Match has started! Good luck and have fun!
+2024-11-10T18:32:56.634Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:35:55.949Z [info]: Match 1-35080a1e-5edc-4d6a-9f6a-dedde2097dcf state changed from VOTING to READY
+2024-11-10T18:35:56.347Z [info]: Retrieved details for match 1-35080a1e-5edc-4d6a-9f6a-dedde2097dcf
+2024-11-10T18:37:55.951Z [info]: Match 1-c962f174-2029-4bd3-996a-a5e71eed8a75 state changed from VOTING to READY
+2024-11-10T18:37:56.378Z [info]: Retrieved details for match 1-c962f174-2029-4bd3-996a-a5e71eed8a75
+2024-11-10T18:38:56.199Z [info]: Match 1-35080a1e-5edc-4d6a-9f6a-dedde2097dcf state changed from READY to ONGOING
+2024-11-10T18:38:56.592Z [info]: Retrieved details for match 1-35080a1e-5edc-4d6a-9f6a-dedde2097dcf
+2024-11-10T18:38:56.592Z [info]: Sending state change notification for match 1-35080a1e-5edc-4d6a-9f6a-dedde2097dcf to chat room match-1-35080a1e-5edc-4d6a-9f6a-dedde2097dcf: Match has started! Good luck and have fun!
+2024-11-10T18:38:56.593Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:39:56.200Z [info]: Match 1-c962f174-2029-4bd3-996a-a5e71eed8a75 state changed from READY to ONGOING
+2024-11-10T18:39:56.611Z [info]: Retrieved details for match 1-c962f174-2029-4bd3-996a-a5e71eed8a75
+2024-11-10T18:39:56.611Z [info]: Sending state change notification for match 1-c962f174-2029-4bd3-996a-a5e71eed8a75 to chat room match-1-c962f174-2029-4bd3-996a-a5e71eed8a75: Match has started! Good luck and have fun!
+2024-11-10T18:39:56.612Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:42:56.237Z [info]: Match 1-21dd1e8a-2121-4b41-b822-8b4d0bce82f2 state changed from VOTING to READY
+2024-11-10T18:42:56.650Z [info]: Retrieved details for match 1-21dd1e8a-2121-4b41-b822-8b4d0bce82f2
+2024-11-10T18:47:56.059Z [info]: Match 1-e8a924fe-6c84-489f-945b-9d52d1969c5a state changed from VOTING to READY
+2024-11-10T18:47:56.463Z [info]: Retrieved details for match 1-e8a924fe-6c84-489f-945b-9d52d1969c5a
+2024-11-10T18:50:56.319Z [info]: Match 1-e8a924fe-6c84-489f-945b-9d52d1969c5a state changed from READY to ONGOING
+2024-11-10T18:50:56.721Z [info]: Retrieved details for match 1-e8a924fe-6c84-489f-945b-9d52d1969c5a
+2024-11-10T18:50:56.721Z [info]: Sending state change notification for match 1-e8a924fe-6c84-489f-945b-9d52d1969c5a to chat room match-1-e8a924fe-6c84-489f-945b-9d52d1969c5a: Match has started! Good luck and have fun!
+2024-11-10T18:50:56.722Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:56:56.061Z [info]: Match 1-94c5e1d7-cecf-47ab-8790-793bb341918b state changed from VOTING to READY
+2024-11-10T18:56:56.482Z [info]: Retrieved details for match 1-94c5e1d7-cecf-47ab-8790-793bb341918b
+2024-11-10T19:04:56.086Z [info]: Match 1-4179eee6-669e-4e40-af13-f72ddf8784fb state changed from VOTING to READY
+2024-11-10T19:04:56.486Z [info]: Retrieved details for match 1-4179eee6-669e-4e40-af13-f72ddf8784fb
+2024-11-10T19:05:56.135Z [info]: Match 1-6c07de77-ef30-4ac4-bf1c-d6b1b6d613a9 state changed from CHECK_IN to VOTING
+2024-11-10T19:05:56.543Z [info]: Retrieved details for match 1-6c07de77-ef30-4ac4-bf1c-d6b1b6d613a9
+2024-11-10T19:07:56.437Z [info]: Match 1-4179eee6-669e-4e40-af13-f72ddf8784fb state changed from READY to ONGOING
+2024-11-10T19:07:56.840Z [info]: Retrieved details for match 1-4179eee6-669e-4e40-af13-f72ddf8784fb
+2024-11-10T19:07:56.840Z [info]: Sending state change notification for match 1-4179eee6-669e-4e40-af13-f72ddf8784fb to chat room match-1-4179eee6-669e-4e40-af13-f72ddf8784fb: Match has started! Good luck and have fun!
+2024-11-10T19:07:56.840Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:08:56.138Z [info]: Match 1-366d5c64-c450-4d5a-802e-466787af02c8 state changed from VOTING to READY
+2024-11-10T19:08:56.535Z [info]: Retrieved details for match 1-366d5c64-c450-4d5a-802e-466787af02c8
+2024-11-10T19:10:56.113Z [info]: Match 1-366d5c64-c450-4d5a-802e-466787af02c8 state changed from READY to ONGOING
+2024-11-10T19:10:56.518Z [info]: Retrieved details for match 1-366d5c64-c450-4d5a-802e-466787af02c8
+2024-11-10T19:10:56.518Z [info]: Sending state change notification for match 1-366d5c64-c450-4d5a-802e-466787af02c8 to chat room match-1-366d5c64-c450-4d5a-802e-466787af02c8: Match has started! Good luck and have fun!
+2024-11-10T19:10:56.518Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:14:56.452Z [info]: Match 1-f5102b77-1681-43ad-aec3-9ae4bbdf0f2b state changed from CHECK_IN to VOTING
+2024-11-10T19:14:56.865Z [info]: Retrieved details for match 1-f5102b77-1681-43ad-aec3-9ae4bbdf0f2b
+2024-11-10T19:15:56.198Z [info]: Match 1-f5102b77-1681-43ad-aec3-9ae4bbdf0f2b state changed from VOTING to READY
+2024-11-10T19:15:56.618Z [info]: Retrieved details for match 1-f5102b77-1681-43ad-aec3-9ae4bbdf0f2b
+2024-11-10T19:18:55.620Z [info]: Match 1-f5102b77-1681-43ad-aec3-9ae4bbdf0f2b state changed from READY to ONGOING
+2024-11-10T19:18:56.039Z [info]: Retrieved details for match 1-f5102b77-1681-43ad-aec3-9ae4bbdf0f2b
+2024-11-10T19:18:56.039Z [info]: Sending state change notification for match 1-f5102b77-1681-43ad-aec3-9ae4bbdf0f2b to chat room match-1-f5102b77-1681-43ad-aec3-9ae4bbdf0f2b: Match has started! Good luck and have fun!
+2024-11-10T19:18:56.040Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:19:56.503Z [info]: Match 1-0714a086-7b0b-4626-ad77-7508789c150b state changed from VOTING to READY
+2024-11-10T19:19:56.907Z [info]: Retrieved details for match 1-0714a086-7b0b-4626-ad77-7508789c150b
+2024-11-10T19:22:56.178Z [info]: Match 1-e87053ad-3e2b-4753-9b83-6f5c654fec03 state changed from CHECK_IN to VOTING
+2024-11-10T19:22:56.569Z [info]: Retrieved details for match 1-e87053ad-3e2b-4753-9b83-6f5c654fec03
+2024-11-10T19:23:56.434Z [info]: Match 1-e87053ad-3e2b-4753-9b83-6f5c654fec03 state changed from VOTING to CONFIGURING
+2024-11-10T19:23:56.835Z [info]: Retrieved details for match 1-e87053ad-3e2b-4753-9b83-6f5c654fec03
+2024-11-10T19:23:56.835Z [info]: Sending greeting message for match 1-e87053ad-3e2b-4753-9b83-6f5c654fec03 to chat room match-1-e87053ad-3e2b-4753-9b83-6f5c654fec03
+2024-11-10T19:23:56.836Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:201:13)
+2024-11-10T19:25:56.481Z [info]: Match 1-5f081a19-af39-4280-9db2-fceb3a2bf6f7 state changed from READY to ONGOING
+2024-11-10T19:25:56.894Z [info]: Retrieved details for match 1-5f081a19-af39-4280-9db2-fceb3a2bf6f7
+2024-11-10T19:25:56.894Z [info]: Sending state change notification for match 1-5f081a19-af39-4280-9db2-fceb3a2bf6f7 to chat room match-1-5f081a19-af39-4280-9db2-fceb3a2bf6f7: Match has started! Good luck and have fun!
+2024-11-10T19:25:56.894Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:28:56.542Z [info]: Match 1-a4b11969-67a1-44d3-8dea-bc2437ebd7c2 state changed from VOTING to READY
+2024-11-10T19:28:56.962Z [info]: Retrieved details for match 1-a4b11969-67a1-44d3-8dea-bc2437ebd7c2
+2024-11-10T19:30:56.566Z [info]: Match 1-a4b11969-67a1-44d3-8dea-bc2437ebd7c2 state changed from READY to ONGOING
+2024-11-10T19:30:56.970Z [info]: Retrieved details for match 1-a4b11969-67a1-44d3-8dea-bc2437ebd7c2
+2024-11-10T19:30:56.970Z [info]: Sending state change notification for match 1-a4b11969-67a1-44d3-8dea-bc2437ebd7c2 to chat room match-1-a4b11969-67a1-44d3-8dea-bc2437ebd7c2: Match has started! Good luck and have fun!
+2024-11-10T19:30:56.971Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:37:56.132Z [info]: Match 1-8fa7d9a7-dd0a-4888-87cc-ff6d194f07f2 state changed from VOTING to READY
+2024-11-10T19:37:56.568Z [info]: Retrieved details for match 1-8fa7d9a7-dd0a-4888-87cc-ff6d194f07f2
+2024-11-10T19:40:56.368Z [info]: Match 1-8fa7d9a7-dd0a-4888-87cc-ff6d194f07f2 state changed from READY to ONGOING
+2024-11-10T19:40:56.788Z [info]: Retrieved details for match 1-8fa7d9a7-dd0a-4888-87cc-ff6d194f07f2
+2024-11-10T19:40:56.788Z [info]: Sending state change notification for match 1-8fa7d9a7-dd0a-4888-87cc-ff6d194f07f2 to chat room match-1-8fa7d9a7-dd0a-4888-87cc-ff6d194f07f2: Match has started! Good luck and have fun!
+2024-11-10T19:40:56.788Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:42:56.636Z [info]: Match 1-9b171513-0530-421a-bc41-5c0a13cabc81 state changed from CHECK_IN to VOTING
+2024-11-10T19:42:57.035Z [info]: Retrieved details for match 1-9b171513-0530-421a-bc41-5c0a13cabc81
+2024-11-10T19:43:56.656Z [info]: Match 1-9b171513-0530-421a-bc41-5c0a13cabc81 state changed from VOTING to READY
+2024-11-10T19:43:57.086Z [info]: Retrieved details for match 1-9b171513-0530-421a-bc41-5c0a13cabc81
+2024-11-10T19:44:56.386Z [info]: Match 1-b1f76dc5-c7ce-4359-bce8-f1d80792e67c state changed from VOTING to READY
+2024-11-10T19:44:56.773Z [info]: Retrieved details for match 1-b1f76dc5-c7ce-4359-bce8-f1d80792e67c
+2024-11-10T19:47:55.876Z [info]: Match 1-2e57431d-90f6-4bfa-9814-8e16375600b4 state changed from VOTING to READY
+2024-11-10T19:47:56.176Z [info]: Retrieved details for match 1-2e57431d-90f6-4bfa-9814-8e16375600b4
+2024-11-10T19:48:56.446Z [info]: Match 1-0a8de7fe-0050-4477-84f0-90847d89fc5f state changed from VOTING to READY
+2024-11-10T19:48:56.853Z [info]: Retrieved details for match 1-0a8de7fe-0050-4477-84f0-90847d89fc5f
+2024-11-10T19:49:56.372Z [info]: Match 1-2e57431d-90f6-4bfa-9814-8e16375600b4 state changed from READY to ONGOING
+2024-11-10T19:49:56.783Z [info]: Retrieved details for match 1-2e57431d-90f6-4bfa-9814-8e16375600b4
+2024-11-10T19:49:56.784Z [info]: Sending state change notification for match 1-2e57431d-90f6-4bfa-9814-8e16375600b4 to chat room match-1-2e57431d-90f6-4bfa-9814-8e16375600b4: Match has started! Good luck and have fun!
+2024-11-10T19:49:56.784Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:50:56.700Z [info]: Match 1-0a8de7fe-0050-4477-84f0-90847d89fc5f state changed from READY to ONGOING
+2024-11-10T19:50:57.367Z [info]: Retrieved details for match 1-0a8de7fe-0050-4477-84f0-90847d89fc5f
+2024-11-10T19:50:57.367Z [info]: Sending state change notification for match 1-0a8de7fe-0050-4477-84f0-90847d89fc5f to chat room match-1-0a8de7fe-0050-4477-84f0-90847d89fc5f: Match has started! Good luck and have fun!
+2024-11-10T19:50:57.368Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:57:56.655Z [info]: Match 1-a502f219-8bf9-411c-b750-6f6c988b104f state changed from VOTING to READY
+2024-11-10T19:57:57.070Z [info]: Retrieved details for match 1-a502f219-8bf9-411c-b750-6f6c988b104f
+2024-11-10T20:01:56.707Z [info]: Match 1-a9171494-bc40-4fc9-b3f4-5e1d2dc43017 state changed from VOTING to READY
+2024-11-10T20:01:57.101Z [info]: Retrieved details for match 1-a9171494-bc40-4fc9-b3f4-5e1d2dc43017
+2024-11-10T20:03:56.537Z [info]: Match 1-a9171494-bc40-4fc9-b3f4-5e1d2dc43017 state changed from READY to ONGOING
+2024-11-10T20:03:56.928Z [info]: Retrieved details for match 1-a9171494-bc40-4fc9-b3f4-5e1d2dc43017
+2024-11-10T20:03:56.928Z [info]: Sending state change notification for match 1-a9171494-bc40-4fc9-b3f4-5e1d2dc43017 to chat room match-1-a9171494-bc40-4fc9-b3f4-5e1d2dc43017: Match has started! Good luck and have fun!
+2024-11-10T20:03:56.928Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:04:56.746Z [info]: Match 1-68b6ca00-2245-4015-853b-e4858ebebfbc state changed from VOTING to READY
+2024-11-10T20:04:57.156Z [info]: Retrieved details for match 1-68b6ca00-2245-4015-853b-e4858ebebfbc
+2024-11-10T20:10:55.913Z [info]: Match 1-de0eae08-76ca-4e57-8283-c89f182594b8 state changed from READY to ONGOING
+2024-11-10T20:10:56.321Z [info]: Retrieved details for match 1-de0eae08-76ca-4e57-8283-c89f182594b8
+2024-11-10T20:10:56.322Z [info]: Sending state change notification for match 1-de0eae08-76ca-4e57-8283-c89f182594b8 to chat room match-1-de0eae08-76ca-4e57-8283-c89f182594b8: Match has started! Good luck and have fun!
+2024-11-10T20:10:56.322Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:14:55.715Z [info]: Match 1-0a8aaedf-c58a-4cad-bffd-67e1547f599e state changed from VOTING to READY
+2024-11-10T20:14:56.111Z [info]: Retrieved details for match 1-0a8aaedf-c58a-4cad-bffd-67e1547f599e
+2024-11-10T20:16:55.981Z [info]: Match 1-0a8aaedf-c58a-4cad-bffd-67e1547f599e state changed from READY to ONGOING
+2024-11-10T20:16:56.395Z [info]: Retrieved details for match 1-0a8aaedf-c58a-4cad-bffd-67e1547f599e
+2024-11-10T20:16:56.395Z [info]: Sending state change notification for match 1-0a8aaedf-c58a-4cad-bffd-67e1547f599e to chat room match-1-0a8aaedf-c58a-4cad-bffd-67e1547f599e: Match has started! Good luck and have fun!
+2024-11-10T20:16:56.395Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:17:56.247Z [info]: Match 1-aa9df675-6738-4c5e-a9f7-ee06902d1d25 state changed from VOTING to READY
+2024-11-10T20:17:56.646Z [info]: Retrieved details for match 1-aa9df675-6738-4c5e-a9f7-ee06902d1d25
+2024-11-10T20:19:55.879Z [info]: Match 1-aa9df675-6738-4c5e-a9f7-ee06902d1d25 state changed from READY to ONGOING
+2024-11-10T20:19:56.340Z [info]: Retrieved details for match 1-aa9df675-6738-4c5e-a9f7-ee06902d1d25
+2024-11-10T20:19:56.341Z [info]: Sending state change notification for match 1-aa9df675-6738-4c5e-a9f7-ee06902d1d25 to chat room match-1-aa9df675-6738-4c5e-a9f7-ee06902d1d25: Match has started! Good luck and have fun!
+2024-11-10T20:19:56.341Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:25:55.935Z [info]: Match 1-97d7cc91-7e4f-490f-a705-6ae1d73151e5 state changed from null to CONFIGURING
+2024-11-10T20:25:56.324Z [info]: Retrieved details for match 1-97d7cc91-7e4f-490f-a705-6ae1d73151e5
+2024-11-10T20:25:56.325Z [info]: Sending greeting message for match 1-97d7cc91-7e4f-490f-a705-6ae1d73151e5 to chat room match-1-97d7cc91-7e4f-490f-a705-6ae1d73151e5
+2024-11-10T20:25:56.325Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:201:13)
+2024-11-10T20:26:55.979Z [info]: Match 1-97d7cc91-7e4f-490f-a705-6ae1d73151e5 state changed from CONFIGURING to READY
+2024-11-10T20:26:56.378Z [info]: Retrieved details for match 1-97d7cc91-7e4f-490f-a705-6ae1d73151e5
+2024-11-10T20:29:55.667Z [info]: Match 1-97d7cc91-7e4f-490f-a705-6ae1d73151e5 state changed from READY to ONGOING
+2024-11-10T20:29:55.924Z [info]: Retrieved details for match 1-97d7cc91-7e4f-490f-a705-6ae1d73151e5
+2024-11-10T20:29:55.924Z [info]: Sending state change notification for match 1-97d7cc91-7e4f-490f-a705-6ae1d73151e5 to chat room match-1-97d7cc91-7e4f-490f-a705-6ae1d73151e5: Match has started! Good luck and have fun!
+2024-11-10T20:29:55.925Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:35:55.895Z [info]: Match 1-82d4453f-9af9-49f0-8cbd-b544b19624cb state changed from VOTING to READY
+2024-11-10T20:35:56.306Z [info]: Retrieved details for match 1-82d4453f-9af9-49f0-8cbd-b544b19624cb
+2024-11-10T20:38:56.321Z [info]: Match 1-82d4453f-9af9-49f0-8cbd-b544b19624cb state changed from READY to ONGOING
+2024-11-10T20:38:56.718Z [info]: Retrieved details for match 1-82d4453f-9af9-49f0-8cbd-b544b19624cb
+2024-11-10T20:38:56.718Z [info]: Sending state change notification for match 1-82d4453f-9af9-49f0-8cbd-b544b19624cb to chat room match-1-82d4453f-9af9-49f0-8cbd-b544b19624cb: Match has started! Good luck and have fun!
+2024-11-10T20:38:56.719Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:40:56.949Z [info]: Match 1-0750970a-805c-4b20-9fe0-5828700f7155 state changed from VOTING to READY
+2024-11-10T20:40:57.347Z [info]: Retrieved details for match 1-0750970a-805c-4b20-9fe0-5828700f7155
+2024-11-10T20:41:55.635Z [info]: Match 1-0750970a-805c-4b20-9fe0-5828700f7155 state changed from READY to ONGOING
+2024-11-10T20:41:55.901Z [info]: Retrieved details for match 1-0750970a-805c-4b20-9fe0-5828700f7155
+2024-11-10T20:41:55.901Z [info]: Sending state change notification for match 1-0750970a-805c-4b20-9fe0-5828700f7155 to chat room match-1-0750970a-805c-4b20-9fe0-5828700f7155: Match has started! Good luck and have fun!
+2024-11-10T20:41:55.902Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:43:55.769Z [info]: Match 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576 state changed from CHECK_IN to VOTING
+2024-11-10T20:43:56.190Z [info]: Retrieved details for match 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576
+2024-11-10T20:45:56.484Z [info]: Match 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576 state changed from VOTING to READY
+2024-11-10T20:45:56.901Z [info]: Retrieved details for match 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576
+2024-11-10T20:48:56.047Z [info]: Match 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576 state changed from READY to ONGOING
+2024-11-10T20:48:56.297Z [info]: Retrieved details for match 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576
+2024-11-10T20:48:56.297Z [info]: Sending state change notification for match 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576 to chat room match-1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576: Match has started! Good luck and have fun!
+2024-11-10T20:48:56.298Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:49:55.194Z [info]: Match 1-f71079ec-60da-4484-97d9-a154106ce3c1 state changed from VOTING to READY
+2024-11-10T20:49:55.449Z [info]: Retrieved details for match 1-f71079ec-60da-4484-97d9-a154106ce3c1
+2024-11-10T20:51:55.853Z [info]: Match 1-f71079ec-60da-4484-97d9-a154106ce3c1 state changed from READY to ONGOING
+2024-11-10T20:51:56.252Z [info]: Retrieved details for match 1-f71079ec-60da-4484-97d9-a154106ce3c1
+2024-11-10T20:51:56.252Z [info]: Sending state change notification for match 1-f71079ec-60da-4484-97d9-a154106ce3c1 to chat room match-1-f71079ec-60da-4484-97d9-a154106ce3c1: Match has started! Good luck and have fun!
+2024-11-10T20:51:56.252Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:53:55.712Z [info]: Match 1-7bc917d9-960b-4a96-adce-ec04964e2724 state changed from CHECK_IN to VOTING
+2024-11-10T20:53:56.170Z [info]: Retrieved details for match 1-7bc917d9-960b-4a96-adce-ec04964e2724
+2024-11-10T20:54:55.438Z [info]: Match 1-7bc917d9-960b-4a96-adce-ec04964e2724 state changed from VOTING to READY
+2024-11-10T20:54:55.693Z [info]: Retrieved details for match 1-7bc917d9-960b-4a96-adce-ec04964e2724
+2024-11-10T20:58:56.239Z [info]: Match 1-f3dca6ef-d768-4c7b-b122-0f9c70f32c1b state changed from VOTING to READY
+2024-11-10T20:58:56.913Z [info]: Retrieved details for match 1-f3dca6ef-d768-4c7b-b122-0f9c70f32c1b
+2024-11-10T21:01:55.611Z [info]: Match 1-f3dca6ef-d768-4c7b-b122-0f9c70f32c1b state changed from READY to ONGOING
+2024-11-10T21:01:55.875Z [info]: Retrieved details for match 1-f3dca6ef-d768-4c7b-b122-0f9c70f32c1b
+2024-11-10T21:01:55.875Z [info]: Sending state change notification for match 1-f3dca6ef-d768-4c7b-b122-0f9c70f32c1b to chat room match-1-f3dca6ef-d768-4c7b-b122-0f9c70f32c1b: Match has started! Good luck and have fun!
+2024-11-10T21:01:55.876Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T21:09:55.317Z [info]: Match 1-4f827ad3-f141-4e18-996c-d6be54dab42e state changed from VOTING to READY
+2024-11-10T21:09:55.579Z [info]: Retrieved details for match 1-4f827ad3-f141-4e18-996c-d6be54dab42e
+2024-11-10T21:10:55.286Z [info]: Match 1-ca18b695-7515-4ef1-8155-75c6e8c52224 state changed from VOTING to READY
+2024-11-10T21:10:55.561Z [info]: Retrieved details for match 1-ca18b695-7515-4ef1-8155-75c6e8c52224
+2024-11-10T21:11:55.474Z [info]: Match 1-4f827ad3-f141-4e18-996c-d6be54dab42e state changed from READY to ONGOING
+2024-11-10T21:11:55.924Z [info]: Retrieved details for match 1-4f827ad3-f141-4e18-996c-d6be54dab42e
+2024-11-10T21:11:55.924Z [info]: Sending state change notification for match 1-4f827ad3-f141-4e18-996c-d6be54dab42e to chat room match-1-4f827ad3-f141-4e18-996c-d6be54dab42e: Match has started! Good luck and have fun!
+2024-11-10T21:11:55.925Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T21:12:55.519Z [info]: Match 1-ca18b695-7515-4ef1-8155-75c6e8c52224 state changed from READY to ONGOING
+2024-11-10T21:12:55.792Z [info]: Retrieved details for match 1-ca18b695-7515-4ef1-8155-75c6e8c52224
+2024-11-10T21:12:55.792Z [info]: Sending state change notification for match 1-ca18b695-7515-4ef1-8155-75c6e8c52224 to chat room match-1-ca18b695-7515-4ef1-8155-75c6e8c52224: Match has started! Good luck and have fun!
+2024-11-10T21:12:55.793Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T21:13:40.779Z [error]: Uncaught exception: listen EADDRINUSE: address already in use :::3000
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1907:16)
+    at listenInCluster (node:net:1964:12)
+    at Server.listen (node:net:2066:7)
+    at Function.listen (E:\New folder\discord-bot2\node_modules\express\lib\application.js:635:24)
+    at file:///E:/New%20folder/discord-bot2/bot.js:195:5
+    at ModuleJob.run (node:internal/modules/esm/module_job:268:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:543:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:116:5)
+2024-11-10T21:13:41.695Z [info]: Discord bot logged in successfully
+2024-11-10T21:13:41.699Z [info]: Started FACEIT hub monitoring
+2024-11-10T21:13:42.002Z [info]: Successfully connected to hub: CS2 - MESL HAFLA
+2024-11-10T21:14:12.366Z [debug]: Found 5 matches in hub
+2024-11-10T21:14:12.367Z [info]: Match 1-ca18b695-7515-4ef1-8155-75c6e8c52224 state changed to ONGOING
+2024-11-10T21:14:12.368Z [info]: Match 1-4f827ad3-f141-4e18-996c-d6be54dab42e state changed to ONGOING
+2024-11-10T21:14:12.369Z [info]: Match 1-f3dca6ef-d768-4c7b-b122-0f9c70f32c1b state changed to ONGOING
+2024-11-10T21:14:12.370Z [info]: Match 1-f71079ec-60da-4484-97d9-a154106ce3c1 state changed to ONGOING
+2024-11-10T21:14:12.372Z [info]: Match 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576 state changed to ONGOING
+2024-11-10T21:14:12.630Z [info]: Attempting to send message to room 1-ca18b695-7515-4ef1-8155-75c6e8c52224: Match has started! Good luck and have fun!
+2024-11-10T21:14:12.655Z [info]: Attempting to send message to room 1-f71079ec-60da-4484-97d9-a154106ce3c1: Match has started! Good luck and have fun!
+2024-11-10T21:14:12.660Z [info]: Attempting to send message to room 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576: Match has started! Good luck and have fun!
+2024-11-10T21:14:12.664Z [info]: Attempting to send message to room 1-f3dca6ef-d768-4c7b-b122-0f9c70f32c1b: Match has started! Good luck and have fun!
+2024-11-10T21:14:12.902Z [info]: Attempting to send message to room 1-4f827ad3-f141-4e18-996c-d6be54dab42e: Match has started! Good luck and have fun!
+2024-11-10T21:14:12.910Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:15:32.120Z [info]: Server running on port 3000
+2024-11-10T21:15:33.283Z [info]: Discord bot logged in successfully
+2024-11-10T21:15:33.287Z [info]: Started FACEIT hub monitoring
+2024-11-10T21:15:33.562Z [info]: Successfully connected to hub: CS2 - MESL HAFLA
+2024-11-10T21:16:03.870Z [debug]: Found 4 matches in hub
+2024-11-10T21:16:03.870Z [info]: Match 1-ca18b695-7515-4ef1-8155-75c6e8c52224 state changed to ONGOING
+2024-11-10T21:16:03.871Z [info]: Match 1-4f827ad3-f141-4e18-996c-d6be54dab42e state changed to ONGOING
+2024-11-10T21:16:03.873Z [info]: Match 1-f3dca6ef-d768-4c7b-b122-0f9c70f32c1b state changed to ONGOING
+2024-11-10T21:16:03.874Z [info]: Match 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576 state changed to ONGOING
+2024-11-10T21:16:04.128Z [info]: Attempting to send message to room 1-ca18b695-7515-4ef1-8155-75c6e8c52224: Match has started! Good luck and have fun!
+2024-11-10T21:16:04.150Z [info]: Attempting to send message to room 1-f3dca6ef-d768-4c7b-b122-0f9c70f32c1b: Match has started! Good luck and have fun!
+2024-11-10T21:16:04.152Z [info]: Attempting to send message to room 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576: Match has started! Good luck and have fun!
+2024-11-10T21:16:04.165Z [info]: Attempting to send message to room 1-4f827ad3-f141-4e18-996c-d6be54dab42e: Match has started! Good luck and have fun!
+2024-11-10T21:16:04.390Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.428Z [error]: Response details:
+2024-11-10T21:16:04.429Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.478Z [error]: Response details:
+2024-11-10T21:16:04.479Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.514Z [error]: Response details:
+2024-11-10T21:16:04.663Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.683Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.717Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.761Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.795Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.829Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.880Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.894Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.928Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.962Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.983Z [error]: Response details:
+2024-11-10T21:16:05.217Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:05.230Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:05.247Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:33.878Z [debug]: Found 4 matches in hub
+2024-11-10T21:17:03.937Z [debug]: Found 4 matches in hub
+2024-11-10T21:17:34.126Z [debug]: Found 5 matches in hub
+2024-11-10T21:17:34.126Z [info]: Match 1-e8c0b2bd-63cf-4ce2-bf30-fb8c77195642 state changed to VOTING
+2024-11-10T21:18:03.908Z [debug]: Found 4 matches in hub
+2024-11-10T21:18:03.908Z [info]: Match 1-e8c0b2bd-63cf-4ce2-bf30-fb8c77195642 state changed to READY
+2024-11-10T21:18:03.909Z [info]: Removed match 1-b4b1a1e9-3e62-487f-bac5-5f10a53e4576 from tracking
+2024-11-10T21:18:04.160Z [info]: Attempting to send message to room 1-e8c0b2bd-63cf-4ce2-bf30-fb8c77195642: Welcome to the match, BaDSTiNG_7, Klutched96, JABER__, Real_Xazus, sjkMONSTA, BurNitDowN-, MahTes, -tomoe-, M4Q8, NOS85! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.
+2024-11-10T21:18:04.421Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:18:04.429Z [error]: Response details:
+2024-11-10T21:18:04.666Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:18:04.678Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:18:04.689Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:18:33.918Z [debug]: Found 4 matches in hub
+2024-11-10T21:19:03.938Z [debug]: Found 4 matches in hub
+2024-11-10T21:19:33.929Z [debug]: Found 5 matches in hub
+2024-11-10T21:19:33.929Z [info]: Match 1-8688bb5c-90b1-46e2-9aba-56060807bc8a state changed to VOTING
+2024-11-10T21:20:03.957Z [debug]: Found 5 matches in hub
+2024-11-10T21:20:34.256Z [debug]: Found 5 matches in hub
+2024-11-10T21:21:03.966Z [debug]: Found 4 matches in hub
+2024-11-10T21:21:03.966Z [info]: Match 1-8688bb5c-90b1-46e2-9aba-56060807bc8a state changed to READY
+2024-11-10T21:21:03.966Z [info]: Removed match 1-e8c0b2bd-63cf-4ce2-bf30-fb8c77195642 from tracking
+2024-11-10T21:21:04.255Z [info]: Attempting to send message to room 1-8688bb5c-90b1-46e2-9aba-56060807bc8a: Welcome to the match, ---Mnk, --Buffy, CapTin32, EeLord, smartdon, Stookerrr, Al-Lawrence, H4SHHH-, HypeR-11, Kabo0osse! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.
+2024-11-10T21:21:04.517Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:21:04.531Z [error]: Response details:
+2024-11-10T21:21:04.795Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:21:04.804Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:21:04.816Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:21:33.989Z [debug]: Found 4 matches in hub
+2024-11-10T21:22:03.982Z [debug]: Found 4 matches in hub
+2024-11-10T21:22:03.982Z [info]: Match 1-908f2f15-6cf5-4da4-b515-d2696ca9c939 state changed to VOTING
+2024-11-10T21:22:03.983Z [info]: Removed match 1-8688bb5c-90b1-46e2-9aba-56060807bc8a from tracking
+2024-11-10T21:22:34.000Z [debug]: Found 5 matches in hub
+2024-11-10T21:22:34.000Z [info]: Match 1-c6f606c6-467c-4d61-8c21-ad229711d377 state changed to CHECK_IN
+2024-11-10T21:23:03.994Z [debug]: Found 5 matches in hub
+2024-11-10T21:23:03.994Z [info]: Match 1-c6f606c6-467c-4d61-8c21-ad229711d377 state changed to VOTING
+2024-11-10T21:23:34.072Z [debug]: Found 5 matches in hub
+2024-11-10T21:23:34.072Z [info]: Match 1-c6f606c6-467c-4d61-8c21-ad229711d377 state changed to READY
+2024-11-10T21:23:34.319Z [info]: Attempting to send message to room 1-c6f606c6-467c-4d61-8c21-ad229711d377: Welcome to the match, ---Mnk, --Buffy, CapTin32, TR1PPPYY, Scythe6669, Alk3by, Alk3biy, Stookerrr, EeLord, BaDSTiNG_7! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.
+2024-11-10T21:23:34.566Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:23:34.579Z [error]: Response details:
+2024-11-10T21:23:34.840Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:23:34.852Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:23:34.865Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:24:04.029Z [debug]: Found 5 matches in hub
+2024-11-10T21:24:04.029Z [info]: Match 1-908f2f15-6cf5-4da4-b515-d2696ca9c939 state changed to READY
+2024-11-10T21:24:04.289Z [info]: Attempting to send message to room 1-908f2f15-6cf5-4da4-b515-d2696ca9c939: Welcome to the match, sjkMONSTA, Real_Xazus, JABER__, M4Q8, yousef777, Kabo0osse, HypeR-11, H4SHHH-, Al-Lawrence, NOS85! Good luck and have fun! Type !rehost to vote for a rehost (6/10 votes needed) or !cancel to check if the match can be cancelled due to ELO difference.
+2024-11-10T21:24:05.099Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:24:05.113Z [error]: Response details:
+2024-11-10T21:24:05.364Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:24:05.375Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:24:05.386Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:24:34.029Z [debug]: Found 5 matches in hub
+2024-11-10T21:25:04.034Z [debug]: Found 5 matches in hub

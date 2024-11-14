@@ -1,26 +1,27 @@
 const crypto = require('crypto');
 
-function generateToken() {
+function generateRandomString(length) {
+    return crypto.randomBytes(length).toString('base64url');
+}
+
+function generateCodeVerifier() {
+    return generateRandomString(32);
+}
+
+function generateCodeChallenge(codeVerifier) {
+    return crypto
+        .createHash('sha256')
+        .update(codeVerifier)
+        .digest('base64url');
+}
+
+function generateState() {
     return crypto.randomBytes(32).toString('hex');
 }
 
-function generateAuthHeader(clientId, clientSecret) {
-    const timestamp = Date.now();
-    const nonce = crypto.randomBytes(16).toString('hex');
-    const signature = crypto
-        .createHmac('sha256', clientSecret)
-        .update(`${clientId}${timestamp}${nonce}`)
-        .digest('hex');
-
-    return {
-        'faceit-auth': clientId,
-        'faceit-nonce': nonce,
-        'faceit-timestamp': timestamp,
-        'faceit-signature': signature
-    };
-}
-
 module.exports = {
-    generateToken,
-    generateAuthHeader
+    generateRandomString,
+    generateCodeVerifier,
+    generateCodeChallenge,
+    generateState
 };

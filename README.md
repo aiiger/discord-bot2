@@ -1,252 +1,62 @@
-# FACEIT Bot
+# FACEIT Discord Bot
 
-A bot for managing FACEIT championships and hubs, with rehost and cancel functionality.
+A Discord bot for monitoring FACEIT matches and managing chat interactions.
 
 ## Features
 
-- Client Credentials authentication with FACEIT
-- Championship management commands:
-  - Rehost championships
-  - Cancel championships
-- Hub information retrieval
-- Production-ready configuration
+- Monitor FACEIT hub matches in real-time
+- Send welcome messages when matches start
+- Handle rehost votes (!rehost command)
+- Check and handle match cancellations based on ELO difference (!cancel command)
 
 ## Prerequisites
 
-1. FACEIT Developer Account
-   - Go to https://developers.faceit.com/
-   - Create a new application
-   - Get your API keys and client credentials
-
-2. Required Credentials:
-   - API Key (Server)
-   - API Key (Client)
-   - Client ID
-   - Client Secret
-
-## Setup
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd discord-bot2
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create a `.env` file based on `.env.example`:
-```bash
-cp .env.example .env
-```
-
-4. Fill in your environment variables in `.env`:
-```env
-# API Keys from FACEIT Developer Portal
-FACEIT_API_KEY_SERVER=your_server_api_key_here
-FACEIT_API_KEY_CLIENT=your_client_api_key_here
-
-# OAuth2 Client Credentials
-FACEIT_CLIENT_ID=your_client_id_here
-FACEIT_CLIENT_SECRET=your_client_secret_here
-
-# Session Security
-SESSION_SECRET=your_random_secret_here
-
-# Environment
-NODE_ENV=production
-```
-
-## API Endpoints
-
-### Hub Management
-- `GET /api/hubs/:hubId`: Get hub information
-  - URL parameter: hubId (string)
-  - Returns hub details
-
-### Hub Management
-- `GET /api/hubs/:hubId`: Get hub information
-  - URL parameter: hubId (string)
-  - Requires authentication
-  - Returns hub details
-
-### Championship Management
-- `POST /api/championships/rehost`: Rehost a championship
-  - Required body: `{ "gameId": "string", "eventId": "string" }`
-  
-- `POST /api/championships/cancel`: Cancel a championship
-  - Required body: `{ "eventId": "string" }`
-<<<<<<< HEAD
-  - Requires authentication
-=======
->>>>>>> fd6eabfd3114f4e6055340ee7ea728d6f46f4340
-
-### System
-- `GET /health`: Health check endpoint
-
-## Example API Usage
-
-### Get Hub Information
-```bash
-curl -X GET \
-  https://your-app-name.herokuapp.com/api/hubs/your-hub-id
-```
-
-### Rehost Championship
-```bash
-curl -X POST \
-  https://your-app-name.herokuapp.com/api/championships/rehost \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "gameId": "your-game-id",
-    "eventId": "your-event-id"
-  }'
-```
-
-### Cancel Championship
-```bash
-curl -X POST \
-  https://your-app-name.herokuapp.com/api/championships/cancel \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "eventId": "your-event-id"
-  }'
-```
+- Node.js 16.9.0 or higher
+- A Discord bot token
+- FACEIT API credentials (API Key, Client ID, Client Secret)
+- A FACEIT Hub ID
+- A Heroku account
 
 ## Deployment to Heroku
 
 1. Create a new Heroku app:
-```bash
-heroku create your-app-name
-```
+   - Go to your [Heroku Dashboard](https://dashboard.heroku.com)
+   - Click "New" > "Create new app"
+   - Choose a unique app name
+   - Click "Create app"
 
-2. Set required environment variables:
-```bash
-heroku config:set FACEIT_API_KEY_SERVER=your_server_api_key_here
-heroku config:set FACEIT_API_KEY_CLIENT=your_client_api_key_here
-heroku config:set FACEIT_CLIENT_ID=your_client_id_here
-heroku config:set FACEIT_CLIENT_SECRET=your_client_secret_here
-heroku config:set SESSION_SECRET=your_session_secret_here
-heroku config:set NODE_ENV=production
-```
+2. Configure environment variables in Heroku:
+   - Go to your app's Settings tab
+   - Click "Reveal Config Vars"
+   - Add the following variables:
+     ```
+     DISCORD_TOKEN=your_discord_token
+     FACEIT_API_KEY=your_faceit_api_key
+     CLIENT_ID=your_faceit_client_id
+     CLIENT_SECRET=your_faceit_client_secret
+     HUB_ID=your_hub_id
+     NODE_ENV=production
+     REDIRECT_URI=https://your-app-name.herokuapp.com/callback
+     SESSION_SECRET=your_session_secret
+     ```
 
-3. Deploy to Heroku:
-```bash
-git push heroku main
-```
+3. Deploy using GitHub:
+   - Go to your app's Deploy tab
+   - Choose GitHub as the deployment method
+   - Connect to your GitHub repository
+   - Choose the branch to deploy
+   - Click "Deploy Branch"
 
-4. Ensure at least one dyno is running:
-```bash
-heroku ps:scale web=1
-```
+4. Verify the deployment:
+   - Click "Open app" to visit your application
+   - Click "Link FACEIT Account" to authenticate
+   - The bot should now be able to send chat messages in FACEIT matches
 
-## Authentication
+## Local Development
 
-<<<<<<< HEAD
-- Secure session configuration
-  - HTTP-only cookies
-  - Secure cookies (HTTPS only)
-  - Custom session name
-- CSRF protection via state parameter
-- Environment variable validation
-- Production security settings
-- Graceful shutdown handling
+1. Clone the repository
+2. Copy `.env.example` to `.env` and fill in your credentials
+3. Install dependencies: `npm install`
+4. Start the bot: `npm start`
 
-## Example API Usage
-
-### Get Hub Information
-```bash
-curl -X GET \
-  https://your-app-name.herokuapp.com/api/hubs/your-hub-id \
-  -H 'Cookie: faceit.sid=your-session-cookie'
-```
-
-### Rehost Championship
-```bash
-curl -X POST \
-  https://your-app-name.herokuapp.com/api/championships/rehost \
-  -H 'Cookie: faceit.sid=your-session-cookie' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "gameId": "your-game-id",
-    "eventId": "your-event-id"
-  }'
-```
-
-### Cancel Championship
-```bash
-curl -X POST \
-  https://your-app-name.herokuapp.com/api/championships/cancel \
-  -H 'Cookie: faceit.sid=your-session-cookie' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "eventId": "your-event-id"
-  }'
-```
-=======
-The bot uses FACEIT's Client Credentials flow for authentication:
-
-1. Automatic token management:
-   - Tokens are automatically obtained when needed
-   - Tokens are stored in the session
-   - Tokens are refreshed when expired
-
-2. Security features:
-   - Secure session configuration
-   - HTTP-only cookies
-   - Environment variable validation
->>>>>>> fd6eabfd3114f4e6055340ee7ea728d6f46f4340
-
-## Error Responses
-
-All API endpoints return consistent error responses:
-
-```json
-{
-  "error": "Error Type",
-  "message": "Human readable error message"
-}
-```
-
-Common error types:
-<<<<<<< HEAD
-- Unauthorized: Not logged in
-=======
-- Authentication Error: Failed to authenticate with FACEIT
->>>>>>> fd6eabfd3114f4e6055340ee7ea728d6f46f4340
-- Bad Request: Missing required parameters
-- Internal Server Error: Server-side issues
-
-## Production Notes
-
-<<<<<<< HEAD
-1. HTTPS Required
-   - All cookies are secure-only
-   - All communication must be over HTTPS
-
-2. Authentication Flow
-   - Login through FACEIT OAuth2
-   - Session cookie used for subsequent requests
-   - No localhost/development mode available
-
-3. API Structure
-   - All API endpoints under /api prefix
-   - Authentication required for all endpoints
-=======
-1. Security:
-   - All cookies are secure-only in production
-   - Session data is encrypted
-   - Environment variables are validated
-
-2. Monitoring:
-   - Health check endpoint
-   - Error logging
-   - Graceful shutdown handling
-
-3. API Structure:
-   - All endpoints under /api prefix
-   - Consistent error responses
->>>>>>> fd6eabfd3114f4e6055340ee7ea728d6f46f4340
-   - JSON responses for all API calls
+Note: Local development requires configuring the FACEIT application to accept localhost as a redirect URI. For production, use the Heroku deployment.

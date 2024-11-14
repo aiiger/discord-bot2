@@ -1,0 +1,1002 @@
+2024-11-09T20:51:50.155Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-09T20:56:51.177Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-09T21:01:52.151Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-09T21:06:53.117Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-09T21:11:54.176Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-09T21:16:55.155Z [error]: Redis Client Error: Socket closed unexpectedly
+Error: Socket closed unexpectedly
+    at TLSSocket.<anonymous> (E:\New folder\discord-bot2\node_modules\@redis\client\dist\lib\client\socket.js:194:118)
+    at Object.onceWrapper (node:events:633:26)
+    at TLSSocket.emit (node:events:530:35)
+    at node:net:343:12
+    at TCP.done (node:_tls_wrap:650:7)
+2024-11-10T01:07:43.372Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T01:09:43.129Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T01:39:48.932Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T01:42:48.585Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T02:01:48.545Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T02:05:48.562Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T02:08:49.536Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T08:15:52.916Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T08:17:52.924Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T08:48:53.111Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T08:50:53.228Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T09:16:53.632Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T09:18:53.340Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:221:13)
+2024-11-10T09:34:53.527Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T09:40:53.532Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T09:46:53.311Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:217:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:198:13)
+2024-11-10T12:55:35.246Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T12:58:36.274Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T13:00:36.222Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:02:35.559Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:05:36.416Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T13:12:36.160Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:20:35.634Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:25:36.173Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:28:34.682Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T13:31:36.497Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:34:36.205Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T13:36:36.541Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T13:38:36.352Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T13:41:42.355Z [error]: Uncaught exception: listen EADDRINUSE: address already in use :::3000
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1907:16)
+    at listenInCluster (node:net:1964:12)
+    at Server.listen (node:net:2066:7)
+    at Function.listen (E:\New folder\discord-bot2\node_modules\express\lib\application.js:635:24)
+    at file:///E:/New%20folder/discord-bot2/bot.js:365:5
+    at ModuleJob.run (node:internal/modules/esm/module_job:268:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:543:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:116:5)
+2024-11-10T14:00:36.314Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:03:36.471Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:04:36.447Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:05:36.478Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T14:05:36.742Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T14:05:47.140Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:320:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:224:13)
+2024-11-10T14:05:47.478Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:320:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:224:13)
+2024-11-10T14:12:36.374Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:14:36.760Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T14:39:36.480Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:41:36.387Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T14:55:37.187Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T14:57:37.112Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T15:04:36.820Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:17:37.185Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:20:37.186Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T15:27:36.981Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:30:37.235Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T15:31:37.174Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:34:37.167Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T15:39:37.299Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:47:37.134Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T15:50:37.391Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T16:06:37.197Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:08:37.443Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T16:15:37.457Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:19:37.149Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:22:37.537Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T16:32:37.340Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:34:37.237Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T16:42:37.097Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:48:37.166Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T16:50:37.219Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T16:57:37.787Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T17:00:37.467Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T17:04:37.501Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T17:09:37.793Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T17:11:37.229Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:189:13)
+2024-11-10T17:12:37.742Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T17:13:50.356Z [error]: Failed to start application: Client credentials authentication failed: Request failed with status code 401
+Error: Client credentials authentication failed: Request failed with status code 401
+    at FaceitJS.authenticateWithClientCredentials (file:///E:/New%20folder/discord-bot2/FaceitJS.js:343:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async file:///E:/New%20folder/discord-bot2/bot.js:356:9
+2024-11-10T17:14:37.621Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 404
+Error: Failed to send room message: Request failed with status code 404
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:306:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:213:13)
+2024-11-10T17:17:07.140Z [error]: Uncaught exception: listen EADDRINUSE: address already in use :::3000
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1907:16)
+    at listenInCluster (node:net:1964:12)
+    at Server.listen (node:net:2066:7)
+    at Function.listen (E:\New folder\discord-bot2\node_modules\express\lib\application.js:635:24)
+    at file:///E:/New%20folder/discord-bot2/bot.js:364:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2024-11-10T17:24:31.349Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 500
+Error: Failed to send room message: Request failed with status code 500
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:310:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:197:13)
+2024-11-10T17:27:31.597Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 500
+Error: Failed to send room message: Request failed with status code 500
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:310:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:224:13)
+2024-11-10T17:42:31.260Z [error]: Error handling match state change: Failed to send room message: Request failed with status code 500
+Error: Failed to send room message: Request failed with status code 500
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:310:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:224:13)
+2024-11-10T17:46:55.990Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T17:47:56.244Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T17:54:56.041Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T17:54:56.045Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T17:55:56.064Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:201:13)
+2024-11-10T17:57:56.298Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:08:56.195Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:23:56.551Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:24:56.570Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:25:56.578Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:32:56.634Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:38:56.593Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:39:56.612Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T18:50:56.722Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:07:56.840Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:10:56.518Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:18:56.040Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:23:56.836Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:201:13)
+2024-11-10T19:25:56.894Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:30:56.971Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:40:56.788Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:49:56.784Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T19:50:57.368Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:03:56.928Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:10:56.322Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:16:56.395Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:19:56.341Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:25:56.325Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:201:13)
+2024-11-10T20:29:55.925Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:38:56.719Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:41:55.902Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:48:56.298Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T20:51:56.252Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T21:01:55.876Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T21:11:55.925Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T21:12:55.793Z [error]: Error handling match state change: Failed to send room message: No access token available for chat API request
+Error: Failed to send room message: No access token available for chat API request
+    at FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:321:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:228:13)
+2024-11-10T21:13:40.779Z [error]: Uncaught exception: listen EADDRINUSE: address already in use :::3000
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1907:16)
+    at listenInCluster (node:net:1964:12)
+    at Server.listen (node:net:2066:7)
+    at Function.listen (E:\New folder\discord-bot2\node_modules\express\lib\application.js:635:24)
+    at file:///E:/New%20folder/discord-bot2/bot.js:195:5
+    at ModuleJob.run (node:internal/modules/esm/module_job:268:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:543:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:116:5)
+2024-11-10T21:14:12.910Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.390Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.428Z [error]: Response details:
+2024-11-10T21:16:04.429Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.478Z [error]: Response details:
+2024-11-10T21:16:04.479Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.514Z [error]: Response details:
+2024-11-10T21:16:04.663Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.683Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.717Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.761Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.795Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.829Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.880Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.894Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.928Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.962Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:04.983Z [error]: Response details:
+2024-11-10T21:16:05.217Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:05.230Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:16:05.247Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:61:13)
+2024-11-10T21:18:04.421Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:18:04.429Z [error]: Response details:
+2024-11-10T21:18:04.666Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:18:04.678Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:18:04.689Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:21:04.517Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:21:04.531Z [error]: Response details:
+2024-11-10T21:21:04.795Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:21:04.804Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:21:04.816Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:23:34.566Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:23:34.579Z [error]: Response details:
+2024-11-10T21:23:34.840Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:23:34.852Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:23:34.865Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:24:05.099Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:24:05.113Z [error]: Response details:
+2024-11-10T21:24:05.364Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:24:05.375Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.getRoomDetails (file:///E:/New%20folder/discord-bot2/FaceitJS.js:108:30)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:148:41)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)
+2024-11-10T21:24:05.386Z [error]: Request failed with status code 500
+AxiosError: Request failed with status code 500
+    at settle (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/settle.js:19:12)
+    at IncomingMessage.handleStreamEnd (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/adapters/http.js:599:11)
+    at IncomingMessage.emit (node:events:530:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at Axios.request (file:///E:/New%20folder/discord-bot2/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async FaceitJS.sendRoomMessage (file:///E:/New%20folder/discord-bot2/FaceitJS.js:124:30)
+    at async FaceitJS.<anonymous> (file:///E:/New%20folder/discord-bot2/bot.js:38:13)

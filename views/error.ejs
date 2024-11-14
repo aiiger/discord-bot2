@@ -34,19 +34,22 @@
         }
 
         .error-box {
-            background-color: #f44336;
-            color: white;
-            padding: 20px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .error-details {
             background-color: #363636;
             padding: 20px;
             border-radius: 4px;
-            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .error-message {
+            color: #ff5500;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .error-details {
+            color: #cccccc;
+            margin-bottom: 20px;
+            word-wrap: break-word;
         }
 
         .button {
@@ -67,26 +70,33 @@
         .button:hover {
             background-color: #ff6a1f;
         }
+
+        .help-text {
+            color: #cccccc;
+            text-align: center;
+            margin-top: 20px;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1>Error</h1>
+        <h1>Error Occurred</h1>
 
         <div class="error-box">
-            <h2>
+            <div class="error-message">
                 <%= message %>
-            </h2>
-        </div>
-
-        <div class="error-details">
-            <p>
+            </div>
+            <div class="error-details">
                 <%= error %>
-            </p>
+            </div>
         </div>
 
-        <a href="/" class="button">Return to Home</a>
+        <a href="/" class="button">Try Again</a>
+
+        <div class="help-text">
+            If the error persists, please check your FACEIT account settings and try again later.
+        </div>
     </div>
 </body>
 

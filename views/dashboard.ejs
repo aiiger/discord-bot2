@@ -22,7 +22,7 @@
             background-color: #2d2d2d;
             padding: 30px;
             border-radius: 8px;
-            max-width: 600px;
+            max-width: 800px;
             width: 100%;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
@@ -45,24 +45,21 @@
             margin-top: 0;
         }
 
-        .user-info {
-            margin-top: 20px;
-            padding: 15px;
+        .status-item {
+            margin: 10px 0;
+            padding: 10px;
             background-color: #404040;
             border-radius: 4px;
         }
 
-        .user-info p {
-            margin: 5px 0;
+        .status-label {
+            font-weight: bold;
+            color: #ff5500;
         }
 
-        .success-message {
-            background-color: #4CAF50;
-            color: white;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            text-align: center;
+        .status-value {
+            margin-left: 10px;
+            color: #cccccc;
         }
 
         .button {
@@ -84,12 +81,10 @@
             background-color: #ff6a1f;
         }
 
-        .button.logout {
-            background-color: #f44336;
-        }
-
-        .button.logout:hover {
-            background-color: #ff5c4e;
+        .note {
+            margin-top: 20px;
+            color: #ff5500;
+            text-align: center;
         }
     </style>
 </head>
@@ -98,39 +93,36 @@
     <div class="container">
         <h1>FACEIT Bot Dashboard</h1>
 
-        <div class="success-message">
-            Authentication Successful!
+        <div class="status-box">
+            <h2>Authentication Status</h2>
+            <div class="status-item">
+                <span class="status-label">Status:</span>
+                <span class="status-value">Authenticated</span>
+            </div>
         </div>
 
         <div class="status-box">
-            <h2>Status</h2>
-            <p>Bot is now authenticated and ready to send messages in match rooms.</p>
+            <h2>Bot Status</h2>
+            <div class="status-item">
+                <span class="status-label">Discord Connection:</span>
+                <span class="status-value">Connected</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">FACEIT API:</span>
+                <span class="status-value">Connected</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Match Polling:</span>
+                <span class="status-value">Active</span>
+            </div>
         </div>
 
-        <div class="user-info">
-            <h2>Account Information</h2>
-            <p><strong>Username:</strong>
-                <%= username %>
-            </p>
-            <% if (userInfo) { %>
-                <p><strong>Email:</strong>
-                    <%= userInfo.email %>
-                </p>
-                <p><strong>FACEIT ID:</strong>
-                    <%= userInfo.guid %>
-                </p>
-                <% } %>
-        </div>
+        <a href="/" class="button">Back to Home</a>
 
-        <a href="/logout" class="button logout">Logout</a>
+        <div class="note">
+            You can now close this window. The bot will continue running and monitoring matches.
+        </div>
     </div>
-
-    <script>
-        // Send a message to the parent window if this was opened in a popup
-        if (window.opener) {
-            window.opener.postMessage('authentication-success', '*');
-        }
-    </script>
 </body>
 
 </html>

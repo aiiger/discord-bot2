@@ -1,10 +1,10 @@
 // FACEIT OAuth2 Bot with PKCE Support
-import express from 'express';
-import session from 'express-session';
-import { FaceitJS } from './FaceitJS.js';
-import crypto from 'crypto';
-import dotenv from 'dotenv';
-import { Client, GatewayIntentBits } from 'discord.js';
+const express = require('express');
+const session = require('express-session');
+const { FaceitJS } = require('./FaceitJS.js');
+const crypto = require('crypto');
+const dotenv = require('dotenv');
+const { Client, GatewayIntentBits } = require('discord.js');
 
 dotenv.config();
 
@@ -19,11 +19,14 @@ const requiredEnvVars = [
     'FACEIT_API_KEY'
 ];
 
+// Allow both localhost and Heroku URLs for development/production
+const redirectUriPattern = /^(http:\/\/localhost:\d+\/callback|https:\/\/[\w.-]+\.herokuapp\.com\/callback)$/;
+
 const patterns = {
     SESSION_SECRET: /^[a-f0-9]{128}$/,
     CLIENT_ID: /^[\w-]{36}$/,
-    CLIENT_SECRET: /^[\w]{40}$/,
-    REDIRECT_URI: /^https:\/\/[\w.-]+\.herokuapp\.com\/callback$/,
+    CLIENT_SECRET: /^.{30,50}$/,  // Accept between 30-50 characters
+    REDIRECT_URI: redirectUriPattern,  // Updated to allow both localhost and Heroku
     HUB_ID: /^[\w-]{36}$/,
     FACEIT_API_KEY: /^[\w-]{36}$/
 };
@@ -68,15 +71,14 @@ const isProduction = process.env.NODE_ENV === 'production';
 const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     cookie: {
-        secure: isProduction,
+        secure: isProduction,  // Only use secure cookies in production
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax'
-    },
-    rolling: true
+    }
 });
 
 // Store for rehost votes and match states
@@ -89,20 +91,28 @@ app.use((req, res, next) => {
     next();
 });
 
+// Trust proxy in production
+if (isProduction) {
+    app.set('trust proxy', 1);
+}
+
 app.use(sessionMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Set view engine
+app.set('view engine', 'ejs');
 
 // Initialize Discord client
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 // Add home route
 app.get('/', (req, res) => {
-    res.send('<a href="/login">Login with FACEIT</a>');
+    res.render('login', { authenticated: !!req.session.accessToken });
 });
 
-// Add login route
-app.get('/login', async (req, res) => {
+// Add auth route
+app.get('/auth/faceit', async (req, res) => {
     try {
         const state = crypto.randomBytes(32).toString('hex');
         const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
@@ -117,15 +127,21 @@ app.get('/login', async (req, res) => {
         req.session.save((err) => {
             if (err) {
                 console.error('Failed to save session:', err);
-                return res.status(500).send('Internal server error');
+                return res.status(500).render('error', {
+                    message: 'Internal Server Error',
+                    error: 'Failed to save session'
+                });
             }
 
             console.log(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
             res.redirect(url);
         });
     } catch (error) {
-        console.error('Error in login route:', error);
-        res.status(500).send('Internal server error');
+        console.error('Error in auth route:', error);
+        res.status(500).render('error', {
+            message: 'Internal Server Error',
+            error: error.message
+        });
     }
 });
 
@@ -141,7 +157,10 @@ app.get('/callback', async (req, res) => {
         // Verify state parameter
         if (!state || state !== req.session.oauthState) {
             console.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
-            return res.status(400).send('Invalid state parameter. Please try logging in again.');
+            return res.status(400).render('error', {
+                message: 'Invalid State',
+                error: 'State parameter mismatch. Please try logging in again.'
+            });
         }
 
         // Exchange the authorization code for tokens
@@ -151,21 +170,45 @@ app.get('/callback', async (req, res) => {
         req.session.accessToken = tokens.access_token;
         req.session.refreshToken = tokens.refresh_token;
 
+        // Set the access token in FaceitJS instance
+        faceitJS.setAccessToken(tokens.access_token);
+
         // Ensure session is saved before sending response
         req.session.save((err) => {
             if (err) {
                 console.error('Failed to save session with tokens:', err);
-                return res.status(500).send('Internal server error');
+                return res.status(500).render('error', {
+                    message: 'Internal Server Error',
+                    error: 'Failed to save session'
+                });
             }
 
             console.log('Successfully authenticated with FACEIT');
-            res.send('Authentication successful! You can close this window.');
+            res.redirect('/dashboard');
         });
     } catch (error) {
         console.error('Error during OAuth callback:', error.message);
         console.error('Full error:', error);
-        res.status(500).send('Authentication failed. Please try logging in again.');
+        res.status(500).render('error', {
+            message: 'Authentication Failed',
+            error: error.message
+        });
     }
+});
+
+// Add dashboard route
+app.get('/dashboard', (req, res) => {
+    if (!req.session.accessToken) {
+        return res.redirect('/');
+    }
+
+    // Pass bot status to the dashboard template
+    res.render('dashboard', {
+        authenticated: true,
+        discordConnected: client.isReady(),
+        faceitConnected: true,
+        matchPollingActive: !!faceitJS.pollingInterval
+    });
 });
 
 // Handle match state changes
@@ -343,4 +386,4 @@ app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
 
-export default app;
+module.exports = app;

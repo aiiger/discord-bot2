@@ -1,14 +1,20 @@
 const axios = require('axios');
 const dotenv = require('dotenv');
+const crypto = require('crypto');
+const EventEmitter = require('events');
 
 dotenv.config();
 
-class FaceitJS {
+class FaceitJS extends EventEmitter {
     constructor(app) {
+        super();  // Initialize EventEmitter
         this.serverApiKey = process.env.FACEIT_API_KEY;
-        this.clientId = process.env.FACEIT_CLIENT_API_KEY;
-        this.clientSecret = process.env.FACEIT_CLIENT_SECRET;
+        this.clientId = process.env.CLIENT_ID;
+        this.clientSecret = process.env.CLIENT_SECRET;
         this.hubId = process.env.HUB_ID;
+        this.redirectUri = process.env.REDIRECT_URI;
+        this.pollingInterval = null;
+        this.accessToken = null;
 
         if (!this.clientId) {
             console.error('[FACEIT] Client ID not found in environment variables');
@@ -56,36 +62,122 @@ class FaceitJS {
         this.chatApi.interceptors.response.use(response => response, errorHandler);
     }
 
-    async getActiveMatches() {
+    setAccessToken(token) {
+        console.log('[FACEIT] Setting access token');
+        this.accessToken = token;
+        // Update chat API headers with the new access token
+        this.chatApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+
+    async getAuthorizationUrl(state) {
         try {
-            console.log('[MATCHES] Fetching active matches');
-            console.log('[MATCHES] Using Hub ID:', this.hubId);
+            // Generate code verifier
+            const codeVerifier = crypto.randomBytes(32).toString('base64url');
 
-            // Get all matches
-            const response = await this.api.get(`/hubs/${this.hubId}/matches?offset=0&limit=20`);
-            const matches = response.data.items || [];
+            // Generate code challenge
+            const codeChallenge = crypto
+                .createHash('sha256')
+                .update(codeVerifier)
+                .digest('base64url');
 
-            // Filter matches to only include those in map veto phase
-            const newMatches = matches.filter(match => {
-                const status = match.status || match.state;
-                return status !== 'CANCELLED' && status !== 'FINISHED' && status !== 'ONGOING';
+            console.log('[AUTH] Code verifier:', codeVerifier);
+            console.log('[AUTH] Code challenge:', codeChallenge);
+            console.log('[AUTH] Redirect URI:', this.redirectUri);
+
+            // Construct authorization URL
+            const params = new URLSearchParams({
+                response_type: 'code',
+                client_id: this.clientId,
+                redirect_uri: this.redirectUri,
+                scope: 'openid profile chat',  // Simplified scopes
+                state: state,
+                code_challenge: codeChallenge,
+                code_challenge_method: 'S256'
             });
 
-            // Get ongoing matches separately
-            const ongoingResponse = await this.api.get(`/hubs/${this.hubId}/matches?type=ongoing&offset=0&limit=20`);
-            const ongoingMatches = ongoingResponse.data.items || [];
+            const url = `https://accounts.faceit.com/oauth/authorize?${params}`;
+            console.log('[AUTH] Authorization URL:', url);
 
-            const allMatches = [...newMatches, ...ongoingMatches];
+            return {
+                url,
+                codeVerifier
+            };
+        } catch (error) {
+            console.error('[AUTH] Error generating authorization URL:', error);
+            throw error;
+        }
+    }
 
-            console.log(`[MATCHES] Retrieved ${allMatches.length} active matches (${newMatches.length} new, ${ongoingMatches.length} ongoing)`);
+    async exchangeCodeForToken(code, codeVerifier) {
+        try {
+            console.log('[AUTH] Exchanging code for token');
+            console.log('[AUTH] Code:', code);
+            console.log('[AUTH] Code Verifier:', codeVerifier);
+            console.log('[AUTH] Redirect URI:', this.redirectUri);
+
+            const params = new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                client_id: this.clientId,
+                client_secret: this.clientSecret,
+                redirect_uri: this.redirectUri,
+                code_verifier: codeVerifier
+            });
+
+            console.log('[AUTH] Token request parameters:', params.toString());
+
+            const response = await axios.post('https://api.faceit.com/auth/v1/oauth/token',
+                params.toString(),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                }
+            );
+
+            console.log('[AUTH] Token exchange successful');
+            console.log('[AUTH] Response:', response.data);
+
+            // Set the access token for future chat API requests
+            this.setAccessToken(response.data.access_token);
+
+            return response.data;
+        } catch (error) {
+            console.error('[AUTH] Error exchanging code for token:', error);
+            if (error.response) {
+                console.error('[AUTH] Response status:', error.response.status);
+                console.error('[AUTH] Response data:', error.response.data);
+            }
+            throw error;
+        }
+    }
+
+    async getHubMatches(hubId, type = '') {
+        try {
+            console.log('[MATCHES] Fetching active matches');
+            console.log('[MATCHES] Using Hub ID:', hubId);
+
+            let params = new URLSearchParams({
+                offset: '0',
+                limit: '20'
+            });
+
+            if (type) {
+                params.append('type', type);
+            }
+
+            const response = await this.api.get(`/hubs/${hubId}/matches?${params}`);
+            const matches = response.data.items || [];
+
+            console.log(`[MATCHES] Retrieved ${matches.length} matches`);
 
             // Log each match's details
-            allMatches.forEach(match => {
+            matches.forEach(match => {
                 const status = match.status || match.state;
                 console.log(`[MATCH ${match.match_id}] Status: ${status}, Teams: ${match.teams?.faction1?.name || 'TBD'} vs ${match.teams?.faction2?.name || 'TBD'}`);
             });
 
-            return allMatches;
+            return matches;
         } catch (error) {
             console.error('[MATCHES] Error fetching matches:', error.message);
             if (error.response?.data) {
@@ -105,60 +197,12 @@ class FaceitJS {
         }
     }
 
-    async handleRehostVote(matchId, playerId) {
+    async sendRoomMessage(matchId, message) {
         try {
-            // Get match details
-            const match = await this.getMatchDetails(matchId);
-
-            // Calculate required votes (6/10 players)
-            const totalPlayers = match.teams.faction1.roster.length + match.teams.faction2.roster.length;
-            const requiredVotes = Math.ceil(totalPlayers * 0.6);
-
-            // For now, just show the requirement
-            const message = `Rehost requires ${requiredVotes} out of ${totalPlayers} players to vote. Type !rehost to vote.`;
-
-            return {
-                success: true,
-                message: message
-            };
-        } catch (error) {
-            console.error(`[REHOST] Error handling rehost vote for match ${matchId}:`, error.message);
-            throw error;
-        }
-    }
-
-    async handleCancelVote(matchId, playerId) {
-        try {
-            // Get match details
-            const match = await this.getMatchDetails(matchId);
-
-            // Calculate elo differential
-            const team1Avg = match.teams.faction1.roster.reduce((sum, player) => sum + player.elo, 0) / match.teams.faction1.roster.length;
-            const team2Avg = match.teams.faction2.roster.reduce((sum, player) => sum + player.elo, 0) / match.teams.faction2.roster.length;
-            const eloDiff = Math.abs(team1Avg - team2Avg);
-
-            // Check if elo differential is high enough
-            if (eloDiff >= 70) {
-                return {
-                    success: true,
-                    passed: true,
-                    message: `Match cancellation approved. Elo differential: ${Math.round(eloDiff)}`
-                };
-            } else {
-                return {
-                    success: true,
-                    passed: false,
-                    message: `Cannot cancel match. Elo differential (${Math.round(eloDiff)}) is below required threshold (70)`
-                };
+            if (!this.accessToken) {
+                throw new Error('No access token available. User must authenticate first.');
             }
-        } catch (error) {
-            console.error(`[CANCEL] Error handling cancel vote for match ${matchId}:`, error.message);
-            throw error;
-        }
-    }
 
-    async sendChatMessage(matchId, message) {
-        try {
             console.log(`[CHAT] Sending message to match ${matchId}`);
 
             // Get match details
@@ -172,32 +216,15 @@ class FaceitJS {
 
             // First try to get room details to verify access
             try {
-                const roomResponse = await axios({
-                    method: 'get',
-                    url: `https://open.faceit.com/chat/v1/rooms/${roomId}`,
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'Authorization': this.serverApiKey
-                    }
-                });
+                const roomResponse = await this.chatApi.get(`/rooms/${roomId}`);
                 console.log(`[CHAT] Got room details:`, roomResponse.data);
             } catch (error) {
                 console.log(`[CHAT] Could not get room details:`, error.message);
             }
 
-            // Send message using server API key
-            const response = await axios({
-                method: 'post',
-                url: `https://open.faceit.com/chat/v1/rooms/${roomId}/messages`,
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'Authorization': this.serverApiKey
-                },
-                data: {
-                    body: message.replace(/^"|"$/g, '') // Remove any surrounding quotes
-                }
+            // Send message using user's access token
+            const response = await this.chatApi.post(`/rooms/${roomId}/messages`, {
+                body: message.replace(/^"|"$/g, '') // Remove any surrounding quotes
             });
 
             console.log(`[CHAT] Message sent successfully to match ${matchId}`);
@@ -208,6 +235,62 @@ class FaceitJS {
                 console.error('[CHAT] Response data:', error.response.data);
             }
             throw error;
+        }
+    }
+
+    async rehostMatch(matchId) {
+        try {
+            const response = await this.api.post(`/matches/${matchId}/rehost`);
+            return response.data;
+        } catch (error) {
+            console.error(`[REHOST] Error rehosting match ${matchId}:`, error.message);
+            throw error;
+        }
+    }
+
+    async cancelMatch(matchId) {
+        try {
+            const response = await this.api.post(`/matches/${matchId}/cancel`);
+            return response.data;
+        } catch (error) {
+            console.error(`[CANCEL] Error cancelling match ${matchId}:`, error.message);
+            throw error;
+        }
+    }
+
+    startPolling() {
+        console.log('[POLLING] Starting match state polling');
+        let lastStates = new Map();
+
+        this.pollingInterval = setInterval(async () => {
+            try {
+                const matches = await this.getHubMatches(this.hubId);
+                matches.forEach(match => {
+                    const currentState = match.status || match.state;
+                    const lastState = lastStates.get(match.match_id);
+
+                    if (lastState && lastState !== currentState) {
+                        this.emit('matchStateChange', {
+                            id: match.match_id,
+                            state: currentState,
+                            previousState: lastState,
+                            match: match
+                        });
+                    }
+
+                    lastStates.set(match.match_id, currentState);
+                });
+            } catch (error) {
+                console.error('[POLLING] Error during polling:', error);
+            }
+        }, 30000); // Poll every 30 seconds
+    }
+
+    stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+            console.log('[POLLING] Stopped match state polling');
         }
     }
 }

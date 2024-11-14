@@ -1,0 +1,30 @@
+{
+  "version": "0.2.1",
+  "tasks": [
+    {
+      "taskLabel": "task-discord-bot2",
+      "appliesTo": "/",
+      "type": "launch"
+    },
+    {
+      "taskLabel": "task-bot",
+      "appliesTo": "bot.js",
+      "type": "launch"
+    },
+    {
+      "taskLabel": "task-login",
+      "appliesTo": "views/login.ejs",
+      "type": "launch"
+    },
+    {
+      "taskLabel": "task-views",
+      "appliesTo": "views/",
+      "type": "launch"
+    },
+    {
+      "taskLabel": "task-views",
+      "appliesTo": "views/",
+      "type": "launch"
+    }
+  ]
+}
