@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // headers.js - Configure headers for FACEIT API requests
 
 /**
@@ -33,3 +34,13 @@ export function getChatHeaders(accessToken) {
     }
   };
 }
+=======
+export default function getHeaders(apiKey) {
+    let headers = {
+      accept: "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    };
+  
+  return headers;
+}
+>>>>>>> 64af7b0f66e5538bb146a4a95d447196292e1b98

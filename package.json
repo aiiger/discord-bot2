@@ -1,6 +1,7 @@
 {
-  "name": "faceit-bot",
+  "name": "discord-bot2",
   "version": "1.0.0",
+<<<<<<< HEAD
   "description": "A Discord bot for FACEIT match monitoring",
   "main": "src/bot.js",
   "type": "commonjs",
@@ -33,3 +34,32 @@
     "nodemon": "^3.0.1"
   }
 }
+=======
+  "description": "FACEIT Discord Bot",
+  "main": "bot.cjs",
+  "scripts": {
+    "start": "node bot.cjs",
+    "dev": "nodemon bot.cjs"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "connect-redis": "^6.0.0",
+    "dotenv": "^16.0.3",
+    "ejs": "^3.1.10",
+    "envalid": "^7.3.0",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.7.0",
+    "express-session": "^1.17.3",
+    "helmet": "^6.0.1",
+    "ioredis": "^5.3.1",
+    "memorystore": "^1.6.6",
+    "morgan": "^1.10.0",
+    "winston": "^3.8.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "author": "Your Name",
+  "license": "ISC"
+}
+>>>>>>> 64af7b0f66e5538bb146a4a95d447196292e1b98

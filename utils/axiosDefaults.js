@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // axiosDefaults.js - Global axios configuration
 import axios from 'axios';
 
@@ -46,3 +47,7 @@ axios.interceptors.response.use(
 // This is important for OAuth2 token requests which need application/x-www-form-urlencoded
 
 export default axios;
+=======
+axios.defaults.baseURL = 'https://api.example.com';
+axios.defaults.headers.common['Authorization'] = 'Bearer YOUR_ACCESS_TOKEN';
+>>>>>>> 64af7b0f66e5538bb146a4a95d447196292e1b98
