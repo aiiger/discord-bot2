@@ -2,8 +2,6 @@ const axios = require('axios');
 const dotenv = require('dotenv');
 const crypto = require('crypto');
 const EventEmitter = require('events');
-const fs = require('fs');
-const path = require('path');
 
 dotenv.config();
 
@@ -17,10 +15,12 @@ class FaceitJS extends EventEmitter {
         this.redirectUri = process.env.REDIRECT_URI;
         this.pollingInterval = null;
         this.accessToken = null;
-        this.tokenFile = path.join(__dirname, 'token.json');
 
-        // Try to load saved token
-        this.loadSavedToken();
+        // Try to load saved token from environment variable
+        if (process.env.FACEIT_ACCESS_TOKEN) {
+            this.setAccessToken(process.env.FACEIT_ACCESS_TOKEN);
+            console.log('[FACEIT] Loaded access token from environment');
+        }
 
         if (!this.clientId) {
             console.error('[FACEIT] Client ID not found in environment variables');
@@ -30,30 +30,6 @@ class FaceitJS extends EventEmitter {
 
         console.log('[FACEIT] Initializing with Hub ID:', this.hubId);
         this.setupAxiosInstances();
-    }
-
-    loadSavedToken() {
-        try {
-            if (fs.existsSync(this.tokenFile)) {
-                const data = fs.readFileSync(this.tokenFile, 'utf8');
-                const tokenData = JSON.parse(data);
-                if (tokenData.accessToken) {
-                    this.setAccessToken(tokenData.accessToken);
-                    console.log('[FACEIT] Loaded saved access token');
-                }
-            }
-        } catch (error) {
-            console.error('[FACEIT] Error loading saved token:', error);
-        }
-    }
-
-    saveToken() {
-        try {
-            fs.writeFileSync(this.tokenFile, JSON.stringify({ accessToken: this.accessToken }));
-            console.log('[FACEIT] Saved access token');
-        } catch (error) {
-            console.error('[FACEIT] Error saving token:', error);
-        }
     }
 
     setupAxiosInstances() {
@@ -97,8 +73,9 @@ class FaceitJS extends EventEmitter {
         this.accessToken = token;
         // Update chat API headers with the new access token
         this.chatApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        // Save token to file
-        this.saveToken();
+
+        // Update environment variable
+        process.env.FACEIT_ACCESS_TOKEN = token;
     }
 
     async getAuthorizationUrl(state) {
@@ -232,7 +209,8 @@ class FaceitJS extends EventEmitter {
     async sendRoomMessage(matchId, message) {
         try {
             if (!this.accessToken) {
-                throw new Error('No access token available. User must authenticate first.');
+                console.error('[CHAT] No access token available');
+                return;
             }
 
             console.log(`[CHAT] Sending message to match ${matchId}`);
@@ -252,6 +230,11 @@ class FaceitJS extends EventEmitter {
                 console.log(`[CHAT] Got room details:`, roomResponse.data);
             } catch (error) {
                 console.log(`[CHAT] Could not get room details:`, error.message);
+                // If we can't get room details, try to refresh the token
+                if (error.response?.status === 401) {
+                    console.log('[CHAT] Token might be expired, skipping message');
+                    return;
+                }
             }
 
             // Send message using user's access token
@@ -266,7 +249,8 @@ class FaceitJS extends EventEmitter {
             if (error.response?.data) {
                 console.error('[CHAT] Response data:', error.response.data);
             }
-            throw error;
+            // Don't throw the error, just log it
+            return { success: false, error: error.message };
         }
     }
 
