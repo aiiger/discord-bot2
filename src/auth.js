@@ -29,7 +29,8 @@ class Auth {
             scope: 'openid profile chat',
             state: state,
             code_challenge: codeChallenge,
-            code_challenge_method: 'S256'
+            code_challenge_method: 'S256',
+            redirect_popup: 'true'  // Added this parameter
         });
 
         const url = `https://accounts.faceit.com/oauth/authorize?${params}`;
