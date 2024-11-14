@@ -1,6 +1,5 @@
 const axios = require('axios');
 const dotenv = require('dotenv');
-const FaceitAuth = require('./auth');
 
 dotenv.config();
 
@@ -10,9 +9,6 @@ class FaceitJS {
         this.clientId = process.env.FACEIT_CLIENT_API_KEY;
         this.clientSecret = process.env.FACEIT_CLIENT_SECRET;
         this.hubId = process.env.HUB_ID;
-        this.redirectUri = process.env.REDIRECT_URI;
-        this.auth = new FaceitAuth(this.clientId, this.clientSecret, this.redirectUri);
-        this.accessToken = null;
 
         if (!this.clientId) {
             console.error('[FACEIT] Client ID not found in environment variables');
@@ -22,7 +18,6 @@ class FaceitJS {
 
         console.log('[FACEIT] Initializing with Hub ID:', this.hubId);
         this.setupAxiosInstances();
-        this.setupAuthRoutes(app);
     }
 
     setupAxiosInstances() {
@@ -38,6 +33,15 @@ class FaceitJS {
             }
         });
 
+        // Create axios instance for Chat API requests
+        this.chatApi = axios.create({
+            baseURL: 'https://open.faceit.com/chat/v1',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
         // Add response interceptor for error handling
         const errorHandler = error => {
             console.error('[FACEIT] API Error:', error.message);
@@ -49,44 +53,7 @@ class FaceitJS {
         };
 
         this.api.interceptors.response.use(response => response, errorHandler);
-    }
-
-    setupAuthRoutes(app) {
-        app.get('/callback', async (req, res) => {
-            const { code, state } = req.query;
-
-            // Verify state to prevent CSRF attacks
-            if (!this.auth.verifyState(state)) {
-                console.error('[AUTH] State mismatch');
-                res.status(400).send('Invalid state parameter');
-                return;
-            }
-
-            if (code) {
-                try {
-                    console.log('[AUTH] Received authorization code');
-                    const tokenData = await this.auth.exchangeCodeForToken(code);
-                    console.log('[AUTH] Successfully exchanged code for token');
-                    this.accessToken = tokenData.access_token;
-                    res.send('Authentication successful! You can close this window.');
-                } catch (error) {
-                    console.error('[AUTH] Error exchanging code for token:', error);
-                    res.status(500).send('Authentication failed: ' + error.message);
-                }
-            } else {
-                console.error('[AUTH] No code received in callback');
-                res.status(400).send('No code received');
-            }
-        });
-    }
-
-    async getAuthorizationUrl() {
-        try {
-            return await this.auth.getAuthorizationUrl();
-        } catch (error) {
-            console.error('[AUTH] Error getting authorization URL:', error);
-            throw error;
-        }
+        this.chatApi.interceptors.response.use(response => response, errorHandler);
     }
 
     async getActiveMatches() {
@@ -94,10 +61,31 @@ class FaceitJS {
             console.log('[MATCHES] Fetching active matches');
             console.log('[MATCHES] Using Hub ID:', this.hubId);
 
-            const response = await this.api.get(`/hubs/${this.hubId}/matches?type=ongoing&offset=0&limit=20`);
+            // Get all matches
+            const response = await this.api.get(`/hubs/${this.hubId}/matches?offset=0&limit=20`);
             const matches = response.data.items || [];
-            console.log(`[MATCHES] Retrieved ${matches.length} matches`);
-            return matches;
+
+            // Filter matches to only include those in map veto phase
+            const newMatches = matches.filter(match => {
+                const status = match.status || match.state;
+                return status !== 'CANCELLED' && status !== 'FINISHED' && status !== 'ONGOING';
+            });
+
+            // Get ongoing matches separately
+            const ongoingResponse = await this.api.get(`/hubs/${this.hubId}/matches?type=ongoing&offset=0&limit=20`);
+            const ongoingMatches = ongoingResponse.data.items || [];
+
+            const allMatches = [...newMatches, ...ongoingMatches];
+
+            console.log(`[MATCHES] Retrieved ${allMatches.length} active matches (${newMatches.length} new, ${ongoingMatches.length} ongoing)`);
+
+            // Log each match's details
+            allMatches.forEach(match => {
+                const status = match.status || match.state;
+                console.log(`[MATCH ${match.match_id}] Status: ${status}, Teams: ${match.teams?.faction1?.name || 'TBD'} vs ${match.teams?.faction2?.name || 'TBD'}`);
+            });
+
+            return allMatches;
         } catch (error) {
             console.error('[MATCHES] Error fetching matches:', error.message);
             if (error.response?.data) {
@@ -175,29 +163,40 @@ class FaceitJS {
 
             // Get match details
             const matchResponse = await this.api.get(`/matches/${matchId}`);
+            const match = matchResponse.data;
             console.log(`[CHAT] Got match details for ${matchId}`);
 
-            const roomId = `match-${matchId}`;
+            // Try to get the chat room ID from match details
+            const roomId = match.chat_room_id || `match-${matchId}`;
             console.log(`[CHAT] Using room ID: ${roomId}`);
 
-            // Check if we need to authenticate
-            if (!this.accessToken) {
-                console.log('[CHAT] No access token, starting auth flow');
-                const authUrl = await this.getAuthorizationUrl();
-                return { needsAuth: true, authUrl };
+            // First try to get room details to verify access
+            try {
+                const roomResponse = await axios({
+                    method: 'get',
+                    url: `https://open.faceit.com/chat/v1/rooms/${roomId}`,
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'Authorization': this.serverApiKey
+                    }
+                });
+                console.log(`[CHAT] Got room details:`, roomResponse.data);
+            } catch (error) {
+                console.log(`[CHAT] Could not get room details:`, error.message);
             }
 
-            // Send message using access token
+            // Send message using server API key
             const response = await axios({
                 method: 'post',
-                url: `https://api.faceit.com/chat/v1/rooms/${roomId}/messages`,
+                url: `https://open.faceit.com/chat/v1/rooms/${roomId}/messages`,
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.accessToken}`
+                    'Authorization': this.serverApiKey
                 },
                 data: {
-                    body: message
+                    body: message.replace(/^"|"$/g, '') // Remove any surrounding quotes
                 }
             });
 

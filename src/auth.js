@@ -1,109 +1,49 @@
-const crypto = require('crypto');
 const axios = require('axios');
+const qs = require('querystring');
 
 class FaceitAuth {
-    constructor(clientId, clientSecret, redirectUri) {
+    constructor(clientId, clientSecret) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
-        this.redirectUri = redirectUri;
-        this.endpoints = null;
-        this.codeVerifier = null;
-        this.state = null;
+        this.tokenEndpoint = 'https://api.faceit.com/auth/v1/oauth/token';
     }
 
-    async initialize() {
+    async getAccessToken() {
         try {
-            // Get OpenID configuration
-            const response = await axios.get('https://api.faceit.com/auth/v1/openid_configuration');
-            this.endpoints = response.data;
-            console.log('[AUTH] Initialized with OpenID configuration');
-        } catch (error) {
-            console.error('[AUTH] Error getting OpenID configuration:', error.message);
-            throw error;
-        }
-    }
+            console.log('[AUTH] Getting access token');
+            console.log('[AUTH] Using client ID:', this.clientId);
 
-    generateCodeVerifier() {
-        // Generate a random string of 32 bytes and base64url encode it
-        const verifier = crypto.randomBytes(32).toString('base64')
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=/g, '');
-        this.codeVerifier = verifier;
-        return verifier;
-    }
+            // Create Basic Auth header
+            const credentials = `${this.clientId}:${this.clientSecret}`;
+            const base64Credentials = Buffer.from(credentials).toString('base64');
 
-    async generateCodeChallenge(verifier) {
-        // Create SHA256 hash of the code verifier
-        const hash = crypto.createHash('sha256');
-        hash.update(verifier);
-        // Base64url encode the hash
-        return hash.digest('base64')
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=/g, '');
-    }
+            const data = {
+                grant_type: 'client_credentials',
+                scope: 'openid profile chat.messages.read chat.messages.write chat.rooms.read'
+            };
 
-    generateState() {
-        // Generate a random state parameter to prevent CSRF
-        const state = crypto.randomBytes(16).toString('hex');
-        this.state = state;
-        return state;
-    }
-
-    async getAuthorizationUrl() {
-        if (!this.endpoints) {
-            await this.initialize();
-        }
-
-        const codeVerifier = this.generateCodeVerifier();
-        const codeChallenge = await this.generateCodeChallenge(codeVerifier);
-        const state = this.generateState();
-
-        const params = new URLSearchParams({
-            response_type: 'code',
-            client_id: this.clientId,
-            redirect_uri: this.redirectUri,
-            code_challenge: codeChallenge,
-            code_challenge_method: 'S256',
-            state: state,
-            scope: 'openid profile chat.messages.read chat.messages.write chat.rooms.read'
-        });
-
-        return `${this.endpoints.authorization_endpoint}?${params.toString()}`;
-    }
-
-    async exchangeCodeForToken(code) {
-        if (!this.endpoints || !this.codeVerifier) {
-            throw new Error('Auth not properly initialized');
-        }
-
-        try {
             const response = await axios({
                 method: 'post',
-                url: this.endpoints.token_endpoint,
+                url: this.tokenEndpoint,
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Authorization': `Basic ${base64Credentials}`,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': 'application/json'
                 },
-                data: new URLSearchParams({
-                    grant_type: 'authorization_code',
-                    client_id: this.clientId,
-                    client_secret: this.clientSecret,
-                    code_verifier: this.codeVerifier,
-                    code: code,
-                    redirect_uri: this.redirectUri
-                }).toString()
+                data: qs.stringify(data)
             });
 
-            return response.data;
+            console.log('[AUTH] Successfully got access token');
+            return response.data.access_token;
         } catch (error) {
-            console.error('[AUTH] Error exchanging code for token:', error.message);
+            console.error('[AUTH] Error getting access token:', error.message);
+            if (error.response) {
+                console.error('[AUTH] Response status:', error.response.status);
+                console.error('[AUTH] Response data:', error.response.data);
+                console.error('[AUTH] Response headers:', error.response.headers);
+            }
             throw error;
         }
-    }
-
-    verifyState(receivedState) {
-        return this.state === receivedState;
     }
 }
 

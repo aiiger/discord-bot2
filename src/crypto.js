@@ -1,29 +1,26 @@
 const crypto = require('crypto');
 
-function base64_url_encode(str) {
-    return Buffer.from(str)
-        .toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
+function generateToken() {
+    return crypto.randomBytes(32).toString('hex');
 }
 
-function generateCodeVerifier() {
-    return base64_url_encode(crypto.randomBytes(32));
-}
+function generateAuthHeader(clientId, clientSecret) {
+    const timestamp = Date.now();
+    const nonce = crypto.randomBytes(16).toString('hex');
+    const signature = crypto
+        .createHmac('sha256', clientSecret)
+        .update(`${clientId}${timestamp}${nonce}`)
+        .digest('hex');
 
-function generateCodeChallenge(verifier) {
-    const hash = crypto.createHash('sha256')
-        .update(verifier)
-        .digest('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-    return hash;
+    return {
+        'faceit-auth': clientId,
+        'faceit-nonce': nonce,
+        'faceit-timestamp': timestamp,
+        'faceit-signature': signature
+    };
 }
 
 module.exports = {
-    base64_url_encode,
-    generateCodeVerifier,
-    generateCodeChallenge
+    generateToken,
+    generateAuthHeader
 };

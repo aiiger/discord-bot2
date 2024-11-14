@@ -77,8 +77,8 @@ async function checkMatchesInVeto() {
         if (matches && matches.length > 0) {
             for (const match of matches) {
                 console.log(`[MATCH ${match.match_id}] Status: ${match.status || match.state}`);
-                // Check if match is in veto phase (VOTING state)
-                if (match.status === 'VOTING' || match.state === 'VOTING') {
+                // Check if match is in veto phase (READY or VOTING state)
+                if (match.status === 'READY' || match.status === 'VOTING' || match.state === 'READY' || match.state === 'VOTING') {
                     console.log(`[MATCH ${match.match_id}] Match is in veto phase`);
                     await sendGreetingToMatch(match.match_id, match);
                 }
