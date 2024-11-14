@@ -1,6 +1,7 @@
 // FACEIT OAuth2 Bot with PKCE Support
 const express = require('express');
 const session = require('express-session');
+const cookieParser = require('cookie-parser');
 const Redis = require('ioredis');
 const RedisStore = require('connect-redis').default;
 const { FaceitJS } = require('./FaceitJS.js');
@@ -95,56 +96,44 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 // CORS configuration
 app.use(cors({
-    origin: function (origin, callback) {
-        const allowedOrigins = [
-            'https://accounts.faceit.com',
-            'https://api.faceit.com',
-            'https://open.faceit.com',
-            process.env.REDIRECT_URI
-        ];
-
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-
-        if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            return callback(new Error(msg), false);
-        }
-        return callback(null, true);
-    },
+    origin: true, // Allow all origins
     credentials: true,
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Cookie parser middleware
+app.use(cookieParser(process.env.SESSION_SECRET));
 
 // Session middleware configuration
 const sessionConfig = {
     store: redisStore,
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     rolling: true,
+    proxy: true,
     cookie: {
         secure: isProduction,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'none'
+        sameSite: 'none',
+        path: '/',
+        domain: isProduction ? '.herokuapp.com' : undefined
     }
 };
 
 // Configure session for production
 if (isProduction) {
     app.set('trust proxy', 1);
-    sessionConfig.proxy = true;
-    sessionConfig.cookie.secure = true;
 }
 
 // Apply middleware
 app.use((req, res, next) => {
     // Add CORS headers for all responses
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
     res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Origin', req.headers.origin);
     res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With');
 
@@ -154,6 +143,8 @@ app.use((req, res, next) => {
     }
 
     console.log(`${req.method} ${req.path} - IP: ${req.ip}`);
+    console.log('Headers:', req.headers);
+    console.log('Cookies:', req.cookies);
     next();
 });
 
@@ -175,6 +166,7 @@ const matchStates = new Map(); // matchId -> match state
 app.get('/', (req, res) => {
     console.log('[HOME] Session ID:', req.session.id);
     console.log('[HOME] Access Token:', !!req.session.accessToken);
+    console.log('[HOME] Cookies:', req.cookies);
     res.render('login', { authenticated: !!req.session.accessToken });
 });
 
@@ -187,6 +179,7 @@ app.get('/auth/faceit', async (req, res) => {
         console.log(`[AUTH] Generated state: ${state}`);
         console.log(`[AUTH] Session ID: ${req.session.id}`);
         console.log(`[AUTH] Code verifier length: ${codeVerifier.length}`);
+        console.log('[AUTH] Cookies:', req.cookies);
 
         // Store state and code verifier in session
         req.session.oauthState = state;
@@ -221,6 +214,7 @@ app.get('/callback', async (req, res) => {
     console.log('[CALLBACK] Session ID:', req.session.id);
     console.log('[CALLBACK] Query params:', req.query);
     console.log('[CALLBACK] Headers:', req.headers);
+    console.log('[CALLBACK] Cookies:', req.cookies);
 
     const { code, state } = req.query;
 
@@ -288,6 +282,8 @@ app.get('/callback', async (req, res) => {
 app.get('/dashboard', (req, res) => {
     console.log('[DASHBOARD] Session ID:', req.session.id);
     console.log('[DASHBOARD] Access Token:', !!req.session.accessToken);
+    console.log('[DASHBOARD] Headers:', req.headers);
+    console.log('[DASHBOARD] Cookies:', req.cookies);
 
     if (!req.session.accessToken) {
         console.log('[DASHBOARD] No access token, redirecting to login');
