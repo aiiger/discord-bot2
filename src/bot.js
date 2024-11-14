@@ -1,196 +1,187 @@
 // FACEIT OAuth2 Bot with PKCE Support
-const express = require('express');
-const session = require('express-session');
-const Redis = require('ioredis');
-const RedisStore = require('connect-redis').default;
-const { FaceitJS } = require('./FaceitJS.js');
-const crypto = require('crypto');
-const dotenv = require('dotenv');
-const { Client, GatewayIntentBits } = require('discord.js');
-// const cors = require('cors'); // Temporarily disable CORS for testing
+import express from 'express';
+import session from 'express-session';
+import { FaceitJS } from './FaceitJS.js';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+import { Client, GatewayIntentBits } from 'discord.js';
 
 dotenv.config();
 
-// Initialize Redis client
-let redisClient;
-if (process.env.REDIS_URL) {
-    console.log('[REDIS] Connecting to Redis using REDIS_URL');
-    redisClient = new Redis(process.env.REDIS_URL, {
-        tls: { rejectUnauthorized: false }
-    });
-} else {
-    console.log('[REDIS] Connecting to local Redis');
-    redisClient = new Redis();
-}
-
-redisClient.on('error', (err) => console.log('[REDIS] Error:', err));
-redisClient.on('connect', () => console.log('[REDIS] Connected successfully'));
-
-// Create Redis store
-const redisStore = new RedisStore({ client: redisClient, prefix: 'faceit:' });
-
-// Validate environment variables
+// Validate required environment variables
 const requiredEnvVars = [
-    'SESSION_SECRET', 'CLIENT_ID', 'CLIENT_SECRET',
-    'REDIRECT_URI', 'HUB_ID', 'DISCORD_TOKEN', 'FACEIT_API_KEY'
+    'SESSION_SECRET',
+    'CLIENT_ID',
+    'CLIENT_SECRET',
+    'REDIRECT_URI',
+    'HUB_ID',
+    'DISCORD_TOKEN',
+    'FACEIT_API_KEY'
 ];
 
-const redirectUriPattern = /^(http:\/\/localhost:\d+\/callback|https:\/\/[\w.-]+\.herokuapp\.com\/callback)$/;
 const patterns = {
     SESSION_SECRET: /^[a-f0-9]{128}$/,
     CLIENT_ID: /^[\w-]{36}$/,
-    CLIENT_SECRET: /^.{30,50}$/,
-    REDIRECT_URI: redirectUriPattern,
+    CLIENT_SECRET: /^[\w]{40}$/,
+    REDIRECT_URI: /^https:\/\/[\w.-]+\.herokuapp\.com\/callback$/,
     HUB_ID: /^[\w-]{36}$/,
-    FACEIT_API_KEY: /^[\w-]{36}$/,
-    DISCORD_TOKEN: /.+/ // Accept any non-empty string for Discord token
+    FACEIT_API_KEY: /^[\w-]{36}$/
 };
 
-requiredEnvVars.forEach(varName => {
+const validators = {
+    SESSION_SECRET: (secret) => patterns.SESSION_SECRET.test(secret),
+    CLIENT_ID: (id) => patterns.CLIENT_ID.test(id),
+    CLIENT_SECRET: (secret) => patterns.CLIENT_SECRET.test(secret),
+    REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
+    HUB_ID: (id) => patterns.HUB_ID.test(id),
+    DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0,
+    FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key)
+};
+
+for (const varName of requiredEnvVars) {
     const value = process.env[varName];
-    if (!value || (patterns[varName] && !patterns[varName].test(value))) {
-        console.error(`Invalid or missing environment variable: ${varName}`);
+    if (!value) {
+        console.error(`Missing required environment variable: ${varName}`);
         process.exit(1);
     }
-});
+
+    if (!validators[varName](value)) {
+        console.error(`Invalid format for ${varName}: ${value}`);
+        console.error(`Expected format: ${patterns[varName]}`);
+        process.exit(1);
+    }
+}
 
 console.log('Environment variables validated successfully');
 
 // Initialize Express
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Initialize FaceitJS instance
 const faceitJS = new FaceitJS();
-const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+
+// Force production mode for Heroku
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Session middleware configuration with in-memory storage
+const sessionMiddleware = session({
+    secret: process.env.SESSION_SECRET,
+    name: 'faceit_session',
+    resave: true,
+    saveUninitialized: true,
+    cookie: {
+        secure: isProduction,
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000,
+        sameSite: 'lax'
+    },
+    rolling: true
 });
 
-// Function to ensure valid access token
-async function ensureValidAccessToken() {
-    if (!faceitJS.accessToken) return;
+// Store for rehost votes and match states
+const rehostVotes = new Map(); // matchId -> Set of player IDs who voted
+const matchStates = new Map(); // matchId -> match state
 
-    try {
-        // Check if the token is valid
-        await faceitJS.api.get('/user');
-    } catch (error) {
-        if (error.response && error.response.status === 401) {
-            console.log('[AUTH] Access token expired. Refreshing...');
-            const refreshedTokens = await faceitJS.refreshToken(faceitJS.refreshToken);
-            faceitJS.setAccessToken(refreshedTokens.access_token);
-            console.log('[AUTH] Access token refreshed successfully');
-        } else {
-            throw error;
-        }
-    }
-}
+// Apply middleware
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path} - IP: ${req.ip}`);
+    next();
+});
 
-// Middleware and session setup
-// app.use(cors()); // Disable CORS for testing
+app.use(sessionMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Adjust session settings
-app.use(session({
-    store: redisStore,
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: true, // Set to true to ensure sessions are saved
-    cookie: {
-        secure: process.env.NODE_ENV === 'production', // Ensure secure cookies in production
-        httpOnly: true,
-        maxAge: 86400000,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // Adjust sameSite based on environment
-    }
-}));
-
+// Set view engine
 app.set('view engine', 'ejs');
 
 // Initialize Discord client
-client.login(process.env.DISCORD_TOKEN)
-    .then(() => console.log('Discord bot logged in successfully'))
-    .catch(error => console.error('Failed to login to Discord:', error));
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-// Handle home route
+// Add home route
 app.get('/', (req, res) => {
-    console.log('[HOME] Session ID:', req.session.id);
     res.render('login', { authenticated: !!req.session.accessToken });
 });
 
-// Handle Faceit authentication
-app.get('/auth/faceit', async (req, res) => {
+// Add login route
+app.get('/login', async (req, res) => {
     try {
         const state = crypto.randomBytes(32).toString('hex');
         const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
 
+        console.log(`Generated state: ${state} and code verifier for session: ${req.session.id}`);
+
+        // Store state and code verifier in session
         req.session.oauthState = state;
         req.session.codeVerifier = codeVerifier;
 
-        console.log('[AUTH] Generated state:', state);
-        console.log('[AUTH] Generated codeVerifier:', codeVerifier);
+        // Ensure session is saved before redirect
+        req.session.save((err) => {
+            if (err) {
+                console.error('Failed to save session:', err);
+                return res.status(500).send('Internal server error');
+            }
 
-        res.redirect(url);
+            console.log(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
+            res.redirect(url);
+        });
     } catch (error) {
-        console.error('[AUTH] Error:', error);
-        res.status(500).render('error', { message: 'Internal Server Error' });
+        console.error('Error in login route:', error);
+        res.status(500).send('Internal server error');
     }
 });
 
-// Handle Faceit OAuth callback
+// Add callback route
 app.get('/callback', async (req, res) => {
     const { code, state } = req.query;
 
-    console.log('[CALLBACK] Received code:', code);
-    console.log('[CALLBACK] Received state:', state);
-    console.log('[CALLBACK] Session oauthState:', req.session.oauthState);
-    console.log('[CALLBACK] Session codeVerifier:', req.session.codeVerifier);
-
-    if (!state || state !== req.session.oauthState) {
-        console.error('[CALLBACK] Invalid state parameter');
-        return res.status(400).render('error', { message: 'Invalid State' });
-    }
+    console.log(`Callback received - Session ID: ${req.session.id}`);
+    console.log(`State from query: ${state}`);
+    console.log(`State from session: ${req.session.oauthState}`);
 
     try {
+        // Verify state parameter
+        if (!state || state !== req.session.oauthState) {
+            console.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
+            return res.status(400).send('Invalid state parameter. Please try logging in again.');
+        }
+
+        // Exchange the authorization code for tokens
         const tokens = await faceitJS.exchangeCodeForToken(code, req.session.codeVerifier);
+
+        // Store tokens in session
         req.session.accessToken = tokens.access_token;
         req.session.refreshToken = tokens.refresh_token;
-        faceitJS.setAccessToken(tokens.access_token);
 
-        res.redirect('/dashboard');
+        // Ensure session is saved before sending response
+        req.session.save((err) => {
+            if (err) {
+                console.error('Failed to save session with tokens:', err);
+                return res.status(500).send('Internal server error');
+            }
+
+            console.log('Successfully authenticated with FACEIT');
+            res.send('Authentication successful! You can close this window.');
+        });
     } catch (error) {
-        console.error('[CALLBACK] Error:', error);
-        res.status(500).render('error', { message: 'Authentication Failed' });
+        console.error('Error during OAuth callback:', error.message);
+        console.error('Full error:', error);
+        res.status(500).send('Authentication failed. Please try logging in again.');
     }
 });
-
-// Handle dashboard route
-app.get('/dashboard', (req, res) => {
-    if (!req.session.accessToken) return res.redirect('/');
-    res.render('dashboard', {
-        authenticated: true,
-        discordConnected: client.isReady(),
-        faceitConnected: !!faceitJS.accessToken,
-        matchPollingActive: !!faceitJS.pollingInterval
-    });
-});
-
-// Start polling for match state if not already running
-if (!faceitJS.pollingInterval) {
-    faceitJS.startPolling();
-    console.log('[CALLBACK] Match state polling initialized');
-}
 
 // Handle match state changes
 faceitJS.on('matchStateChange', async (match) => {
     try {
-        await ensureValidAccessToken();
+        console.log(`Match ${match.id} state changed to ${match.state}`);
+        matchStates.set(match.id, match.state);
+
+        // Get match details including chat room info
         const matchDetails = await faceitJS.getMatchDetails(match.id);
 
+        // Send greeting when match starts
         if (match.state === 'READY') {
-            const roomId = match.chat_room_id || `match-${match.id}`;
-            if (!roomId) {
-                console.error(`[CHAT] No valid room ID for match ${match.id}`);
-                return;
-            }
-
             const players = matchDetails.teams.faction1.roster.concat(matchDetails.teams.faction2.roster);
             const playerNames = players.map(p => p.nickname).join(', ');
             const greeting = `Welcome to the match, ${playerNames}! Good luck and have fun!`;
@@ -203,7 +194,7 @@ faceitJS.on('matchStateChange', async (match) => {
             }
         }
     } catch (error) {
-        console.error('Error handling match state change:', error);
+        console.error('[CHAT] Error handling match state change:', error);
     }
 });
 
