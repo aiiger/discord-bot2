@@ -17,6 +17,16 @@ A Discord bot for monitoring FACEIT matches and managing chat interactions.
 - A FACEIT Hub ID
 - A Heroku account
 
+## FACEIT Application Setup
+
+1. Go to the [FACEIT Developer Portal](https://developers.faceit.com/apps)
+2. Create or select your application
+3. In the OAuth2 Configuration section, enable the following scopes:
+   - chat.messages.read
+   - chat.messages.write
+   - chat.rooms.read
+4. Save your changes
+
 ## Deployment to Heroku
 
 1. Create a new Heroku app:
@@ -60,3 +70,21 @@ A Discord bot for monitoring FACEIT matches and managing chat interactions.
 4. Start the bot: `npm start`
 
 Note: Local development requires configuring the FACEIT application to accept localhost as a redirect URI. For production, use the Heroku deployment.
+
+## Troubleshooting
+
+### Invalid Scope Error
+
+If you encounter an error like `{"errors":[{"message":"Invalid scope: chat","code":"AUTH","http_status":400,"parameters":null}]}`, make sure:
+
+1. You have enabled the specific chat scopes in your FACEIT Developer Portal:
+   - chat.messages.read
+   - chat.messages.write
+   - chat.rooms.read
+
+2. Your application is using these exact scope names in the authorization request. The generic 'chat' scope is not valid - you must use the specific scope names listed above.
+
+3. After making changes to scopes in the Developer Portal, you may need to:
+   - Clear your browser cookies/cache
+   - Revoke the application's access in your FACEIT account settings
+   - Try authenticating again

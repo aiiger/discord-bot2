@@ -173,6 +173,12 @@ app.get('/callback', async (req, res) => {
         // Set the access token in FaceitJS instance
         faceitJS.setAccessToken(tokens.access_token);
 
+        // Start match state polling after successful authentication
+        if (!faceitJS.pollingInterval) {
+            faceitJS.startPolling();
+            console.log('Started FACEIT match state polling after authentication');
+        }
+
         // Ensure session is saved before sending response
         req.session.save((err) => {
             if (err) {
@@ -200,6 +206,15 @@ app.get('/callback', async (req, res) => {
 app.get('/dashboard', (req, res) => {
     if (!req.session.accessToken) {
         return res.redirect('/');
+    }
+
+    // Set the access token in FaceitJS instance (in case of page refresh)
+    faceitJS.setAccessToken(req.session.accessToken);
+
+    // Start polling if not already started
+    if (!faceitJS.pollingInterval) {
+        faceitJS.startPolling();
+        console.log('Started FACEIT match state polling from dashboard');
     }
 
     // Pass bot status to the dashboard template
@@ -373,9 +388,6 @@ process.on('uncaughtException', (error) => {
 client.login(process.env.DISCORD_TOKEN)
     .then(() => {
         console.log('Discord bot logged in successfully');
-        // Start match state polling after successful Discord login
-        faceitJS.startPolling();
-        console.log('Started FACEIT match state polling');
     })
     .catch(error => {
         console.error('Failed to login to Discord:', error);
