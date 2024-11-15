@@ -5,6 +5,9 @@ const { FaceitJS } = require('./FaceitJS.js');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
 const { Client, GatewayIntentBits } = require('discord.js');
+const Redis = require('ioredis');
+const RedisStore = require('connect-redis').default;
+const authRouter = require('./auth');
 
 dotenv.config();
 
@@ -64,19 +67,28 @@ const faceitJS = new FaceitJS();
 // Force production mode for Heroku
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Session middleware configuration with in-memory storage
+// Initialize Redis client
+let redisClient;
+if (process.env.REDIS_URL) {
+    redisClient = new Redis(process.env.REDIS_URL);
+} else {
+    console.warn('No REDIS_URL found, falling back to local Redis');
+    redisClient = new Redis();
+}
+
+// Session middleware configuration with Redis storage
 const sessionMiddleware = session({
+    store: new RedisStore({ client: redisClient }),
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     cookie: {
         secure: isProduction,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax'
-    },
-    rolling: true
+    }
 });
 
 // Store for rehost votes and match states
@@ -99,76 +111,12 @@ app.set('view engine', 'ejs');
 // Initialize Discord client
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
+// Mount auth router
+app.use('/auth', authRouter);
+
 // Add home route
 app.get('/', (req, res) => {
     res.render('login', { authenticated: !!req.session.accessToken });
-});
-
-// Add login route
-app.get('/login', async (req, res) => {
-    try {
-        const state = crypto.randomBytes(32).toString('hex');
-        const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
-
-        console.log(`Generated state: ${state} and code verifier for session: ${req.session.id}`);
-
-        // Store state and code verifier in session
-        req.session.oauthState = state;
-        req.session.codeVerifier = codeVerifier;
-
-        // Ensure session is saved before redirect
-        req.session.save((err) => {
-            if (err) {
-                console.error('Failed to save session:', err);
-                return res.status(500).send('Internal server error');
-            }
-
-            console.log(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
-            res.redirect(url);
-        });
-    } catch (error) {
-        console.error('Error in login route:', error);
-        res.status(500).send('Internal server error');
-    }
-});
-
-// Add callback route
-app.get('/callback', async (req, res) => {
-    const { code, state } = req.query;
-
-    console.log(`Callback received - Session ID: ${req.session.id}`);
-    console.log(`State from query: ${state}`);
-    console.log(`State from session: ${req.session.oauthState}`);
-
-    try {
-        // Verify state parameter
-        if (!state || state !== req.session.oauthState) {
-            console.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
-            return res.status(400).send('Invalid state parameter. Please try logging in again.');
-        }
-
-        // Exchange the authorization code for tokens
-        const tokens = await faceitJS.exchangeCodeForToken(code, req.session.codeVerifier);
-
-        // Store tokens in session
-        req.session.accessToken = tokens.access_token;
-        req.session.refreshToken = tokens.refresh_token;
-
-        // Ensure session is saved before sending response
-        req.session.save((err) => {
-            if (err) {
-                console.error('Failed to save session with tokens:', err);
-                return res.status(500).send('Internal server error');
-            }
-
-            console.log('Successfully authenticated with FACEIT');
-            res.send('Authentication successful! You can close this window.');
-        });
-    } catch (error) {
-        console.error('Error during OAuth callback:', error.message);
-        console.error('Full error:', error);
-        res.status(500).send('Authentication failed. Please try logging in again.');
-    }
 });
 
 // Handle match state changes
