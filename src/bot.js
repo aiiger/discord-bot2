@@ -1,10 +1,10 @@
 // FACEIT OAuth2 Bot with PKCE Support
-import express from 'express';
-import session from 'express-session';
-import { FaceitJS } from './FaceitJS.js';
-import crypto from 'crypto';
-import dotenv from 'dotenv';
-import { Client, GatewayIntentBits } from 'discord.js';
+const express = require('express');
+const session = require('express-session');
+const { FaceitJS } = require('./FaceitJS.js');
+const crypto = require('crypto');
+const dotenv = require('dotenv');
+const { Client, GatewayIntentBits } = require('discord.js');
 
 dotenv.config();
 
@@ -34,7 +34,7 @@ const validators = {
     CLIENT_SECRET: (secret) => patterns.CLIENT_SECRET.test(secret),
     REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
     HUB_ID: (id) => patterns.HUB_ID.test(id),
-    DISCORD_TOKEN: (token) => typeof token === 'string' && token length > 0,
+    DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0,
     FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key)
 };
 
@@ -142,33 +142,33 @@ app.get('/callback', async (req, res) => {
 
     try {
         // Verify state parameter
-        if (!state or state !== req.session.oauthState) {
-    console.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
-    return res.status(400).send('Invalid state parameter. Please try logging in again.');
-}
+        if (!state || state !== req.session.oauthState) {
+            console.error(`State mismatch - Session State: ${req.session.oauthState}, Received State: ${state}`);
+            return res.status(400).send('Invalid state parameter. Please try logging in again.');
+        }
 
-// Exchange the authorization code for tokens
-const tokens = await faceitJS.exchangeCodeForToken(code, req.session.codeVerifier);
+        // Exchange the authorization code for tokens
+        const tokens = await faceitJS.exchangeCodeForToken(code, req.session.codeVerifier);
 
-// Store tokens in session
-req.session.accessToken = tokens.access_token;
-req.session.refreshToken = tokens.refresh_token;
+        // Store tokens in session
+        req.session.accessToken = tokens.access_token;
+        req.session.refreshToken = tokens.refresh_token;
 
-// Ensure session is saved before sending response
-req.session.save((err) => {
-    if (err) {
-        console.error('Failed to save session with tokens:', err);
-        return res.status(500).send('Internal server error');
-    }
+        // Ensure session is saved before sending response
+        req.session.save((err) => {
+            if (err) {
+                console.error('Failed to save session with tokens:', err);
+                return res.status(500).send('Internal server error');
+            }
 
-    console.log('Successfully authenticated with FACEIT');
-    res.send('Authentication successful! You can close this window.');
-});
+            console.log('Successfully authenticated with FACEIT');
+            res.send('Authentication successful! You can close this window.');
+        });
     } catch (error) {
-    console.error('Error during OAuth callback:', error.message);
-    console.error('Full error:', error);
-    res.status(500).send('Authentication failed. Please try logging in again.');
-}
+        console.error('Error during OAuth callback:', error.message);
+        console.error('Full error:', error);
+        res.status(500).send('Authentication failed. Please try logging in again.');
+    }
 });
 
 // Handle match state changes
