@@ -1,11 +1,11 @@
-import express from 'express';
-import crypto from 'crypto';
-import { FaceitJS } from './FaceitJS.js';
+const express = require('express');
+const crypto = require('crypto');
+const { FaceitJS } = require('../FaceitJS.js');
 
 const router = express.Router();
 const faceitJS = new FaceitJS();
 
-router.get('/faceit', async (req, res) => {
+router.get('/auth/faceit', async (req, res) => {
     try {
         const state = crypto.randomBytes(32).toString('hex');
         const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
@@ -42,7 +42,7 @@ router.get('/faceit', async (req, res) => {
     }
 });
 
-router.get('/callback', async (req, res) => {
+router.get('/auth/callback', async (req, res) => {
     console.log('[CALLBACK] Received callback request');
     console.log('[CALLBACK] Session ID:', req.session.id);
     console.log('[CALLBACK] Query params:', req.query);
@@ -79,11 +79,15 @@ router.get('/callback', async (req, res) => {
         req.session.refreshToken = tokens.refresh_token;
 
         // Set the access token in FaceitJS instance
-        faceitJS.setAccessToken(tokens.access_token);
+        req.app.locals.faceitJS.setAccessToken(tokens.access_token);
+
+        // Get user info
+        const userInfo = await req.app.locals.faceitJS.getUserInfo();
+        req.session.userInfo = userInfo;
 
         // Start match state polling after successful authentication
-        if (!faceitJS.pollingInterval) {
-            faceitJS.startPolling();
+        if (!req.app.locals.faceitJS.pollingInterval) {
+            req.app.locals.faceitJS.startPolling();
             console.log('[CALLBACK] Started FACEIT match state polling');
         }
 
@@ -111,4 +115,4 @@ router.get('/callback', async (req, res) => {
     }
 });
 
-export default router;
+module.exports = router;
