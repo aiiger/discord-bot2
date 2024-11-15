@@ -1,11 +1,10 @@
 // FACEIT OAuth2 Bot with PKCE Support
-const express = require('express');
-const session = require('express-session');
-const { FaceitJS } = require('./FaceitJS.js');
-const crypto = require('crypto');
-const dotenv = require('dotenv');
-const { Client, GatewayIntentBits } = require('discord.js');
-const authRouter = require('./auth');
+import express from 'express';
+import session from 'express-session';
+import { FaceitJS } from './FaceitJS.js';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+import { Client, GatewayIntentBits } from 'discord.js';
 
 dotenv.config();
 
@@ -65,19 +64,20 @@ const faceitJS = new FaceitJS();
 // Force production mode for Heroku
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Basic session configuration with MemoryStore
-app.use(session({
+// Session middleware configuration with in-memory storage
+const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET,
     name: 'faceit_session',
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     cookie: {
         secure: isProduction,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
         sameSite: 'lax'
-    }
-}));
+    },
+    rolling: true
+});
 
 // Store for rehost votes and match states
 const rehostVotes = new Map(); // matchId -> Set of player IDs who voted
@@ -89,6 +89,7 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use(sessionMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -97,9 +98,6 @@ app.set('view engine', 'ejs');
 
 // Initialize Discord client
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
-
-// Mount auth router
-app.use('/auth', authRouter);
 
 // Add home route
 app.get('/', (req, res) => {
@@ -112,7 +110,9 @@ app.get('/login', async (req, res) => {
         const state = crypto.randomBytes(32).toString('hex');
         const { url, codeVerifier } = await faceitJS.getAuthorizationUrl(state);
 
-        console.log(`Generated state: ${state} and code verifier for session: ${req.session.id}`);
+        console.log(`[AUTH] Generated state: ${state}`);
+        console.log(`[AUTH] Session ID: ${req.session.id}`);
+        console.log(`[AUTH] Code verifier length: ${codeVerifier.length}`);
 
         // Store state and code verifier in session
         req.session.oauthState = state;
@@ -121,15 +121,16 @@ app.get('/login', async (req, res) => {
         // Ensure session is saved before redirect
         req.session.save((err) => {
             if (err) {
-                console.error('Failed to save session:', err);
+                console.error('[AUTH] Failed to save session:', err);
                 return res.status(500).send('Internal server error');
             }
 
-            console.log(`Login initiated - Session ID: ${req.session.id}, State: ${state}`);
+            console.log('[AUTH] Session saved successfully');
+            console.log(`[AUTH] Redirecting to: ${url}`);
             res.redirect(url);
         });
     } catch (error) {
-        console.error('Error in login route:', error);
+        console.error('[AUTH] Error in login route:', error);
         res.status(500).send('Internal server error');
     }
 });
@@ -203,4 +204,4 @@ faceitJS.on('matchStateChange', async (match) => {
 // Start the Express server
 app.listen(port, () => console.log(`Server running on port ${port}`));
 
-module.exports = app;
+export default app;
