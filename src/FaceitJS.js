@@ -1,9 +1,9 @@
-const axios = require('axios');
-const crypto = require('crypto');
-const base64url = require('base64url');
-const EventEmitter = require('events');
+import axios from 'axios';
+import crypto from 'crypto';
+import base64url from 'base64url';
+import { EventEmitter } from 'events';
 
-class FaceitJS extends EventEmitter {
+export class FaceitJS extends EventEmitter {
     constructor() {
         super();
         console.log('[FACEIT] Client ID loaded successfully');
@@ -271,5 +271,3 @@ class FaceitJS extends EventEmitter {
         }
     }
 }
-
-module.exports = { FaceitJS };

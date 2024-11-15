@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 function generateRandomString(length) {
     return crypto.randomBytes(length).toString('base64url');
@@ -19,7 +19,7 @@ function generateState() {
     return crypto.randomBytes(32).toString('hex');
 }
 
-module.exports = {
+export {
     generateRandomString,
     generateCodeVerifier,
     generateCodeChallenge,

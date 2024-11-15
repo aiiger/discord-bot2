@@ -22,8 +22,8 @@ const requiredEnvVars = [
 const patterns = {
     SESSION_SECRET: /^[a-f0-9]{128}$/,
     CLIENT_ID: /^[\w-]{36}$/,
-    CLIENT_SECRET: /^[\w]{40}$/,
-    REDIRECT_URI: /^https:\/\/[\w.-]+\.herokuapp\.com\/callback$/,
+    CLIENT_SECRET: /^[\w-]{39}$/,  // Updated to match 39 characters
+    REDIRECT_URI: /^https?:\/\/[\w.-]+(?::\d+)?\/callback$/,  // Updated to allow localhost
     HUB_ID: /^[\w-]{36}$/,
     FACEIT_API_KEY: /^[\w-]{36}$/
 };
@@ -35,7 +35,7 @@ const validators = {
     REDIRECT_URI: (uri) => patterns.REDIRECT_URI.test(uri),
     HUB_ID: (id) => patterns.HUB_ID.test(id),
     DISCORD_TOKEN: (token) => typeof token === 'string' && token.length > 0,
-    FACEIT_API_KEY: (key) => patterns.FACEIT_API_KEY.test(key)
+    FACEIT_API_KEY: (key) => typeof key === 'string' && key.length > 0  // Updated to be more lenient
 };
 
 for (const varName of requiredEnvVars) {

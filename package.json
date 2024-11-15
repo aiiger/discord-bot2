@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A Discord bot for FACEIT match monitoring",
   "main": "src/bot.js",
-  "type": "commonjs",
+  "type": "module",
   "engines": {
     "node": ">=16.9.0"
   },
@@ -14,6 +14,7 @@
   "dependencies": {
     "axios": "^1.6.2",
     "base64url": "^3.0.1",
+    "connect-redis": "^7.1.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "discord.js": "^14.14.1",
@@ -23,7 +24,9 @@
     "express-rate-limit": "^7.1.4",
     "express-session": "^1.17.3",
     "helmet": "^7.1.0",
+    "ioredis": "^5.3.2",
     "open": "^10.1.0",
+    "session-file-store": "^1.5.0",
     "socket.io-client": "^4.8.1",
     "ws": "^8.18.0"
   },

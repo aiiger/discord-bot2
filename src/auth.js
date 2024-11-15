@@ -1,8 +1,8 @@
-const express = require('express');
-const router = express.Router();
-const { FaceitJS } = require('./FaceitJS');
-const crypto = require('crypto');
+import express from 'express';
+import crypto from 'crypto';
+import { FaceitJS } from './FaceitJS.js';
 
+const router = express.Router();
 const faceitJS = new FaceitJS();
 
 router.get('/faceit', async (req, res) => {
@@ -111,4 +111,4 @@ router.get('/callback', async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;
