@@ -1,3 +1,4 @@
+// Example conflict markers in auth.js
 const crypto = require('crypto');
 const axios = require('axios');
 
