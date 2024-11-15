@@ -22,7 +22,7 @@ const requiredEnvVars = [
 const patterns = {
     SESSION_SECRET: /^[a-f0-9]{128}$/,
     CLIENT_ID: /^[\w-]{36}$/,
-    CLIENT_SECRET: /^[\w-]{39}$/,  // Updated to match 39 characters
+    CLIENT_SECRET: /^[\w-]+$/,  // Modified to accept any length of word chars and hyphens
     REDIRECT_URI: /^https?:\/\/[\w.-]+(?::\d+)?\/callback$/,  // Updated to allow localhost
     HUB_ID: /^[\w-]{36}$/,
     FACEIT_API_KEY: /^[\w-]{36}$/
